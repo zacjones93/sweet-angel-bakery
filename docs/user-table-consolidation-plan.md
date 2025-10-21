@@ -42,7 +42,7 @@ Consolidate both tables into a single `userTable` that supports all user types a
 4. **Backward compatible** - Preserve existing functionality
 5. **Data integrity** - No orphaned records or broken references
 
-## Database Schema Changes
+## Database Schema Changes (✅ Commit: b1c635d)
 
 ### Updated `userTable` Schema
 

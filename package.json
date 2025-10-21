@@ -89,6 +89,7 @@
     "@simplewebauthn/types": "^12.0.0",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/ms": "^0.7.34",
     "@types/node": "^20.19.21",
     "@types/react": "^19",
