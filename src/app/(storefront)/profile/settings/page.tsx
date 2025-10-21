@@ -1,22 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { getProfileSettingsAction, updateProfileSettingsAction } from "../_actions/profile-settings.action";
+import {
+  getProfileSettingsAction,
+  updateProfileSettingsAction,
+} from "../_actions/profile-settings.action";
 import { useServerAction } from "zsa-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callback");
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const { execute: getSettings, isPending: isLoading } = useServerAction(getProfileSettingsAction);
-  const { execute: updateSettings, isPending: isUpdating, error } = useServerAction(updateProfileSettingsAction);
+  const { execute: getSettings, isPending: isLoading } = useServerAction(
+    getProfileSettingsAction
+  );
+  const {
+    execute: updateSettings,
+    isPending: isUpdating,
+    error,
+  } = useServerAction(updateProfileSettingsAction);
 
   useEffect(() => {
     async function loadSettings() {
@@ -41,7 +61,12 @@ export default function SettingsPage() {
     });
 
     if (!err) {
-      alert("Settings saved successfully!");
+      if (callbackUrl) {
+        // Redirect back to callback URL
+        router.push(callbackUrl);
+      } else {
+        alert("Settings saved successfully!");
+      }
     }
   }
 
@@ -56,9 +81,13 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-display font-bold mb-2">Account Settings</h2>
+        <h2 className="text-2xl font-display font-bold mb-2">
+          Account Settings
+        </h2>
         <p className="text-muted-foreground">
-          Update your personal information
+          {callbackUrl
+            ? "Update your information and we'll return you to checkout"
+            : "Update your personal information"}
         </p>
       </div>
 
@@ -105,7 +134,8 @@ export default function SettingsPage() {
                 className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">
-                Email cannot be changed. Contact support if you need to update your email.
+                Email cannot be changed. Contact support if you need to update
+                your email.
               </p>
             </div>
 
@@ -119,7 +149,8 @@ export default function SettingsPage() {
                 onChange={(e) => setPhone(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Used for SMS notifications. You can manage SMS preferences in the Notifications tab.
+                Used for SMS notifications. You can manage SMS preferences in
+                the Notifications tab.
               </p>
             </div>
 
@@ -135,6 +166,8 @@ export default function SettingsPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
                 </>
+              ) : callbackUrl ? (
+                "Save & Return to Checkout"
               ) : (
                 "Save Changes"
               )}
@@ -146,9 +179,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Loyalty Program Membership</CardTitle>
-          <CardDescription>
-            You're a valued loyalty member
-          </CardDescription>
+          <CardDescription>You're a valued loyalty member</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -166,7 +197,7 @@ export default function SettingsPage() {
             <p className="text-sm font-medium mb-2">Your Benefits:</p>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Early access to product drops (24h before public)</li>
-              <li>• Email notifications for new flavors</li>
+              <li>• Email notifications for new products</li>
               <li>• Order history and tracking</li>
               <li>• Optional SMS updates</li>
             </ul>

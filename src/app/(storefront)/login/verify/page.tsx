@@ -33,9 +33,9 @@ export default function VerifyMagicLinkPage() {
 
       setStatus("success");
 
-      // Redirect to profile after 2 seconds
+      // Redirect to callback URL or profile after 2 seconds
       setTimeout(() => {
-        router.push("/profile");
+        router.push(data?.callback || "/profile");
       }, 2000);
     }
 

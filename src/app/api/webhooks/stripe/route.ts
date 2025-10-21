@@ -4,9 +4,10 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getDB } from "@/db";
-import { orderTable, orderItemTable, productTable, loyaltyCustomerTable, ORDER_STATUS } from "@/db/schema";
+import { orderTable, orderItemTable, productTable, loyaltyCustomerTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { calculateTax } from "@/utils/tax";
+import type { OrderItemCustomizations, SizeVariantsConfig } from "@/types/customizations";
 
 export const runtime = "edge";
 
@@ -55,11 +56,11 @@ export async function POST(req: NextRequest) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const db = getDB();
-        // Update order status if needed
+        // Update payment status if needed
         if (paymentIntent.metadata?.orderId) {
           await db
             .update(orderTable)
-            .set({ status: ORDER_STATUS.PAID })
+            .set({ paymentStatus: PAYMENT_STATUS.PAID })
             .where(eq(orderTable.id, paymentIntent.metadata.orderId));
         }
         break;
@@ -68,11 +69,11 @@ export async function POST(req: NextRequest) {
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const db = getDB();
-        // Mark order as payment failed
+        // Mark payment as failed
         if (paymentIntent.metadata?.orderId) {
           await db
             .update(orderTable)
-            .set({ status: ORDER_STATUS.PAYMENT_FAILED })
+            .set({ paymentStatus: PAYMENT_STATUS.FAILED })
             .where(eq(orderTable.id, paymentIntent.metadata.orderId));
         }
         break;
@@ -94,13 +95,21 @@ export async function POST(req: NextRequest) {
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   // Extract metadata
-  const items: Array<{ productId: string; quantity: number }> = JSON.parse(
+  const items: Array<{
+    productId: string;
+    quantity: number;
+    customizations?: OrderItemCustomizations;
+    name: string;
+    price: number;
+  }> = JSON.parse(
     session.metadata?.items || "[]"
   );
   const customerName = session.metadata?.customerName || "Guest";
   const customerEmail = session.customer_email || session.customer_details?.email || "";
   const customerPhone = session.metadata?.customerPhone || "";
+  const joinLoyalty = session.metadata?.joinLoyalty === "true";
   const smsOptIn = session.metadata?.smsOptIn === "true";
+  const existingLoyaltyCustomerId = session.metadata?.loyaltyCustomerId || "";
 
   if (!items.length) {
     console.error("No items in session metadata");
@@ -117,20 +126,25 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  // Calculate totals
+  // Calculate totals (use prices from cart items which account for variants)
   const subtotal = items.reduce((sum, item) => {
-    const product = productMap.get(item.productId);
-    if (!product) return sum;
-    return sum + product.price * item.quantity;
+    return sum + item.price * item.quantity;
   }, 0);
 
-  // Simple tax calculation (adjust as needed)
-  const tax = Math.round(subtotal * 0.08); // 8% tax
+  // Calculate Idaho sales tax (6% for Boise/Caldwell)
+  const tax = calculateTax(subtotal);
   const totalAmount = subtotal + tax;
 
-  // Create or find loyalty customer
+  // Handle loyalty customer ID
   let loyaltyCustomerId: string | undefined;
-  if (customerEmail) {
+
+  // If customer is already logged in as loyalty member, use their ID
+  if (existingLoyaltyCustomerId) {
+    loyaltyCustomerId = existingLoyaltyCustomerId;
+    console.log(`Using existing loyalty customer ID: ${loyaltyCustomerId}`);
+  }
+  // Otherwise, create or find loyalty customer if they opted in
+  else if (customerEmail && joinLoyalty) {
     try {
       // Check if loyalty customer exists
       const [existing] = await db
@@ -183,7 +197,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       subtotal,
       tax,
       totalAmount,
-      status: ORDER_STATUS.PAID,
+      paymentStatus: PAYMENT_STATUS.PAID, // Payment successful
+      status: ORDER_STATUS.PENDING, // Processing - order received, awaiting bakery confirmation
       stripePaymentIntentId: session.payment_intent as string,
       loyaltyCustomerId: loyaltyCustomerId || null,
     })
@@ -202,16 +217,45 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       orderId: order.id,
       productId: item.productId,
       quantity: item.quantity,
-      priceAtPurchase: product.price,
+      priceAtPurchase: item.price, // Use actual purchase price from cart
+      customizations: item.customizations ? JSON.stringify(item.customizations) : null,
     });
 
-    // Reduce inventory - CRITICAL: Use SQL to prevent race conditions
-    await db
-      .update(productTable)
-      .set({
-        quantityAvailable: sql`${productTable.quantityAvailable} - ${item.quantity}`,
-      })
-      .where(eq(productTable.id, item.productId));
+    // Reduce inventory - handle variants
+    const productCustomizations = product.customizations
+      ? JSON.parse(product.customizations)
+      : null;
+
+    if (
+      productCustomizations?.type === "size_variants" &&
+      item.customizations?.type === "size_variant"
+    ) {
+      // Reduce quantity for specific variant
+      const sizeConfig = productCustomizations as SizeVariantsConfig;
+      const variantId = item.customizations.selectedVariantId;
+      const variantIndex = sizeConfig.variants.findIndex((v) => v.id === variantId);
+
+      if (variantIndex !== -1) {
+        // Update the variant's quantity in the JSON
+        sizeConfig.variants[variantIndex].quantityAvailable -= item.quantity;
+
+        // Update product with modified customizations
+        await db
+          .update(productTable)
+          .set({
+            customizations: JSON.stringify(sizeConfig),
+          })
+          .where(eq(productTable.id, item.productId));
+      }
+    } else {
+      // Reduce top-level inventory - CRITICAL: Use SQL to prevent race conditions
+      await db
+        .update(productTable)
+        .set({
+          quantityAvailable: sql`${productTable.quantityAvailable} - ${item.quantity}`,
+        })
+        .where(eq(productTable.id, item.productId));
+    }
   }
 
   // Send confirmation emails and SMS
@@ -223,14 +267,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       email: customerEmail,
       customerName,
       orderNumber: order.id.substring(4, 12).toUpperCase(), // Use part of order ID
-      orderItems: items.map(item => {
-        const product = productMap.get(item.productId);
-        return {
-          name: product?.name || "Unknown",
-          quantity: item.quantity,
-          price: product?.price || 0,
-        };
-      }),
+      orderItems: items.map(item => ({
+        name: item.name, // Use cart name which includes variant info
+        quantity: item.quantity,
+        price: item.price, // Use cart price which reflects variant pricing
+      })),
       total: totalAmount,
     });
 

@@ -46,7 +46,8 @@ export const OrderConfirmationEmail = ({
           <Heading style={heading}>Order Confirmed!</Heading>
           <Text style={paragraph}>Hi {customerName},</Text>
           <Text style={paragraph}>
-            Thank you for your order! We're excited to bake your goodies fresh for you.
+            Thank you for your order! We're excited to bake your goodies fresh
+            for you.
           </Text>
 
           <Section style={orderBox}>
@@ -58,11 +59,14 @@ export const OrderConfirmationEmail = ({
               <Row key={index} style={itemRow}>
                 <Column style={itemName}>
                   <Text style={itemText}>
-                    {item.name} <span style={quantityText}>x{item.quantity}</span>
+                    {item.name}{" "}
+                    <span style={quantityText}>x{item.quantity}</span>
                   </Text>
                 </Column>
                 <Column align="right" style={itemPrice}>
-                  <Text style={itemText}>{formatPrice(item.price * item.quantity)}</Text>
+                  <Text style={itemText}>
+                    {formatPrice(item.price * item.quantity)}
+                  </Text>
                 </Column>
               </Row>
             ))}
@@ -80,7 +84,8 @@ export const OrderConfirmationEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            We'll send you an email when your order is ready for pickup or out for delivery.
+            We'll send you an email when your order is ready for pickup or out
+            for delivery.
           </Text>
 
           <Text style={paragraph}>
@@ -89,7 +94,7 @@ export const OrderConfirmationEmail = ({
           <ul style={benefitsList}>
             <li>Order history and tracking</li>
             <li>Early access to product drops</li>
-            <li>Exclusive flavor notifications</li>
+            <li>Exclusive product notifications</li>
           </ul>
 
           <Section style={buttonContainer}>
@@ -102,9 +107,7 @@ export const OrderConfirmationEmail = ({
             Have questions? Reply to this email and we'll be happy to help!
           </Text>
 
-          <Text style={footer}>
-            Sweet Angel Bakery • {SITE_URL}
-          </Text>
+          <Text style={footer}>Sweet Angel Bakery • {SITE_URL}</Text>
         </Container>
       </Body>
     </Html>
@@ -115,7 +118,11 @@ OrderConfirmationEmail.PreviewProps = {
   customerName: "Sarah Johnson",
   orderNumber: "SAB12345",
   orderItems: [
-    { name: "Whiskey Rye Salted Chocolate Chip Cookie", quantity: 6, price: 400 },
+    {
+      name: "Whiskey Rye Salted Chocolate Chip Cookie",
+      quantity: 6,
+      price: 400,
+    },
     { name: "Cinnamon Roll Cookie", quantity: 4, price: 400 },
     { name: "Cookie Gift Box", quantity: 1, price: 1800 },
   ],

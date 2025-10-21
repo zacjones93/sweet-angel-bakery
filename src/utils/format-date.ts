@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Format a date into a human-readable string
  * @param date Date to format

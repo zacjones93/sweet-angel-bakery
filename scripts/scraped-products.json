@@ -1,0 +1,83 @@
+[
+  {
+    "name": "Cookie Gift Box",
+    "description": "A delightful assortment of our signature cookies, perfect for gifting.",
+    "categorySlug": "cookie-gift-box",
+    "price": 1800,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "Whiskey Rye Salted Chocolate Chip Cookie",
+    "description": "Rich chocolate chip cookie with a hint of whiskey rye and sea salt.",
+    "categorySlug": "cookies",
+    "price": 400,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "Cinnamon Roll Cookie",
+    "description": "All the flavors of a cinnamon roll in cookie form.",
+    "categorySlug": "cookies",
+    "price": 400,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "Cowboy Cookie",
+    "description": "Hearty cookie loaded with oats, chocolate chips, and coconut.",
+    "categorySlug": "cookies",
+    "price": 400,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "Treasure Cookie",
+    "description": "A treasure trove of flavors in every bite.",
+    "categorySlug": "cookies",
+    "price": 400,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "GA Bar",
+    "description": "Delicious bar cookie with a perfect blend of sweet and savory.",
+    "categorySlug": "cookies",
+    "price": 400,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  },
+  {
+    "name": "Banana Chocolate Chip Cake",
+    "description": "Moist banana cake studded with chocolate chips.",
+    "categorySlug": "cakes",
+    "price": 4500,
+    "imageUrl": null,
+    "variants": ["6\"", "9\""],
+    "status": "active"
+  },
+  {
+    "name": "Oreo Chocolate Cake",
+    "description": "Rich chocolate cake with Oreo cookies baked in.",
+    "categorySlug": "cakes",
+    "price": 4500,
+    "imageUrl": null,
+    "variants": ["6\"", "9\""],
+    "status": "active"
+  },
+  {
+    "name": "Custom Cake",
+    "description": "Create your own custom cake. Contact us for pricing and details.",
+    "categorySlug": "custom-cakes",
+    "price": 0,
+    "imageUrl": null,
+    "variants": [],
+    "status": "active"
+  }
+]

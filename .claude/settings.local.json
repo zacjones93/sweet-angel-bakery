@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot",
+      "Bash(mkdir:*)",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_click",
+      "WebFetch(domain:www.notion.so)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__grep__searchGitHub",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(trash-put:*)",
+      "Bash(find food-tracker -name \"(admin)\" -type d)",
+      "Bash(ls:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm db:migrate:local:*)",
+      "Bash(pnpm scrape:recipes:*)",
+      "Bash(pnpm tsx:*)",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm db:migrate:dev:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm drizzle-kit generate:*)",
+      "Bash(pnpm scrape:products:*)",
+      "Bash(find:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

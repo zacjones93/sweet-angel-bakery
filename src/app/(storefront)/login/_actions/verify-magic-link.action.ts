@@ -19,14 +19,16 @@ export const verifyMagicLinkAction = createServerAction()
     const { env } = await getCloudflareContext();
 
     // Verify the magic link token
-    const email = await verifyMagicLinkToken({
+    const result = await verifyMagicLinkToken({
       token: input.token,
       kv: env.NEXT_INC_CACHE_KV,
     });
 
-    if (!email) {
+    if (!result) {
       throw new Error("Invalid or expired login link");
     }
+
+    const { email, callback } = result;
 
     // Get the loyalty customer
     const db = getDB(env.NEXT_TAG_CACHE_D1);
@@ -65,5 +67,6 @@ export const verifyMagicLinkAction = createServerAction()
         firstName: customer.firstName,
         lastName: customer.lastName,
       },
+      callback,
     };
   });

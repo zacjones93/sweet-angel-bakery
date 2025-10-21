@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import "server-only";
 
 import { ThemeProvider } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NextTopLoader from 'nextjs-toploader'
+import NextTopLoader from "nextjs-toploader";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/constants";
-import { AgenticDevStudioStickyBanner } from "@/components/startup-studio-sticky-banner";
 
 export const dynamic = "force-dynamic";
 
-const inter = Inter({ subsets: ["latin"] });
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  variable: "--font-open-sans"
+});
 
 export const metadata: Metadata = {
   title: {
@@ -21,9 +23,17 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
-  keywords: ["SaaS", "Next.js", "React", "TypeScript", "Cloudflare Workers", "Edge Computing"],
-  authors: [{ name: "Lubomir Georgiev" }],
-  creator: "Lubomir Georgiev",
+  keywords: [
+    "bakery",
+    "cookies",
+    "cakes",
+    "desserts",
+    "custom cakes",
+    "fresh baked",
+    "online ordering",
+  ],
+  authors: [{ name: "Sweet Angel Bakery" }],
+  creator: "Sweet Angel Bakery",
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -36,7 +46,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    creator: "@LubomirGeorg",
   },
   robots: {
     index: true,
@@ -58,26 +67,24 @@ export default function BaseLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${openSans.className} ${openSans.variable}`}>
         <NextTopLoader
           initialPosition={0.15}
           shadow="0 0 10px #000, 0 0 5px #000"
           height={4}
         />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-        >
-          <TooltipProvider
-            delayDuration={100}
-            skipDelayDuration={50}
-          >
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <TooltipProvider delayDuration={100} skipDelayDuration={50}>
             {children}
           </TooltipProvider>
         </ThemeProvider>
-        <Toaster richColors closeButton position="top-right" expand duration={7000} />
-        <AgenticDevStudioStickyBanner />
+        <Toaster
+          richColors
+          closeButton
+          position="top-right"
+          expand
+          duration={7000}
+        />
       </body>
     </html>
   );

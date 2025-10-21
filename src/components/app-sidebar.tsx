@@ -1,69 +1,69 @@
-"use client"
+"use client";
 
-import { type ComponentType, useEffect, useState } from "react"
-import type { Route } from 'next'
+import { type ComponentType, useEffect, useState } from "react";
+import type { Route } from "next";
+import Link from "next/link";
+import Image from "next/image";
 
 import {
   Building2,
   Frame,
   Map,
   PieChart,
-  Settings2,
-  ShoppingCart,
   SquareTerminal,
-  CreditCard,
   Users,
-} from "lucide-react"
+  Shield,
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/nav-main";
+import { NavProjects } from "@/components/nav-projects";
+import { NavUser } from "@/components/nav-user";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { useSessionStore } from "@/state/session"
-import { DISABLE_CREDIT_BILLING_SYSTEM } from "@/constants"
+} from "@/components/ui/sidebar";
+import { useSessionStore } from "@/state/session";
+import { ROLES_ENUM } from "@/db/schema";
 
 export type NavItem = {
-  title: string
-  url: Route
-  icon?: ComponentType
-}
+  title: string;
+  url: Route;
+  icon?: ComponentType;
+};
 
 export type NavMainItem = NavItem & {
-  isActive?: boolean
-  items?: NavItem[]
-}
+  isActive?: boolean;
+  items?: NavItem[];
+};
 
 type Data = {
   user: {
-    name: string
-    email: string
-  }
+    name: string;
+    email: string;
+  };
   teams: {
-    id: string
-    name: string
-    logo: ComponentType
-    role: string
-  }[]
-  navMain: NavMainItem[]
-  projects: NavItem[]
-}
+    id: string;
+    name: string;
+    logo: ComponentType;
+    role: string;
+  }[];
+  navMain: NavMainItem[];
+  projects: NavItem[];
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSessionStore();
-  const [formattedTeams, setFormattedTeams] = useState<Data['teams']>([]);
+  const [formattedTeams, setFormattedTeams] = useState<Data["teams"]>([]);
 
   // Map session teams to the format expected by TeamSwitcher
   useEffect(() => {
     if (session?.teams && session.teams.length > 0) {
       // Map teams from session to the format expected by TeamSwitcher
-      const teamData = session.teams.map(team => {
+      const teamData = session.teams.map((team) => {
         return {
           id: team.id,
           name: team.name,
@@ -95,39 +95,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/dashboard/teams" as Route,
         icon: Users,
       },
-      ...(!DISABLE_CREDIT_BILLING_SYSTEM ? [{
-        title: "Marketplace",
-        url: "/dashboard/marketplace" as Route,
-        icon: ShoppingCart,
-      }] : []),
-      {
-        title: "Billing",
-        url: "/dashboard/billing",
-        icon: CreditCard,
-      },
-      {
-        title: "Settings",
-        url: "/settings",
-        icon: Settings2,
-        items: [
-          {
-            title: "Profile",
-            url: "/settings",
-          },
-          {
-            title: "Security",
-            url: "/settings/security",
-          },
-          {
-            title: "Sessions",
-            url: "/settings/sessions",
-          },
-          {
-            title: "Change Password",
-            url: "/forgot-password",
-          },
-        ],
-      },
+      ...(session?.user?.role === ROLES_ENUM.ADMIN
+        ? [
+            {
+              title: "Admin",
+              url: "/admin" as Route,
+              icon: Shield,
+            },
+          ]
+        : []),
     ],
     projects: [
       {
@@ -146,15 +122,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Map,
       },
     ],
-  }
+  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      {data?.teams?.length > 0 && (
-        <SidebarHeader>
-          <TeamSwitcher teams={data.teams} />
-        </SidebarHeader>
-      )}
+      <SidebarHeader>
+        <div className="flex items-center justify-center px-4 py-4 group-data-[collapsible=icon]:px-2">
+          <Link
+            href="/"
+            className="relative h-10 w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
+          >
+            <Image
+              src="/SAB-02.webp"
+              alt="Sweet Angel Bakery"
+              fill
+              className="object-contain group-data-[collapsible=icon]:object-cover"
+            />
+          </Link>
+        </div>
+        {data?.teams?.length > 0 && <TeamSwitcher teams={data.teams} />}
+      </SidebarHeader>
 
       <SidebarContent>
         <NavMain items={data.navMain} />
@@ -165,5 +152,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

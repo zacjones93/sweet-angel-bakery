@@ -4,22 +4,34 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Mail, CheckCircle } from "lucide-react";
 import { requestMagicLinkAction } from "./_actions/request-magic-link.action";
 import { useServerAction } from "zsa-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const searchParams = useSearchParams();
+  const callback = searchParams.get("callback");
 
   const { execute, isPending, error } = useServerAction(requestMagicLinkAction);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const [data, err] = await execute({ email });
+    const [data, err] = await execute({
+      email,
+      callback: callback || undefined,
+    });
 
     if (err) {
       console.error("Magic link error:", err);
@@ -45,7 +57,8 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Click the link in the email to securely log in to your loyalty account. The link will expire in 15 minutes.
+                Click the link in the email to securely log in to your loyalty
+                account. The link will expire in 15 minutes.
               </p>
               <p className="text-xs text-muted-foreground text-center">
                 Didn't receive the email? Check your spam folder or{" "}
@@ -68,7 +81,9 @@ export default function LoginPage() {
       <div className="max-w-md mx-auto">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-display">Loyalty Member Login</CardTitle>
+            <CardTitle className="text-2xl font-display">
+              Loyalty Member Login
+            </CardTitle>
             <CardDescription>
               Enter your email to receive a secure login link
             </CardDescription>
@@ -112,10 +127,12 @@ export default function LoginPage() {
               <div className="pt-4 text-center text-sm text-muted-foreground">
                 <p>
                   New here?{" "}
-                  <Link href="/products" className="text-primary underline underline-offset-4 hover:no-underline">
-                    Browse products
-                  </Link>{" "}
-                  and join our loyalty program at checkout!
+                  <Link
+                    href="/signup"
+                    className="text-primary underline underline-offset-4 hover:no-underline"
+                  >
+                    Join our loyalty program
+                  </Link>
                 </p>
               </div>
             </form>
@@ -135,7 +152,7 @@ export default function LoginPage() {
             </li>
             <li className="flex items-start">
               <span className="mr-2">•</span>
-              <span>Receive notifications about new flavors</span>
+              <span>Receive notifications about new treats</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">•</span>

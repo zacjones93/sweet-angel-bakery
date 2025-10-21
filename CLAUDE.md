@@ -1,6 +1,6 @@
-# Cloudflare Workers Next.js SaaS Template - AI Assistant Guidelines
+# CLAUDE.md
 
-This document provides comprehensive context and guidelines for AI assistants working on this project.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 **For additional project information, features, and setup instructions, refer to the README.md file in the project root.**
 
@@ -28,6 +28,7 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 ## Tech Stack
 
 ### Frontend
+
 - Next.js 15 (App Router)
 - React Server Components
 - TypeScript
@@ -38,6 +39,7 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - Zustand for client state
 
 ### Backend (Cloudflare Workers with OpenNext)
+
 - DrizzleORM
 - Cloudflare D1 (SQLite Database)
 - Cloudflare KV (Session/Cache Storage)
@@ -45,111 +47,51 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - OpenNext for SSR/Edge deployment
 
 ### Authentication & Authorization
+
 - Lucia Auth (User Management)
 - KV-based session management
 - CUID2 for ID generation
 - Team-based multi-tenancy
 
-## Project Structure
+## Key Architecture Patterns
 
+### Route Organization (App Router)
+
+- Route groups use `(groupName)` for layout organization without affecting URLs
+- `(auth)/` - Authentication flows (sign-in, sign-up, OAuth, passkeys)
+- `(dashboard)/` - Main application features
+- `(admin)/` - Admin-only routes with special guards
+- `(settings)/` - User settings and preferences
+- `(legal)/` - Terms, privacy policy
+- `(marketing)/` - Public landing pages
+- `teams/[teamSlug]/` - Dynamic team-scoped routes
+
+### Server Actions Pattern (ZSA)
+
+All server actions use ZSA (Zod Server Actions) for type safety:
+
+```typescript
+import { createServerAction } from "zsa"
+import { z } from "zod"
+
+export const myAction = createServerAction()
+  .input(z.object({ ... }))
+  .handler(async ({ input }) => { ... })
 ```
-├── src/                          # Source directory
-│   ├── actions/                  # Server actions
-│   │   ├── credits.action.ts
-│   │   ├── sign-out.action.ts
-│   │   ├── team-actions.ts
-│   │   ├── team-membership-actions.ts
-│   │   └── team-role-actions.ts
-│   ├── app/                      # Next.js App Router
-│   │   ├── (admin)/              # Admin routes
-│   │   │   └── admin/
-│   │   │       ├── _actions/     # Admin-specific actions
-│   │   │       ├── _components/  # Admin-specific components
-│   │   │       └── users/        # User management
-│   │   ├── (auth)/               # Auth-related routes
-│   │   │   ├── _components/      # Auth components (SSO buttons, etc.)
-│   │   │   ├── sign-in/          # Sign in functionality
-│   │   │   ├── sign-up/          # Sign up functionality
-│   │   │   ├── forgot-password/  # Password reset request
-│   │   │   ├── reset-password/   # Password reset completion
-│   │   │   ├── passkey/          # Passkey/WebAuthn authentication
-│   │   │   ├── sso/              # SSO authentication
-│   │   │   │   └── google/       # Google OAuth
-│   │   │   ├── team-invite/      # Team invitation acceptance
-│   │   │   └── verify-email/     # Email verification
-│   │   ├── (dashboard)/          # Dashboard and app features
-│   │   │   ├── dashboard/        # Main dashboard
-│   │   │   └── layout.tsx
-│   │   ├── (legal)/              # Legal pages (terms, privacy)
-│   │   ├── (marketing)/          # Landing pages and marketing
-│   │   ├── (settings)/           # User settings pages
-│   │   │   └── settings/
-│   │   │       ├── profile/      # Profile settings
-│   │   │       └── sessions/     # Session management
-│   │   ├── teams/                # Team management
-│   │   │   ├── [teamSlug]/       # Team-specific routes (dynamic)
-│   │   │   │   ├── members/      # Team member management
-│   │   │   │   ├── settings/     # Team settings
-│   │   │   │   └── billing/      # Team billing
-│   │   │   └── create/           # Team creation
-│   │   ├── dashboard/            # Additional dashboard routes
-│   │   │   └── billing/          # User billing
-│   │   ├── api/                  # API routes
-│   │   │   ├── auth/             # Auth API endpoints
-│   │   │   └── get-session/      # Session retrieval
-│   │   └── globals.css           # Global styles
-│   ├── components/               # React components
-│   │   ├── landing/              # Landing page components
-│   │   ├── teams/                # Team-related components
-│   │   └── ui/                   # Shadcn UI components
-│   ├── db/                       # Database related code
-│   │   ├── migrations/           # Database migrations
-│   │   └── schema.ts             # DrizzleORM schema
-│   ├── hooks/                    # Custom React hooks
-│   │   ├── useMediaQuery.ts
-│   │   └── useSignOut.ts
-│   ├── icons/                    # Custom icon components
-│   ├── layouts/                  # Layout components
-│   ├── lib/                      # Library utilities
-│   │   ├── sso/                  # SSO integrations
-│   │   ├── stripe.ts             # Stripe integration
-│   │   ├── try-catch.ts          # Error handling utilities
-│   │   └── utils.ts              # General utilities
-│   ├── react-email/              # Email templates with react-email
-│   │   ├── reset-password.tsx
-│   │   ├── verify-email.tsx
-│   │   └── team-invite.tsx
-│   ├── schemas/                  # Zod validation schemas
-│   ├── server/                   # Server-side utilities
-│   │   ├── team-members.ts
-│   │   ├── team-roles.ts
-│   │   └── teams.ts
-│   ├── state/                    # Client state management (Zustand)
-│   │   ├── config.ts
-│   │   ├── nav.ts
-│   │   ├── session.ts
-│   │   └── transaction.ts
-│   ├── utils/                    # Core utilities
-│   │   ├── auth.ts               # Authentication logic
-│   │   ├── auth-utils.ts         # Auth helper utilities
-│   │   ├── credits.ts            # Credit system utilities
-│   │   ├── email.tsx             # Email sending utilities
-│   │   ├── kv-session.ts         # Session handling with KV
-│   │   ├── team-auth.ts          # Team authorization utilities
-│   │   ├── rate-limit.ts         # Rate limiting
-│   │   ├── webauthn.ts           # WebAuthn/Passkey utilities
-│   │   └── with-kv-cache.ts      # KV caching utilities
-│   ├── constants.ts              # Application constants
-│   ├── flags.ts                  # Feature flags
-│   └── types.ts                  # Type definitions
-├── public/                       # Static assets
-├── scripts/                      # Build and deployment scripts
-└── .wrangler/                    # Cloudflare Workers config
-```
+
+See `src/actions/` for examples.
+
+### Team Authorization Flow
+
+1. User's team memberships fetched via `getUserTeamsWithPermissions(userId)`
+2. Permissions resolved from either system roles or custom roles
+3. Check permissions with constants from `TEAM_PERMISSIONS` enum
+4. Team context passed through server actions and components
 
 ## Development Status
 
 ### Completed Features
+
 - Infrastructure setup (Next.js, Cloudflare Workers, D1, KV)
 - Authentication system (Lucia Auth)
 - User management and settings
@@ -165,6 +107,7 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - Admin dashboard
 
 ### In Progress
+
 - Real-time updates
 - Analytics dashboard
 - File upload system with R2
@@ -173,6 +116,7 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 ### Key Features
 
 #### User Management
+
 - Authentication (Lucia Auth)
 - User profiles and settings
 - Session management
@@ -180,13 +124,19 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - Team management with role-based permissions
 
 #### Multi-Tenancy
-- Teams and organizations
-- Role-based access control (system and custom roles)
-- Fine-grained permissions with JSON storage
-- Team invitations and onboarding
+
+- Teams and organizations with unique slugs
+- Role-based access control:
+  - **System Roles**: owner, admin, member, guest (always available)
+  - **Custom Roles**: Team-specific roles with granular permissions
+- Permissions stored as JSON arrays in `teamRoleTable`
+- Permission constants in `TEAM_PERMISSIONS` (src/db/schema.ts:176)
+- Team invitations via email with expiring tokens
 - Team settings and management
+- Per-team billing and credit tracking
 
 #### Billing & Subscriptions
+
 - Credit-based billing system
 - Credit packages and pricing
 - Credit usage tracking
@@ -214,7 +164,16 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 ### Import Guidelines
 
 - Add `import "server-only"` at the top of the file (ignore this rule for page.tsx files) if it's only intended to be used on the server.
-- When creating React server actions always use `import { useServerAction } from "zsa-react"`
+  - Use for utilities, database, and API clients (e.g., `src/db/index.ts`, `src/lib/stripe.ts`)
+  - **DO NOT use** `"server-only"` for server action files
+- When creating React server actions:
+  - Use ZSA (Zod Server Actions) library
+  - Add `"use server"` directive at the top of action files (NOT `"server-only"`)
+  - Import `createServerAction` from "zsa"
+  - In client components, use `import { useServerAction } from "zsa-react"`
+  - Define input schemas with Zod for type safety
+  - `"use server"` allows actions to be called from client components while executing on the server
+  - Server-only imports (like `getDB()` and `getStripe()`) are fine inside action handlers
 
 ### Package Management
 
@@ -274,6 +233,7 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 ### Client Component Usage
 
 Limit 'use client':
+
 - Favor server components and Next.js SSR.
 - Use only for Web API access in small components.
 - Avoid for data fetching or state management.
@@ -286,17 +246,31 @@ Limit 'use client':
 
 ## Authentication Guidelines
 
-### Authentication Stack
+### Authentication Architecture
 
-The authentication logic is in `src/utils/auth.ts` and `src/utils/kv-session.ts` and is based on Lucia Auth.
+**Core Files:**
 
-### Server Components
+- `src/utils/auth.ts` - Main auth logic (Lucia Auth-based)
+- `src/utils/kv-session.ts` - KV-based session storage
+- `src/utils/webauthn.ts` - WebAuthn/Passkey support
+- `src/utils/auth-utils.ts` - Helper utilities
+- `src/state/session.ts` - Client-side session state (Zustand)
 
-If we want to access the session in a server component, we need to use the `getSessionFromCookie` function in `src/utils/auth.ts`.
+**Session Access Patterns:**
 
-### Client Components
+- **Server Components**: Use `getSessionFromCookie()` from `src/utils/auth.ts`
+- **Client Components**: Use `useSessionStore()` from `src/state/session.ts`
+- **Server Actions**: Use ZSA with auth procedures (see `src/actions/`)
 
-If we want to access the session in a client component, we can get it from `const session = useSessionStore();` in `src/state/session.ts`.
+**Session Structure:**
+Sessions are stored in KV with:
+
+- userId
+- authenticationType (email, passkey, google)
+- passkeyCredentialId (if passkey auth)
+- device metadata (user agent, IP)
+- expiresAt (30 days)
+- version (for migration support)
 
 ## Database Patterns
 
@@ -304,27 +278,50 @@ The database schema is in `src/db/schema.ts`.
 
 ### Drizzle ORM Guidelines
 
-- Never use Drizzle ORM Transactions since Cloudflare D1 doesn't support them.
-- When inserting or updating items with Drizzle ORM never pass an id since we autogenerate it in the schema.
-- When using `db.insert().values()` never pass and id because we autogenerate them.
+**CRITICAL CONSTRAINTS:**
+
+- NEVER use Drizzle ORM Transactions - Cloudflare D1 doesn't support them
+- NEVER pass `id` when inserting/updating - all IDs are auto-generated with CUID2 prefixes:
+  - Users: `usr_*`
+  - Teams: `team_*`
+  - Team Memberships: `tmem_*`
+  - Team Roles: `trole_*`
+  - Team Invitations: `tinv_*`
+  - Credit Transactions: `ctxn_*`
+  - Purchased Items: `pitem_*`
+  - Passkey Credentials: `pkey_*`
 
 ### Migration Workflow
 
-Never generate SQL migration files. Instead after making changes to `./src/db/schema.ts` you should run `pnpm db:generate [MIGRATION_NAME]` to generate the migrations.
+NEVER write SQL migration files manually. After editing `src/db/schema.ts`:
+
+1. Run `pnpm db:generate [MIGRATION_NAME]`
+2. Drizzle generates SQL in `src/db/migrations/`
+3. Apply with `pnpm db:migrate:dev`
 
 ## Cloudflare Stack
 
-You are also excellent at Cloudflare Workers and other tools like D1 serverless database and KV. You can suggest usage of new tools (changes in wrangler.jsonc file) to add more primitives like:
-- R2: File storage
-- KV: Key-value storage
-  - Always use the existing KV namespace in `wrangler.jsonc` don't ever create new ones.
-- AI: AI multimodal inference
-- others primitives in `wrangler.jsonc`
-- After adding a new primitive to `wrangler.jsonc`, always run `pnpm run cf-typegen` to generate the new types.
+### Current Bindings (in wrangler.jsonc)
 
-### Cloudflare Context Access
+- **D1 Database**: `NEXT_TAG_CACHE_D1` - Main database for users, teams, billing
+- **KV Storage**: `NEXT_INC_CACHE_KV` - Session storage and caching
+- **Durable Objects**: `NEXT_CACHE_DO_QUEUE` - Cache invalidation queue
+- **Service Binding**: `WORKER_SELF_REFERENCE` - Self-reference for internal calls
 
-Cloudflare bindings accessed through getCloudflareContext
+### Adding New Cloudflare Primitives
+
+When adding new bindings to `wrangler.jsonc`:
+
+1. Edit `wrangler.jsonc` (add R2, AI, Queue, etc.)
+2. **ALWAYS run `pnpm cf-typegen`** to regenerate types
+3. Types written to `cloudflare-env.d.ts` (never edit manually)
+4. Never create new KV namespaces - use existing `NEXT_INC_CACHE_KV`
+
+### Accessing Cloudflare Bindings
+
+- Use `getCloudflareContext()` to access bindings
+- Import from `@opennextjs/cloudflare`
+- Available in server components, API routes, and server actions
 
 ## State Management
 
@@ -340,6 +337,82 @@ Cloudflare bindings accessed through getCloudflareContext
 - Rate limiting for API endpoints
 - Input validation and sanitization
 - Efficient data fetching and asset optimization
+
+## Development Commands
+
+### Local Development
+
+```bash
+pnpm install                    # Install dependencies
+pnpm dev                        # Start development server (http://localhost:3000)
+pnpm build                      # Build for production
+pnpm lint                       # Run ESLint
+pnpm build:analyze              # Build with bundle analyzer
+```
+
+### Database Operations
+
+```bash
+pnpm db:generate [NAME]         # Generate migration after schema changes (REQUIRED after editing schema.ts)
+pnpm db:migrate:dev             # Apply migrations to local D1 database
+pnpm cf-typegen                 # Regenerate Cloudflare types (REQUIRED after wrangler.jsonc changes)
+```
+
+### Cloudflare D1 & KV Operations
+
+```bash
+pnpm d1:cache:clean             # Clear D1 cache (tags and revalidations)
+pnpm list:kv                    # List all KV keys to kv.log
+pnpm delete:kv                  # Bulk delete KV keys from kv.log
+wrangler d1 execute [DB_NAME] --command "[SQL]" --local    # Execute SQL locally
+wrangler d1 execute [DB_NAME] --command "[SQL]" --remote   # Execute SQL in production
+```
+
+### Email Development
+
+```bash
+pnpm email:dev                  # Start email preview server (http://localhost:3001)
+```
+
+### Deployment
+
+```bash
+pnpm build:prod                 # Build for Cloudflare (dry run)
+pnpm deploy                     # Deploy to Cloudflare Workers
+pnpm preview                    # Preview build locally
+```
+
+### Wrangler CLI (Cloudflare)
+
+The template uses wrangler for Cloudflare operations. Common commands:
+
+```bash
+wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts  # Generate types
+wrangler d1 migrations list [DB_NAME] --local                        # List migrations
+wrangler kv key list --namespace-id=[ID] --remote                   # List KV keys
+```
+
+## Critical Development Workflows
+
+### After Schema Changes
+
+1. Edit `src/db/schema.ts`
+2. Run `pnpm db:generate [MIGRATION_NAME]` (NEVER manually write SQL)
+3. Run `pnpm db:migrate:dev` to apply locally
+
+### After wrangler.jsonc Changes
+
+1. Edit `wrangler.jsonc`
+2. Run `pnpm cf-typegen` to regenerate types
+3. Types are written to `cloudflare-env.d.ts` (auto-generated, don't edit manually)
+
+### Working with Sessions
+
+- Sessions stored in Cloudflare KV (not D1)
+- Session cookie format: `userId:token`
+- Session data includes auth type, device info, permissions
+- Access via `getSessionFromCookie()` in server components
+- Access via `useSessionStore()` in client components
 
 ## Terminal Commands
 

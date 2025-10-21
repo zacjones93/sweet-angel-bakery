@@ -24,17 +24,19 @@ export interface LoyaltySession {
 export async function generateMagicLinkToken({
   email,
   kv,
+  callback,
 }: {
   email: string;
   kv: KVNamespace;
+  callback?: string;
 }): Promise<string> {
   const token = createId();
   const expiresAt = Date.now() + MAGIC_LINK_EXPIRY;
 
-  // Store token in KV with email and expiry
+  // Store token in KV with email, expiry, and optional callback URL
   await kv.put(
     `magic_link:${token}`,
-    JSON.stringify({ email, expiresAt }),
+    JSON.stringify({ email, expiresAt, callback }),
     { expirationTtl: Math.floor(MAGIC_LINK_EXPIRY / 1000) }
   );
 
@@ -42,7 +44,7 @@ export async function generateMagicLinkToken({
 }
 
 /**
- * Verify a magic link token and return the email if valid
+ * Verify a magic link token and return the email and callback URL if valid
  */
 export async function verifyMagicLinkToken({
   token,
@@ -50,13 +52,13 @@ export async function verifyMagicLinkToken({
 }: {
   token: string;
   kv: KVNamespace;
-}): Promise<string | null> {
+}): Promise<{ email: string; callback?: string } | null> {
   const data = await kv.get(`magic_link:${token}`);
   if (!data) {
     return null;
   }
 
-  const { email, expiresAt } = JSON.parse(data);
+  const { email, expiresAt, callback } = JSON.parse(data);
 
   // Check if token is expired
   if (Date.now() > expiresAt) {
@@ -67,7 +69,7 @@ export async function verifyMagicLinkToken({
   // Delete token after successful verification (one-time use)
   await kv.delete(`magic_link:${token}`);
 
-  return email;
+  return { email, callback };
 }
 
 /**

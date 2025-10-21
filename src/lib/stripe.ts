@@ -3,7 +3,7 @@ import Stripe from "stripe";
 
 let stripeInstance: Stripe | null = null;
 
-export function getStripe() {
+export async function getStripe() {
   if (stripeInstance) {
     return stripeInstance;
   }

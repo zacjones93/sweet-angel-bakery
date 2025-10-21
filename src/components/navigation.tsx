@@ -1,28 +1,29 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import type { Route } from 'next'
-import { usePathname } from "next/navigation"
-import { ComponentIcon, Menu } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useSessionStore } from "@/state/session"
-import { cn } from "@/lib/utils"
-import { useNavStore } from "@/state/nav"
-import { Skeleton } from "@/components/ui/skeleton"
-import { SITE_NAME } from "@/constants"
+import Link from "next/link";
+import type { Route } from "next";
+import { usePathname } from "next/navigation";
+import { ComponentIcon, Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useSessionStore } from "@/state/session";
+import { cn } from "@/lib/utils";
+import { useNavStore } from "@/state/nav";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SITE_NAME } from "@/constants";
+import { ROLES_ENUM } from "@/db/schema";
 
 type NavItem = {
   name: string;
   href: Route;
-}
+};
 
 const ActionButtons = () => {
-  const { session, isLoading } = useSessionStore()
-  const { setIsOpen } = useNavStore()
+  const { session, isLoading } = useSessionStore();
+  const { setIsOpen } = useNavStore();
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-[80px] bg-primary" />
+    return <Skeleton className="h-10 w-[80px] bg-primary" />;
   }
 
   if (session) {
@@ -33,35 +34,43 @@ const ActionButtons = () => {
     <Button asChild onClick={() => setIsOpen(false)}>
       <Link href="/sign-in">Sign In</Link>
     </Button>
-  )
-}
+  );
+};
 
 export function Navigation() {
-  const { session, isLoading } = useSessionStore()
-  const { isOpen, setIsOpen } = useNavStore()
-  const pathname = usePathname()
+  const { session, isLoading } = useSessionStore();
+  const { isOpen, setIsOpen } = useNavStore();
+  const pathname = usePathname();
 
   const navItems: NavItem[] = [
     { name: "Home", href: "/" },
-    ...(session ? [
-      { name: "Settings", href: "/settings" },
-      { name: "Dashboard", href: "/dashboard" },
-    ] as NavItem[] : []),
-  ]
+    ...(session
+      ? ([
+          { name: "Settings", href: "/settings" },
+          { name: "Dashboard", href: "/dashboard" },
+          ...(session.user.role === ROLES_ENUM.ADMIN
+            ? ([{ name: "Admin", href: "/admin" }] as NavItem[])
+            : []),
+        ] as NavItem[])
+      : []),
+  ];
 
   const isActiveLink = (itemHref: string) => {
     if (itemHref === "/") {
-      return pathname === "/"
+      return pathname === "/";
     }
-    return pathname === itemHref || pathname.startsWith(`${itemHref}/`)
-  }
+    return pathname === itemHref || pathname.startsWith(`${itemHref}/`);
+  };
 
   return (
     <nav className="dark:bg-muted/30 bg-muted/60 shadow dark:shadow-xl z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl md:text-2xl font-bold text-primary flex items-center gap-2 md:gap-3">
+            <Link
+              href="/"
+              className="text-xl md:text-2xl font-bold text-primary flex items-center gap-2 md:gap-3"
+            >
               <ComponentIcon className="w-6 h-6 md:w-7 md:h-7" />
               {SITE_NAME}
             </Link>
@@ -81,7 +90,8 @@ export function Navigation() {
                     href={item.href}
                     className={cn(
                       "text-muted-foreground hover:text-foreground no-underline px-3 h-16 flex items-center text-sm font-medium transition-colors relative",
-                      isActiveLink(item.href) && "text-foreground after:absolute after:left-0 after:bottom-0 after:h-0.5 after:w-full after:bg-foreground"
+                      isActiveLink(item.href) &&
+                        "text-foreground after:absolute after:left-0 after:bottom-0 after:h-0.5 after:w-full after:bg-foreground"
                     )}
                   >
                     {item.name}
@@ -136,6 +146,5 @@ export function Navigation() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
-

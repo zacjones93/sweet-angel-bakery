@@ -1,48 +1,100 @@
-"use client"
+"use client";
 
-import { type ComponentType } from "react"
-import type { Route } from 'next'
-import {
-  Users,
-  Shield,
-} from "lucide-react"
+import { type ComponentType } from "react";
+import type { Route } from "next";
+import Link from "next/link";
+import Image from "next/image";
+import { Users, Shield, ShoppingBag, Package, Settings2 } from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/nav-main";
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarGroup,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export type NavItem = {
-  title: string
-  url: Route
-  icon?: ComponentType
-}
+  title: string;
+  url: Route;
+  icon?: ComponentType;
+};
 
 export type NavMainItem = NavItem & {
-  isActive?: boolean
-  items?: NavItem[]
-}
+  isActive?: boolean;
+  items?: NavItem[];
+};
 
 const adminNavItems: NavMainItem[] = [
+  {
+    title: "Products",
+    url: "/admin/products",
+    icon: ShoppingBag,
+    isActive: true,
+  },
+  {
+    title: "Orders",
+    url: "/admin/orders",
+    icon: Package,
+    isActive: true,
+  },
   {
     title: "Users",
     url: "/admin",
     icon: Users,
     isActive: true,
   },
-]
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings2,
+    items: [
+      {
+        title: "Profile",
+        url: "/settings",
+      },
+      {
+        title: "Security",
+        url: "/settings/security",
+      },
+      {
+        title: "Sessions",
+        url: "/settings/sessions",
+      },
+      {
+        title: "Change Password",
+        url: "/forgot-password",
+      },
+    ],
+  },
+];
 
-export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AdminSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <div className="flex items-center justify-center px-4 py-4 group-data-[collapsible=icon]:px-2">
+          <Link
+            href="/"
+            className="relative h-10 w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
+          >
+            <Image
+              src="/SAB-02.webp"
+              alt="Sweet Angel Bakery"
+              fill
+              className="object-contain group-data-[collapsible=icon]:object-cover"
+            />
+          </Link>
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
@@ -64,5 +116,5 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

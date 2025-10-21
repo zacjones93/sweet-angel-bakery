@@ -8,7 +8,87 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Custom Fonts */
+@font-face {
+  font-family: 'Adelia';
+  src: url('/assets/fonts/adelia_3/adelia.otf') format('opentype'),
+       url('/assets/fonts/adelia_3/adelia.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-UltraLight.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-UltraLight.woff') format('woff');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-Light.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-Light.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-Medium.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-Bold.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-ExtraBold.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-ExtraBold.woff') format('woff');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Butler';
+  src: url('/assets/fonts/butler/Butler_Webfont/Butler-Black.woff2') format('woff2'),
+       url('/assets/fonts/butler/Butler_Webfont/Butler-Black.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Color Palette */
+  --bakery-blue: #75A9C7;
+  --bakery-pink: #FCACC5;
+  --bakery-gray: #5D6163;
+  --bakery-white: #FFFFFF;
+  --bakery-black: #000000;
+
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
@@ -38,78 +118,93 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(0.99 0 1);
-  --card-foreground: oklch(0.147 0.004 49.25);
+  --background: oklch(0.99 0.005 40);
+  --foreground: oklch(0.2 0.02 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.02 280);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.216 0.006 56.043);
-  --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
-  --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
+  --popover-foreground: oklch(0.2 0.02 280);
+  /* Pink/Rose primary color from logo */
+  --primary: oklch(0.72 0.15 350);
+  --primary-foreground: oklch(1 0 0);
+  /* Blue secondary color from logo */
+  --secondary: oklch(0.65 0.12 230);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.96 0.005 40);
+  --muted-foreground: oklch(0.5 0.02 280);
+  --accent: oklch(0.96 0.01 350);
+  --accent-foreground: oklch(0.2 0.02 280);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.216 0.006 56.043);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+  --border: oklch(0.92 0.01 40);
+  --input: oklch(0.92 0.01 40);
+  --ring: oklch(0.72 0.15 350);
+  --chart-1: oklch(0.72 0.15 350);
+  --chart-2: oklch(0.65 0.12 230);
+  --chart-3: oklch(0.75 0.10 30);
+  --chart-4: oklch(0.70 0.12 180);
+  --chart-5: oklch(0.68 0.10 290);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2 0.02 280);
+  --sidebar-primary: oklch(0.72 0.15 350);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.96 0.01 350);
+  --sidebar-accent-foreground: oklch(0.2 0.02 280);
+  --sidebar-border: oklch(0.92 0.01 40);
+  --sidebar-ring: oklch(0.72 0.15 350);
 }
 
 .dark {
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
+  --background: oklch(0.15 0.01 280);
+  --foreground: oklch(0.98 0.005 40);
+  --card: oklch(0.20 0.015 280);
+  --card-foreground: oklch(0.98 0.005 40);
+  --popover: oklch(0.20 0.015 280);
+  --popover-foreground: oklch(0.98 0.005 40);
+  /* Pink/Rose primary for dark mode */
+  --primary: oklch(0.75 0.15 350);
+  --primary-foreground: oklch(0.15 0.01 280);
+  /* Blue secondary for dark mode */
+  --secondary: oklch(0.68 0.12 230);
+  --secondary-foreground: oklch(0.15 0.01 280);
+  --muted: oklch(0.25 0.015 280);
+  --muted-foreground: oklch(0.65 0.01 40);
+  --accent: oklch(0.25 0.02 350);
+  --accent-foreground: oklch(0.98 0.005 40);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
+  --ring: oklch(0.75 0.15 350);
+  --chart-1: oklch(0.75 0.15 350);
+  --chart-2: oklch(0.68 0.12 230);
+  --chart-3: oklch(0.78 0.10 30);
+  --chart-4: oklch(0.73 0.12 180);
+  --chart-5: oklch(0.70 0.10 290);
+  --sidebar: oklch(0.20 0.015 280);
+  --sidebar-foreground: oklch(0.98 0.005 40);
+  --sidebar-primary: oklch(0.75 0.15 350);
+  --sidebar-primary-foreground: oklch(0.15 0.01 280);
+  --sidebar-accent: oklch(0.25 0.02 350);
+  --sidebar-accent-foreground: oklch(0.98 0.005 40);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  --sidebar-ring: oklch(0.75 0.15 350);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Fonts */
+  --font-sans: var(--font-open-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Butler', ui-serif, Georgia, serif;
+  --font-script: 'Adelia', cursive;
+
+  /* Bakery Color Palette */
+  --color-bakery-blue: var(--bakery-blue);
+  --color-bakery-pink: var(--bakery-pink);
+  --color-bakery-gray: var(--bakery-gray);
+  --color-bakery-white: var(--bakery-white);
+  --color-bakery-black: var(--bakery-black);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

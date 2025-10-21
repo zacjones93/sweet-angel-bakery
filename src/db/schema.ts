@@ -52,10 +52,18 @@ export const userTable = sqliteTable("user", {
   avatar: text({
     length: 600,
   }),
+  // Loyalty/storefront customer fields (consolidated from loyaltyCustomerTable)
+  phone: text({ length: 50 }), // Customer phone number
+  phoneVerified: integer().default(0).notNull(),
+  // Notification preferences stored as JSON
+  notificationPreferences: text({ length: 1000 })
+    .default('{"emailNewFlavors":true,"emailDrops":true,"smsDelivery":false,"smsDrops":false}')
+    .notNull(),
 }, (table) => ([
   index('email_idx').on(table.email),
   index('google_account_id_idx').on(table.googleAccountId),
   index('role_idx').on(table.role),
+  index('phone_idx').on(table.phone),
 ]));
 
 export const passKeyCredentialTable = sqliteTable("passkey_credential", {
@@ -120,18 +128,21 @@ export const productTable = sqliteTable("product", {
   name: text({ length: 255 }).notNull(),
   description: text({ length: 2000 }),
   categoryId: text().notNull().references(() => categoryTable.id),
-  price: integer().notNull(), // in cents
+  price: integer().notNull(), // in cents - base price if no customizations, or default price
   imageUrl: text({ length: 600 }),
   status: text({
     enum: productStatusTuple,
   }).default(PRODUCT_STATUS.ACTIVE).notNull(),
   quantityAvailable: integer().default(0).notNull(), // inventory tracking
   stripeProductId: text({ length: 255 }), // Stripe product ID
-  stripePriceId: text({ length: 255 }), // Stripe price ID
+  stripePriceId: text({ length: 255 }), // Stripe price ID (for base/default price)
   isNewFlavor: integer().default(0).notNull(), // Flag for "new flavor" notifications
   newFlavorUntil: integer({
     mode: "timestamp",
   }), // Auto-unflag after this date
+  // Customizations config - JSON field for flexible product customization
+  // Can be size variants, custom builder, or null for standard products
+  customizations: text({ length: 10000 }), // Stored as JSON string
 }, (table) => ([
   index('product_category_idx').on(table.categoryId),
   index('product_status_idx').on(table.status),
@@ -140,11 +151,33 @@ export const productTable = sqliteTable("product", {
 ]));
 
 // Order status types - Comprehensive bakery workflow
+// Payment Status - separate from order fulfillment status
+export const PAYMENT_STATUS = {
+  PENDING: 'pending',       // Awaiting payment
+  PAID: 'paid',            // Payment successful
+  FAILED: 'failed',        // Payment failed
+  REFUNDED: 'refunded',    // Payment refunded
+} as const;
+
+export const paymentStatusTuple = Object.values(PAYMENT_STATUS) as [string, ...string[]];
+
+export const PAYMENT_STATUS_LABELS: Record<keyof typeof PAYMENT_STATUS, string> = {
+  PENDING: 'Pending',
+  PAID: 'Paid',
+  FAILED: 'Failed',
+  REFUNDED: 'Refunded',
+} as const;
+
+export const PAYMENT_STATUS_COLORS: Record<keyof typeof PAYMENT_STATUS, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  REFUNDED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+} as const;
+
+// Order Fulfillment Status - workflow from order placement to completion
 export const ORDER_STATUS = {
-  // Initial states
-  PENDING: 'pending',              // Order placed, awaiting payment
-  PAYMENT_FAILED: 'payment_failed', // Payment attempt failed
-  PAID: 'paid',                    // Payment confirmed
+  PENDING: 'pending',              // Order placed, awaiting confirmation
   CONFIRMED: 'confirmed',          // Order confirmed by bakery staff
 
   // Production states
@@ -168,9 +201,7 @@ export const orderStatusTuple = Object.values(ORDER_STATUS) as [string, ...strin
 
 // Helper to get human-readable status labels
 export const ORDER_STATUS_LABELS: Record<keyof typeof ORDER_STATUS, string> = {
-  PENDING: 'Pending Payment',
-  PAYMENT_FAILED: 'Payment Failed',
-  PAID: 'Paid',
+  PENDING: 'Processing', // E-commerce standard - order received and being prepared
   CONFIRMED: 'Confirmed',
   IN_PRODUCTION: 'In Production',
   BAKING: 'Baking',
@@ -187,8 +218,6 @@ export const ORDER_STATUS_LABELS: Record<keyof typeof ORDER_STATUS, string> = {
 // Status color coding for UI
 export const ORDER_STATUS_COLORS: Record<keyof typeof ORDER_STATUS, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  PAYMENT_FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   CONFIRMED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   IN_PRODUCTION: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   BAKING: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
@@ -232,6 +261,11 @@ export const orderTable = sqliteTable("order", {
   totalAmount: integer().notNull(), // in cents
   subtotal: integer().notNull(), // in cents
   tax: integer().notNull(), // in cents
+  // Payment status - critical financial data
+  paymentStatus: text({
+    enum: paymentStatusTuple,
+  }).default(PAYMENT_STATUS.PENDING).notNull(),
+  // Order fulfillment status - workflow tracking
   status: text({
     enum: orderStatusTuple,
   }).default(ORDER_STATUS.PENDING).notNull(),
@@ -245,6 +279,7 @@ export const orderTable = sqliteTable("order", {
 }, (table) => ([
   index('order_user_id_idx').on(table.userId),
   index('order_loyalty_customer_id_idx').on(table.loyaltyCustomerId),
+  index('order_payment_status_idx').on(table.paymentStatus),
   index('order_status_idx').on(table.status),
   index('order_created_at_idx').on(table.createdAt),
   index('order_stripe_payment_intent_id_idx').on(table.stripePaymentIntentId),
@@ -258,6 +293,9 @@ export const orderItemTable = sqliteTable("order_item", {
   productId: text().notNull().references(() => productTable.id),
   quantity: integer().notNull(),
   priceAtPurchase: integer().notNull(), // in cents - store price at time of purchase
+  // Customer's selected customizations - stored as JSON
+  // Contains what size/options were selected and the final calculated price
+  customizations: text({ length: 5000 }), // Stored as JSON string
 }, (table) => ([
   index('order_item_order_id_idx').on(table.orderId),
   index('order_item_product_id_idx').on(table.productId),

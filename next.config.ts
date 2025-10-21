@@ -15,7 +15,17 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: process.env.SKIP_LINTER === 'true'
-  }
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+    // Allow local API routes to serve images
+    unoptimized: process.env.NODE_ENV === 'development',
+  },
 };
 
 export default process.env.ANALYZE === 'true'

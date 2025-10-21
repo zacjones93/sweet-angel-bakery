@@ -1,3 +1,4 @@
+import "server-only";
 import { drizzle } from "drizzle-orm/d1";
 import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";

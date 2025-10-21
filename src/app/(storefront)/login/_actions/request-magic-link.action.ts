@@ -12,6 +12,7 @@ import { checkRateLimit } from "@/utils/rate-limit";
 
 const requestMagicLinkInputSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
+  callback: z.string().optional(),
 });
 
 export const requestMagicLinkAction = createServerAction()
@@ -51,6 +52,7 @@ export const requestMagicLinkAction = createServerAction()
     const token = await generateMagicLinkToken({
       email: input.email,
       kv: env.NEXT_INC_CACHE_KV,
+      callback: input.callback,
     });
 
     // Send magic link email

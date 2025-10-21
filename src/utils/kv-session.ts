@@ -167,10 +167,6 @@ export async function getKVSession(sessionId: string, userId: string): Promise<K
     session.user.updatedAt = new Date(session.user.updatedAt);
   }
 
-  if (session?.user?.lastCreditRefreshAt) {
-    session.user.lastCreditRefreshAt = new Date(session.user.lastCreditRefreshAt);
-  }
-
   if (session?.user?.emailVerified) {
     session.user.emailVerified = new Date(session.user.emailVerified);
   }

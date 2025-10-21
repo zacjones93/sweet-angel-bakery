@@ -1,12 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { getNotificationPreferencesAction, updateNotificationPreferencesAction } from "../_actions/notification-preferences.action";
+import {
+  getNotificationPreferencesAction,
+  updateNotificationPreferencesAction,
+} from "../_actions/notification-preferences.action";
 import { useServerAction } from "zsa-react";
 
 interface NotificationPreferences {
@@ -24,8 +33,14 @@ export default function NotificationsPage() {
     smsDrops: false,
   });
 
-  const { execute: getPreferences, isPending: isLoading } = useServerAction(getNotificationPreferencesAction);
-  const { execute: updatePreferences, isPending: isUpdating, error } = useServerAction(updateNotificationPreferencesAction);
+  const { execute: getPreferences, isPending: isLoading } = useServerAction(
+    getNotificationPreferencesAction
+  );
+  const {
+    execute: updatePreferences,
+    isPending: isUpdating,
+    error,
+  } = useServerAction(updateNotificationPreferencesAction);
 
   useEffect(() => {
     async function loadPreferences() {
@@ -45,7 +60,10 @@ export default function NotificationsPage() {
     }
   }
 
-  function updatePreference(key: keyof NotificationPreferences, value: boolean) {
+  function updatePreference(
+    key: keyof NotificationPreferences,
+    value: boolean
+  ) {
     setPreferences((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -60,7 +78,9 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-display font-bold mb-2">Notification Preferences</h2>
+        <h2 className="text-2xl font-display font-bold mb-2">
+          Notification Preferences
+        </h2>
         <p className="text-muted-foreground">
           Manage how you receive updates from Sweet Angel Bakery
         </p>
@@ -77,16 +97,18 @@ export default function NotificationsPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="emailNewFlavors" className="text-base">
-                New Flavor Alerts
+                New Product Alerts
               </Label>
               <p className="text-sm text-muted-foreground">
-                Get notified when we release new cookie and cake flavors
+                Get notified when we release new cookies and cakes
               </p>
             </div>
             <Switch
               id="emailNewFlavors"
               checked={preferences.emailNewFlavors}
-              onCheckedChange={(checked) => updatePreference("emailNewFlavors", checked)}
+              onCheckedChange={(checked) =>
+                updatePreference("emailNewFlavors", checked)
+              }
             />
           </div>
 
@@ -102,7 +124,9 @@ export default function NotificationsPage() {
             <Switch
               id="emailDrops"
               checked={preferences.emailDrops}
-              onCheckedChange={(checked) => updatePreference("emailDrops", checked)}
+              onCheckedChange={(checked) =>
+                updatePreference("emailDrops", checked)
+              }
             />
           </div>
         </CardContent>
@@ -128,7 +152,9 @@ export default function NotificationsPage() {
             <Switch
               id="smsDelivery"
               checked={preferences.smsDelivery}
-              onCheckedChange={(checked) => updatePreference("smsDelivery", checked)}
+              onCheckedChange={(checked) =>
+                updatePreference("smsDelivery", checked)
+              }
             />
           </div>
 
@@ -144,12 +170,15 @@ export default function NotificationsPage() {
             <Switch
               id="smsDrops"
               checked={preferences.smsDrops}
-              onCheckedChange={(checked) => updatePreference("smsDrops", checked)}
+              onCheckedChange={(checked) =>
+                updatePreference("smsDrops", checked)
+              }
             />
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Note: SMS notifications require a phone number. Update your phone number in Settings.
+            Note: SMS notifications require a phone number. Update your phone
+            number in Settings.
           </p>
         </CardContent>
       </Card>

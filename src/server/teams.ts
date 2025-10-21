@@ -78,7 +78,6 @@ export async function createTeam({
     slug,
     description,
     avatarUrl,
-    creditBalance: 0,
   }).returning();
 
   const team = newTeam?.[0];

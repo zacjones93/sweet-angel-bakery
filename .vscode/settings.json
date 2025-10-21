@@ -1,5 +1,26 @@
 {
-  "files.associations": {
-    "wrangler.json": "jsonc"
-  }
+	"files.associations": {
+		"wrangler.json": "jsonc"
+	},
+	"workbench.colorCustomizations": {
+		"activityBar.background": "#471F3E",
+		"activityBar.activeBackground": "#471F3E",
+		"activityBar.activeBorder": "#1F4728",
+		"activityBar.foreground": "#FCF9FC",
+		"activityBar.inactiveForeground": "#FCF9FC99",
+		"activityBarBadge.background": "#1F4728",
+		"activityBarBadge.foreground": "#FCF9FC",
+		"titleBar.activeBackground": "#642B57",
+		"titleBar.activeForeground": "#FCF9FC",
+		"titleBar.inactiveBackground": "#642B5799",
+		"titleBar.inactiveForeground": "#FCF9FC99",
+		"sash.hoverBorder": "#471F3E",
+		"commandCenter.border": "#FCF9FC99",
+		"statusBar.background": "#642B57",
+		"statusBar.foreground": "#FCF9FC",
+		"statusBarItem.hoverBackground": "#5A274F",
+		"statusBarItem.remoteBackground": "#642B57",
+		"statusBarItem.remoteForeground": "#FCF9FC"
+	},
+	"typescript.tsdk": "node_modules/typescript/lib"
 }

@@ -5,20 +5,28 @@ import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
 import { SITE_URL } from "@/constants";
 import { productTable } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { getDB } from "@/db";
+import { calculateTax } from "@/utils/tax";
+import { orderItemCustomizationsSchema } from "@/schemas/customizations.schema";
+import type { SizeVariantsConfig } from "@/types/customizations";
 
 const createCheckoutSessionInputSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string(),
       quantity: z.number().int().positive(),
+      customizations: orderItemCustomizationsSchema.optional(),
+      name: z.string(), // Display name with variant info
+      price: z.number().int().positive(), // Final price in cents
     })
   ).min(1, "Cart cannot be empty"),
   customerEmail: z.string().email().optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
+  joinLoyalty: z.boolean().optional(),
   smsOptIn: z.boolean().optional(),
+  loyaltyCustomerId: z.string().optional(), // Pass existing loyalty customer ID
 });
 
 export const createCheckoutSessionAction = createServerAction()
@@ -28,12 +36,14 @@ export const createCheckoutSessionAction = createServerAction()
     const db = getDB();
     // Fetch products to validate availability and get Stripe IDs
     const productIds = input.items.map((item) => item.productId);
+    // Deduplicate product IDs (same product might have multiple variants in cart)
+    const uniqueProductIds = [...new Set(productIds)];
     const products = await db
       .select()
       .from(productTable)
-      .where(inArray(productTable.id, productIds));
+      .where(inArray(productTable.id, uniqueProductIds));
 
-    if (products.length !== productIds.length) {
+    if (products.length !== uniqueProductIds.length) {
       throw new Error("Some products not found");
     }
 
@@ -43,7 +53,28 @@ export const createCheckoutSessionAction = createServerAction()
       if (!product) {
         throw new Error(`Product ${item.productId} not found`);
       }
-      if (product.quantityAvailable < item.quantity) {
+
+      // Parse product customizations to check variant-specific inventory
+      const productCustomizations = product.customizations
+        ? JSON.parse(product.customizations)
+        : null;
+
+      let availableQuantity = product.quantityAvailable;
+
+      // For size variants, check the specific variant's quantity
+      if (
+        productCustomizations?.type === "size_variants" &&
+        item.customizations?.type === "size_variant"
+      ) {
+        const sizeConfig = productCustomizations as SizeVariantsConfig;
+        const variantId = item.customizations.selectedVariantId;
+        const variant = sizeConfig.variants.find((v) => v.id === variantId);
+        if (variant) {
+          availableQuantity = variant.quantityAvailable;
+        }
+      }
+
+      if (availableQuantity < item.quantity) {
         throw new Error(`Insufficient inventory for ${product.name}`);
       }
     }
@@ -52,18 +83,69 @@ export const createCheckoutSessionAction = createServerAction()
     const lineItems = input.items.map((item) => {
       const product = products.find((p) => p.id === item.productId)!;
 
-      return {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: product.name,
-            description: product.description || undefined,
-            images: product.imageUrl ? [product.imageUrl] : undefined,
+      // Parse product customizations
+      const productCustomizations = product.customizations
+        ? JSON.parse(product.customizations)
+        : null;
+
+      // Determine which Stripe price ID to use
+      let stripePriceId: string | null = null;
+
+      if (
+        productCustomizations?.type === "size_variants" &&
+        item.customizations?.type === "size_variant"
+      ) {
+        // Find the selected variant's Stripe price ID
+        const sizeConfig = productCustomizations as SizeVariantsConfig;
+        const variantId = item.customizations.selectedVariantId;
+        const variant = sizeConfig.variants.find((v) => v.id === variantId);
+        stripePriceId = variant?.stripePriceId || product.stripePriceId;
+      } else {
+        // Use product's default Stripe price ID
+        stripePriceId = product.stripePriceId;
+      }
+
+      // If we have a Stripe price ID, use it; otherwise create price_data
+      if (stripePriceId) {
+        return {
+          price: stripePriceId,
+          quantity: item.quantity,
+        };
+      } else {
+        return {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.name,
+              description: product.description || undefined,
+              images: product.imageUrl ? [product.imageUrl] : undefined,
+            },
+            unit_amount: item.price, // Use the calculated price from cart
           },
-          unit_amount: product.price, // already in cents
+          quantity: item.quantity,
+        };
+      }
+    });
+
+    // Calculate subtotal and tax (use prices from cart items)
+    const subtotal = input.items.reduce((sum, item) => {
+      return sum + item.price * item.quantity;
+    }, 0);
+
+    const tax = calculateTax(subtotal);
+
+    // Add tax as a separate line item
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: "Idaho Sales Tax (6%)",
+          description: "State sales tax for Boise/Caldwell area",
+          images: undefined,
         },
-        quantity: item.quantity,
-      };
+        unit_amount: tax, // tax amount in cents
+      },
+      quantity: 1,
     });
 
     // Create Stripe checkout session
@@ -78,7 +160,9 @@ export const createCheckoutSessionAction = createServerAction()
         items: JSON.stringify(input.items),
         customerName: input.customerName || "",
         customerPhone: input.customerPhone || "",
+        joinLoyalty: input.joinLoyalty ? "true" : "false",
         smsOptIn: input.smsOptIn ? "true" : "false",
+        loyaltyCustomerId: input.loyaltyCustomerId || "", // Pass loyalty customer ID
       },
     });
 
