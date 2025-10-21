@@ -3,13 +3,13 @@
 import { z } from "zod";
 import { createServerAction } from "zsa";
 import { getDB } from "@/db";
-import { loyaltyCustomerTable } from "@/db/schema";
+import { userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateMagicLinkToken } from "@/utils/loyalty-auth";
+import { createMagicLinkToken } from "@/utils/auth";
 import { sendMagicLinkEmail } from "@/utils/email";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-const createLoyaltyCustomerSchema = z.object({
+const createUserSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -22,24 +22,24 @@ const createLoyaltyCustomerSchema = z.object({
   }).optional(),
 });
 
-export const createLoyaltyCustomerAction = createServerAction()
-  .input(createLoyaltyCustomerSchema)
+export const createUserAction = createServerAction()
+  .input(createUserSchema)
   .handler(async ({ input }) => {
     const { env } = getCloudflareContext();
     const db = getDB();
 
-    // Check if customer already exists
-    const [existingCustomer] = await db
+    // Check if user already exists
+    const [existingUser] = await db
       .select()
-      .from(loyaltyCustomerTable)
-      .where(eq(loyaltyCustomerTable.email, input.email.toLowerCase()))
+      .from(userTable)
+      .where(eq(userTable.email, input.email.toLowerCase()))
       .limit(1);
 
-    if (existingCustomer) {
+    if (existingUser) {
       throw new Error("An account with this email already exists. Please login instead.");
     }
 
-    // Create loyalty customer
+    // Create user
     const notificationPrefs = input.notificationPreferences || {
       emailNewFlavors: true,
       emailDrops: true,
@@ -47,15 +47,16 @@ export const createLoyaltyCustomerAction = createServerAction()
       smsDrops: false,
     };
 
-    const [customer] = await db
-      .insert(loyaltyCustomerTable)
+    const [user] = await db
+      .insert(userTable)
       .values({
         email: input.email.toLowerCase(),
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone || null,
-        emailVerified: 0,
+        emailVerified: null,
         phoneVerified: 0,
+        role: "user",
         notificationPreferences: JSON.stringify(notificationPrefs),
       })
       .returning();
@@ -65,21 +66,24 @@ export const createLoyaltyCustomerAction = createServerAction()
     }
 
     // Generate magic link token to log them in
-    const token = await generateMagicLinkToken({
-      email: customer.email,
+    const token = await createMagicLinkToken({
+      email: user.email!,
       kv: env.NEXT_INC_CACHE_KV,
     });
 
     // Send welcome email with login link
     await sendMagicLinkEmail({
-      email: customer.email,
+      email: user.email!,
       magicToken: token,
-      customerName: `${customer.firstName} ${customer.lastName}`,
+      customerName: `${user.firstName} ${user.lastName}`,
     });
 
     return {
       success: true,
-      email: customer.email,
-      firstName: customer.firstName,
+      email: user.email,
+      firstName: user.firstName,
     };
   });
+
+// Keep the old export for backward compatibility during migration
+export const createLoyaltyCustomerAction = createUserAction;

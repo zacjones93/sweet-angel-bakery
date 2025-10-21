@@ -1,40 +1,23 @@
 import "server-only";
 
-import { cookies } from "next/headers";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getLoyaltySession } from "@/utils/loyalty-auth";
-import { getDB } from "@/db";
-import { loyaltyCustomerTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import type { LoyaltyCustomer } from "@/db/schema";
+import { getSessionFromCookie } from "@/utils/auth";
+import type { User } from "@/db/schema";
 
-export async function getCurrentLoyaltyCustomer(): Promise<LoyaltyCustomer | null> {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get("loyalty_session")?.value;
-
-  if (!sessionId) {
-    return null;
-  }
-
-  const { env } = await getCloudflareContext();
-
-  // Get session from KV
-  const session = await getLoyaltySession({
-    sessionId,
-    kv: env.NEXT_INC_CACHE_KV,
-  });
-
+/**
+ * Get the current user from session (previously called "loyalty customer")
+ * Now uses unified auth system
+ */
+export async function getCurrentLoyaltyCustomer(): Promise<User | null> {
+  const session = await getSessionFromCookie();
+  
   if (!session) {
     return null;
   }
 
-  // Get loyalty customer from database
-  const db = getDB(env.NEXT_TAG_CACHE_D1);
-  const [customer] = await db
-    .select()
-    .from(loyaltyCustomerTable)
-    .where(eq(loyaltyCustomerTable.id, session.loyaltyCustomerId))
-    .limit(1);
+  return session.user;
+}
 
-  return customer || null;
+// Alias for clarity in storefront context
+export async function getCurrentUser(): Promise<User | null> {
+  return getCurrentLoyaltyCustomer();
 }

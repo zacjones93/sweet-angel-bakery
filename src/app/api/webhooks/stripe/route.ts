@@ -4,9 +4,10 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getDB } from "@/db";
-import { orderTable, orderItemTable, productTable, loyaltyCustomerTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
+import { orderTable, orderItemTable, productTable, userTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { calculateTax } from "@/utils/tax";
+import { findOrCreateUser } from "@/utils/auth";
 import type { OrderItemCustomizations, SizeVariantsConfig } from "@/types/customizations";
 
 export const runtime = "edge";
@@ -109,7 +110,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const customerPhone = session.metadata?.customerPhone || "";
   const joinLoyalty = session.metadata?.joinLoyalty === "true";
   const smsOptIn = session.metadata?.smsOptIn === "true";
-  const existingLoyaltyCustomerId = session.metadata?.loyaltyCustomerId || "";
+  const existingUserId = session.metadata?.userId || "";
 
   if (!items.length) {
     console.error("No items in session metadata");
@@ -135,55 +136,32 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const tax = calculateTax(subtotal);
   const totalAmount = subtotal + tax;
 
-  // Handle loyalty customer ID
-  let loyaltyCustomerId: string | undefined;
+  // Handle user ID - find or create user if they opted in to loyalty
+  let userId: string | undefined;
 
-  // If customer is already logged in as loyalty member, use their ID
-  if (existingLoyaltyCustomerId) {
-    loyaltyCustomerId = existingLoyaltyCustomerId;
-    console.log(`Using existing loyalty customer ID: ${loyaltyCustomerId}`);
+  // If customer is already logged in, use their ID
+  if (existingUserId) {
+    userId = existingUserId;
+    console.log(`Using existing user ID: ${userId}`);
   }
-  // Otherwise, create or find loyalty customer if they opted in
+  // Otherwise, create or find user if they opted in to loyalty
   else if (customerEmail && joinLoyalty) {
     try {
-      // Check if loyalty customer exists
-      const [existing] = await db
-        .select()
-        .from(loyaltyCustomerTable)
-        .where(eq(loyaltyCustomerTable.email, customerEmail))
-        .limit(1);
+      const [firstName, ...lastNameParts] = customerName.split(" ");
+      const lastName = lastNameParts.join(" ");
 
-      if (existing) {
-        loyaltyCustomerId = existing.id;
-        // Update phone if provided and not already set
-        if (customerPhone && !existing.phone) {
-          await db
-            .update(loyaltyCustomerTable)
-            .set({ phone: customerPhone })
-            .where(eq(loyaltyCustomerTable.id, existing.id));
-        }
-      } else {
-        // Create new loyalty customer
-        const [firstName, ...lastNameParts] = customerName.split(" ");
-        const lastName = lastNameParts.join(" ");
+      const user = await findOrCreateUser({
+        email: customerEmail,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        phone: customerPhone || undefined,
+      });
 
-        const [newCustomer] = await db
-          .insert(loyaltyCustomerTable)
-          .values({
-            email: customerEmail,
-            firstName: firstName || customerEmail.split("@")[0],
-            lastName: lastName || "",
-            phone: customerPhone || null,
-            emailVerified: 0,
-            phoneVerified: 0,
-          })
-          .returning();
-
-        loyaltyCustomerId = newCustomer.id;
-      }
+      userId = user.id;
+      console.log(`Created/found user ID: ${userId}`);
     } catch (error) {
-      console.error("Error creating/updating loyalty customer:", error);
-      // Continue without loyalty customer linkage
+      console.error("Error creating/finding user:", error);
+      // Continue without user linkage
     }
   }
 
@@ -200,7 +178,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       paymentStatus: PAYMENT_STATUS.PAID, // Payment successful
       status: ORDER_STATUS.PENDING, // Processing - order received, awaiting bakery confirmation
       stripePaymentIntentId: session.payment_intent as string,
-      loyaltyCustomerId: loyaltyCustomerId || null,
+      userId: userId || null,
+      // Keep loyaltyCustomerId null for now during migration
+      loyaltyCustomerId: null,
     })
     .returning();
 

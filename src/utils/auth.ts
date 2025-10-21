@@ -360,3 +360,122 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
     "Unable to verify email address at this time. Please try again later."
   );
 }
+
+/**
+ * Create a magic link token for email-based authentication
+ * Used for storefront customer authentication
+ */
+export async function createMagicLinkToken({
+  email,
+  kv,
+  callback,
+}: {
+  email: string;
+  kv: KVNamespace;
+  callback?: string;
+}): Promise<string> {
+  const token = createId();
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+  await kv.put(
+    `magic_link:${token}`,
+    JSON.stringify({ email, expiresAt, callback }),
+    { expirationTtl: Math.floor(15 * 60) }
+  );
+
+  return token;
+}
+
+/**
+ * Verify magic link and create session for the user
+ * Returns userId and optional callback URL
+ */
+export async function verifyMagicLinkAndCreateSession({
+  token,
+  kv,
+}: {
+  token: string;
+  kv: KVNamespace;
+}): Promise<{ userId: string; callback?: string } | null> {
+  const data = await kv.get(`magic_link:${token}`);
+  if (!data) return null;
+
+  const { email, expiresAt, callback } = JSON.parse(data);
+
+  if (Date.now() > expiresAt) {
+    await kv.delete(`magic_link:${token}`);
+    return null;
+  }
+
+  // Delete token (one-time use)
+  await kv.delete(`magic_link:${token}`);
+
+  // Find user by email
+  const db = getDB();
+  const user = await db.query.userTable.findFirst({
+    where: eq(userTable.email, email),
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Create standard session using the unified auth system
+  await createAndStoreSession(user.id, "magic-link");
+
+  return { userId: user.id, callback };
+}
+
+/**
+ * Find or create user from checkout/signup
+ * Used when customers create accounts during checkout or signup
+ */
+export async function findOrCreateUser({
+  email,
+  firstName,
+  lastName,
+  phone,
+}: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}): Promise<{ id: string; email: string; firstName: string | null; lastName: string | null }> {
+  const db = getDB();
+
+  // Try to find existing user
+  const [existing] = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.email, email.toLowerCase()))
+    .limit(1);
+
+  if (existing) {
+    // Update phone if provided and not already set
+    if (phone && !existing.phone) {
+      const [updated] = await db
+        .update(userTable)
+        .set({ phone })
+        .where(eq(userTable.id, existing.id))
+        .returning();
+      return updated;
+    }
+    return existing;
+  }
+
+  // Create new user
+  const [newUser] = await db
+    .insert(userTable)
+    .values({
+      email: email.toLowerCase(),
+      firstName: firstName || email.split("@")[0],
+      lastName: lastName || "",
+      phone: phone || null,
+      role: "user",
+      emailVerified: null, // Will verify via magic link
+      phoneVerified: 0,
+    })
+    .returning();
+
+  return newUser;
+}

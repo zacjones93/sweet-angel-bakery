@@ -119,7 +119,7 @@ export const userTable = sqliteTable(
 }
 ```
 
-### Migration Strategy
+### Migration Strategy (✅ Commit: 54df6b2)
 
 #### Phase 1: Schema Update
 

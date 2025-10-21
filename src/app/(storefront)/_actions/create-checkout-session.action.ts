@@ -26,7 +26,7 @@ const createCheckoutSessionInputSchema = z.object({
   customerPhone: z.string().optional(),
   joinLoyalty: z.boolean().optional(),
   smsOptIn: z.boolean().optional(),
-  loyaltyCustomerId: z.string().optional(), // Pass existing loyalty customer ID
+  userId: z.string().optional(), // Pass existing user ID if logged in
 });
 
 export const createCheckoutSessionAction = createServerAction()
@@ -162,7 +162,7 @@ export const createCheckoutSessionAction = createServerAction()
         customerPhone: input.customerPhone || "",
         joinLoyalty: input.joinLoyalty ? "true" : "false",
         smsOptIn: input.smsOptIn ? "true" : "false",
-        loyaltyCustomerId: input.loyaltyCustomerId || "", // Pass loyalty customer ID
+        userId: input.userId || "", // Pass user ID if logged in
       },
     });
 

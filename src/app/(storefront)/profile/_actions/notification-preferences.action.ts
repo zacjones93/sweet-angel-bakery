@@ -3,8 +3,9 @@
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getCurrentLoyaltyCustomer } from "../_lib/get-loyalty-customer";
-import { updateNotificationPreferences } from "@/utils/loyalty-auth";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getDB } from "@/db";
+import { userTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const notificationPreferencesSchema = z.object({
   emailNewFlavors: z.boolean(),
@@ -16,13 +17,13 @@ const notificationPreferencesSchema = z.object({
 export const getNotificationPreferencesAction = createServerAction()
   .input(z.object({}))
   .handler(async () => {
-    const customer = await getCurrentLoyaltyCustomer();
+    const user = await getCurrentLoyaltyCustomer();
 
-    if (!customer) {
+    if (!user) {
       throw new Error("Not authenticated");
     }
 
-    const preferences = JSON.parse(customer.notificationPreferences);
+    const preferences = JSON.parse(user.notificationPreferences || '{}');
 
     return {
       preferences,
@@ -34,19 +35,21 @@ export const updateNotificationPreferencesAction = createServerAction()
     preferences: notificationPreferencesSchema,
   }))
   .handler(async ({ input }) => {
-    const customer = await getCurrentLoyaltyCustomer();
+    const user = await getCurrentLoyaltyCustomer();
 
-    if (!customer) {
+    if (!user) {
       throw new Error("Not authenticated");
     }
 
-    const { env } = await getCloudflareContext();
+    const db = getDB();
 
-    await updateNotificationPreferences({
-      loyaltyCustomerId: customer.id,
-      preferences: input.preferences,
-      d1: env.NEXT_TAG_CACHE_D1,
-    });
+    // Update user's notification preferences
+    await db
+      .update(userTable)
+      .set({
+        notificationPreferences: JSON.stringify(input.preferences),
+      })
+      .where(eq(userTable.id, user.id));
 
     return { success: true };
   });
