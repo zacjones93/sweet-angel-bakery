@@ -52,11 +52,6 @@ export const userTable = sqliteTable("user", {
   avatar: text({
     length: 600,
   }),
-  // Credit system fields
-  currentCredits: integer().default(0).notNull(),
-  lastCreditRefreshAt: integer({
-    mode: "timestamp",
-  }),
 }, (table) => ([
   index('email_idx').on(table.email),
   index('google_account_id_idx').on(table.googleAccountId),
@@ -95,255 +90,272 @@ export const passKeyCredentialTable = sqliteTable("passkey_credential", {
   index('credential_id_idx').on(table.credentialId),
 ]));
 
-// Credit transaction types
-export const CREDIT_TRANSACTION_TYPE = {
-  PURCHASE: 'PURCHASE',
-  USAGE: 'USAGE',
-  MONTHLY_REFRESH: 'MONTHLY_REFRESH',
+// Product status types
+export const PRODUCT_STATUS = {
+  ACTIVE: 'active',
+  FEATURED: 'featured',
+  INACTIVE: 'inactive',
 } as const;
 
-export const creditTransactionTypeTuple = Object.values(CREDIT_TRANSACTION_TYPE) as [string, ...string[]];
+export const productStatusTuple = Object.values(PRODUCT_STATUS) as [string, ...string[]];
 
-export const creditTransactionTable = sqliteTable("credit_transaction", {
+// Categories table
+export const categoryTable = sqliteTable("category", {
   ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `ctxn_${createId()}`).notNull(),
-  userId: text().notNull().references(() => userTable.id),
-  amount: integer().notNull(),
-  // Track how many credits are still available from this transaction
-  remainingAmount: integer().default(0).notNull(),
-  type: text({
-    enum: creditTransactionTypeTuple,
-  }).notNull(),
-  description: text({
-    length: 255,
-  }).notNull(),
-  expirationDate: integer({
-    mode: "timestamp",
-  }),
-  expirationDateProcessedAt: integer({
-    mode: "timestamp",
-  }),
-  paymentIntentId: text({
-    length: 255,
-  }),
-}, (table) => ([
-  index('credit_transaction_user_id_idx').on(table.userId),
-  index('credit_transaction_type_idx').on(table.type),
-  index('credit_transaction_created_at_idx').on(table.createdAt),
-  index('credit_transaction_expiration_date_idx').on(table.expirationDate),
-  index('credit_transaction_payment_intent_id_idx').on(table.paymentIntentId),
-]));
-
-// Define item types that can be purchased
-export const PURCHASABLE_ITEM_TYPE = {
-  COMPONENT: 'COMPONENT',
-  // Add more types in the future (e.g., TEMPLATE, PLUGIN, etc.)
-} as const;
-
-export const purchasableItemTypeTuple = Object.values(PURCHASABLE_ITEM_TYPE) as [string, ...string[]];
-
-export const purchasedItemsTable = sqliteTable("purchased_item", {
-  ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `pitem_${createId()}`).notNull(),
-  userId: text().notNull().references(() => userTable.id),
-  // The type of item (e.g., COMPONENT, TEMPLATE, etc.)
-  itemType: text({
-    enum: purchasableItemTypeTuple,
-  }).notNull(),
-  // The ID of the item within its type (e.g., componentId)
-  itemId: text().notNull(),
-  purchasedAt: integer({
-    mode: "timestamp",
-  }).$defaultFn(() => new Date()).notNull(),
-}, (table) => ([
-  index('purchased_item_user_id_idx').on(table.userId),
-  index('purchased_item_type_idx').on(table.itemType),
-  // Composite index for checking if a user owns a specific item of a specific type
-  index('purchased_item_user_item_idx').on(table.userId, table.itemType, table.itemId),
-]));
-
-// System-defined roles - these are always available
-export const SYSTEM_ROLES_ENUM = {
-  OWNER: 'owner',
-  ADMIN: 'admin',
-  MEMBER: 'member',
-  GUEST: 'guest',
-} as const;
-
-export const systemRoleTuple = Object.values(SYSTEM_ROLES_ENUM) as [string, ...string[]];
-
-// Define available permissions
-export const TEAM_PERMISSIONS = {
-  // Resource access
-  ACCESS_DASHBOARD: 'access_dashboard',
-  ACCESS_BILLING: 'access_billing',
-
-  // User management
-  INVITE_MEMBERS: 'invite_members',
-  REMOVE_MEMBERS: 'remove_members',
-  CHANGE_MEMBER_ROLES: 'change_member_roles',
-
-  // Team management
-  EDIT_TEAM_SETTINGS: 'edit_team_settings',
-  DELETE_TEAM: 'delete_team',
-
-  // Role management
-  CREATE_ROLES: 'create_roles',
-  EDIT_ROLES: 'edit_roles',
-  DELETE_ROLES: 'delete_roles',
-  ASSIGN_ROLES: 'assign_roles',
-
-  // Content permissions
-  CREATE_COMPONENTS: 'create_components',
-  EDIT_COMPONENTS: 'edit_components',
-  DELETE_COMPONENTS: 'delete_components',
-
-  // Add more as needed
-} as const;
-
-// Team table
-export const teamTable = sqliteTable("team", {
-  ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `team_${createId()}`).notNull(),
+  id: text().primaryKey().$defaultFn(() => `cat_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(),
   slug: text({ length: 255 }).notNull().unique(),
   description: text({ length: 1000 }),
-  avatarUrl: text({ length: 600 }),
-  // Settings could be stored as JSON
-  settings: text({ length: 10000 }),
-  // Optional billing-related fields
-  billingEmail: text({ length: 255 }),
-  planId: text({ length: 100 }),
-  planExpiresAt: integer({ mode: "timestamp" }),
-  creditBalance: integer().default(0).notNull(),
+  displayOrder: integer().default(0).notNull(),
+  active: integer().default(1).notNull(),
 }, (table) => ([
-  index('team_slug_idx').on(table.slug),
+  index('category_slug_idx').on(table.slug),
+  index('category_active_idx').on(table.active),
 ]));
 
-// Team membership table
-export const teamMembershipTable = sqliteTable("team_membership", {
+// Products table
+export const productTable = sqliteTable("product", {
   ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `tmem_${createId()}`).notNull(),
-  teamId: text().notNull().references(() => teamTable.id),
-  userId: text().notNull().references(() => userTable.id),
-  // This can be either a system role or a custom role ID
-  roleId: text().notNull(),
-  // Flag to indicate if this is a system role
-  isSystemRole: integer().default(1).notNull(),
-  invitedBy: text().references(() => userTable.id),
-  invitedAt: integer({ mode: "timestamp" }),
-  joinedAt: integer({ mode: "timestamp" }),
-  expiresAt: integer({ mode: "timestamp" }),
-  isActive: integer().default(1).notNull(),
-}, (table) => ([
-  index('team_membership_team_id_idx').on(table.teamId),
-  index('team_membership_user_id_idx').on(table.userId),
-  // Instead of unique() which causes linter errors, we'll create a unique constraint on columns
-  index('team_membership_unique_idx').on(table.teamId, table.userId),
-]));
-
-// Team role table
-export const teamRoleTable = sqliteTable("team_role", {
-  ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `trole_${createId()}`).notNull(),
-  teamId: text().notNull().references(() => teamTable.id),
+  id: text().primaryKey().$defaultFn(() => `prod_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(),
-  description: text({ length: 1000 }),
-  // Store permissions as a JSON array of permission keys
-  permissions: text({ mode: 'json' }).notNull().$type<string[]>(),
-  // A JSON field for storing UI-specific settings like color, icon, etc.
-  metadata: text({ length: 5000 }),
-  // Optional flag to mark some roles as non-editable
-  isEditable: integer().default(1).notNull(),
+  description: text({ length: 2000 }),
+  categoryId: text().notNull().references(() => categoryTable.id),
+  price: integer().notNull(), // in cents
+  imageUrl: text({ length: 600 }),
+  status: text({
+    enum: productStatusTuple,
+  }).default(PRODUCT_STATUS.ACTIVE).notNull(),
+  quantityAvailable: integer().default(0).notNull(), // inventory tracking
+  stripeProductId: text({ length: 255 }), // Stripe product ID
+  stripePriceId: text({ length: 255 }), // Stripe price ID
+  isNewFlavor: integer().default(0).notNull(), // Flag for "new flavor" notifications
+  newFlavorUntil: integer({
+    mode: "timestamp",
+  }), // Auto-unflag after this date
 }, (table) => ([
-  index('team_role_team_id_idx').on(table.teamId),
-  // Instead of unique() which causes linter errors, we'll create a unique constraint on columns
-  index('team_role_name_unique_idx').on(table.teamId, table.name),
+  index('product_category_idx').on(table.categoryId),
+  index('product_status_idx').on(table.status),
+  index('product_stripe_product_id_idx').on(table.stripeProductId),
+  index('product_is_new_flavor_idx').on(table.isNewFlavor),
 ]));
 
-// Team invitation table
-export const teamInvitationTable = sqliteTable("team_invitation", {
+// Order status types - Comprehensive bakery workflow
+export const ORDER_STATUS = {
+  // Initial states
+  PENDING: 'pending',              // Order placed, awaiting payment
+  PAYMENT_FAILED: 'payment_failed', // Payment attempt failed
+  PAID: 'paid',                    // Payment confirmed
+  CONFIRMED: 'confirmed',          // Order confirmed by bakery staff
+
+  // Production states
+  IN_PRODUCTION: 'in_production',  // Order is being worked on (for custom items)
+  BAKING: 'baking',               // Items are in the oven
+  BAKED: 'baked',                 // Items finished baking
+  COOLING: 'cooling',             // Items are cooling
+  DECORATING: 'decorating',       // Custom decorations being applied
+  PACKAGING: 'packaging',         // Order being packaged
+
+  // Fulfillment states
+  READY_FOR_PICKUP: 'ready_for_pickup',  // Ready for customer pickup
+  OUT_FOR_DELIVERY: 'out_for_delivery',  // Order is being delivered
+  COMPLETED: 'completed',         // Order fulfilled
+
+  // Terminal states
+  CANCELLED: 'cancelled',         // Order cancelled
+} as const;
+
+export const orderStatusTuple = Object.values(ORDER_STATUS) as [string, ...string[]];
+
+// Helper to get human-readable status labels
+export const ORDER_STATUS_LABELS: Record<keyof typeof ORDER_STATUS, string> = {
+  PENDING: 'Pending Payment',
+  PAYMENT_FAILED: 'Payment Failed',
+  PAID: 'Paid',
+  CONFIRMED: 'Confirmed',
+  IN_PRODUCTION: 'In Production',
+  BAKING: 'Baking',
+  BAKED: 'Baked',
+  COOLING: 'Cooling',
+  DECORATING: 'Decorating',
+  PACKAGING: 'Packaging',
+  READY_FOR_PICKUP: 'Ready for Pickup',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+} as const;
+
+// Status color coding for UI
+export const ORDER_STATUS_COLORS: Record<keyof typeof ORDER_STATUS, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  PAYMENT_FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  CONFIRMED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  IN_PRODUCTION: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  BAKING: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  BAKED: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  COOLING: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+  DECORATING: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+  PACKAGING: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+  READY_FOR_PICKUP: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  OUT_FOR_DELIVERY: 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+  COMPLETED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  CANCELLED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+} as const;
+
+// Loyalty Customer table
+export const loyaltyCustomerTable = sqliteTable("loyalty_customer", {
   ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `tinv_${createId()}`).notNull(),
-  teamId: text().notNull().references(() => teamTable.id),
-  email: text({ length: 255 }).notNull(),
-  // This can be either a system role or a custom role ID
-  roleId: text().notNull(),
-  // Flag to indicate if this is a system role
-  isSystemRole: integer().default(1).notNull(),
-  token: text({ length: 255 }).notNull().unique(),
-  invitedBy: text().notNull().references(() => userTable.id),
-  expiresAt: integer({ mode: "timestamp" }).notNull(),
-  acceptedAt: integer({ mode: "timestamp" }),
-  acceptedBy: text().references(() => userTable.id),
+  id: text().primaryKey().$defaultFn(() => `lcust_${createId()}`).notNull(),
+  userId: text().references(() => userTable.id), // Link to user account if they create one
+  email: text({ length: 255 }).notNull().unique(),
+  phone: text({ length: 50 }), // Optional for SMS
+  firstName: text({ length: 255 }).notNull(),
+  lastName: text({ length: 255 }).notNull(),
+  emailVerified: integer().default(0).notNull(),
+  phoneVerified: integer().default(0).notNull(),
+  // Notification preferences stored as JSON
+  notificationPreferences: text({ length: 1000 }).default('{"emailNewFlavors":true,"emailDrops":true,"smsDelivery":false,"smsDrops":false}').notNull(),
 }, (table) => ([
-  index('team_invitation_team_id_idx').on(table.teamId),
-  index('team_invitation_email_idx').on(table.email),
-  index('team_invitation_token_idx').on(table.token),
+  index('loyalty_customer_email_idx').on(table.email),
+  index('loyalty_customer_user_id_idx').on(table.userId),
 ]));
 
-export const teamRelations = relations(teamTable, ({ many }) => ({
-  memberships: many(teamMembershipTable),
-  invitations: many(teamInvitationTable),
-  roles: many(teamRoleTable),
+// Orders table
+export const orderTable = sqliteTable("order", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `ord_${createId()}`).notNull(),
+  userId: text().references(() => userTable.id), // nullable for guest checkout
+  loyaltyCustomerId: text().references(() => loyaltyCustomerTable.id), // Link to loyalty customer if applicable
+  customerEmail: text({ length: 255 }).notNull(),
+  customerName: text({ length: 255 }).notNull(),
+  customerPhone: text({ length: 50 }), // Optional phone for SMS notifications
+  totalAmount: integer().notNull(), // in cents
+  subtotal: integer().notNull(), // in cents
+  tax: integer().notNull(), // in cents
+  status: text({
+    enum: orderStatusTuple,
+  }).default(ORDER_STATUS.PENDING).notNull(),
+  stripePaymentIntentId: text({ length: 255 }),
+  fulfillmentType: text({ length: 50 }), // 'pickup' or 'delivery'
+  pickupTime: integer({
+    mode: "timestamp",
+  }),
+  deliveryAddress: text({ length: 1000 }),
+  notes: text({ length: 2000 }),
+}, (table) => ([
+  index('order_user_id_idx').on(table.userId),
+  index('order_loyalty_customer_id_idx').on(table.loyaltyCustomerId),
+  index('order_status_idx').on(table.status),
+  index('order_created_at_idx').on(table.createdAt),
+  index('order_stripe_payment_intent_id_idx').on(table.stripePaymentIntentId),
+]));
+
+// Order items table
+export const orderItemTable = sqliteTable("order_item", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `oitem_${createId()}`).notNull(),
+  orderId: text().notNull().references(() => orderTable.id),
+  productId: text().notNull().references(() => productTable.id),
+  quantity: integer().notNull(),
+  priceAtPurchase: integer().notNull(), // in cents - store price at time of purchase
+}, (table) => ([
+  index('order_item_order_id_idx').on(table.orderId),
+  index('order_item_product_id_idx').on(table.productId),
+]));
+
+// Product Drop status types
+export const DROP_STATUS = {
+  SCHEDULED: 'scheduled',           // Drop is scheduled but not yet active
+  LOYALTY_ACTIVE: 'loyalty_active', // Early access for loyalty members
+  PUBLIC_ACTIVE: 'public_active',   // Available to everyone
+  ENDED: 'ended',                   // Drop has ended
+} as const;
+
+export const dropStatusTuple = Object.values(DROP_STATUS) as [string, ...string[]];
+
+// Product Drops table
+export const productDropTable = sqliteTable("product_drop", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `drop_${createId()}`).notNull(),
+  name: text({ length: 255 }).notNull(),
+  description: text({ length: 2000 }),
+  loyaltyEarlyAccessStart: integer({
+    mode: "timestamp",
+  }).notNull(), // When loyalty members can access
+  publicReleaseStart: integer({
+    mode: "timestamp",
+  }).notNull(), // When public can access
+  endTime: integer({
+    mode: "timestamp",
+  }), // Optional end time
+  status: text({
+    enum: dropStatusTuple,
+  }).default(DROP_STATUS.SCHEDULED).notNull(),
+  notificationSent: integer().default(0).notNull(), // Flag to track if notification was sent
+}, (table) => ([
+  index('product_drop_status_idx').on(table.status),
+  index('product_drop_loyalty_start_idx').on(table.loyaltyEarlyAccessStart),
+  index('product_drop_public_start_idx').on(table.publicReleaseStart),
+]));
+
+// Product Drop Items table (which products are in which drops)
+export const productDropItemTable = sqliteTable("product_drop_item", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `dropi_${createId()}`).notNull(),
+  dropId: text().notNull().references(() => productDropTable.id),
+  productId: text().notNull().references(() => productTable.id),
+  limitedQuantity: integer().notNull(), // Total quantity available for this drop
+  remainingQuantity: integer().notNull(), // Remaining quantity
+  maxPerCustomer: integer().default(0).notNull(), // 0 = no limit
+}, (table) => ([
+  index('product_drop_item_drop_id_idx').on(table.dropId),
+  index('product_drop_item_product_id_idx').on(table.productId),
+]));
+
+// Relations
+export const categoryRelations = relations(categoryTable, ({ many }) => ({
+  products: many(productTable),
 }));
 
-export const teamRoleRelations = relations(teamRoleTable, ({ one }) => ({
-  team: one(teamTable, {
-    fields: [teamRoleTable.teamId],
-    references: [teamTable.id],
+export const productRelations = relations(productTable, ({ one, many }) => ({
+  category: one(categoryTable, {
+    fields: [productTable.categoryId],
+    references: [categoryTable.id],
   }),
+  orderItems: many(orderItemTable),
+  dropItems: many(productDropItemTable),
 }));
 
-export const teamMembershipRelations = relations(teamMembershipTable, ({ one }) => ({
-  team: one(teamTable, {
-    fields: [teamMembershipTable.teamId],
-    references: [teamTable.id],
-  }),
+export const orderRelations = relations(orderTable, ({ one, many }) => ({
   user: one(userTable, {
-    fields: [teamMembershipTable.userId],
+    fields: [orderTable.userId],
     references: [userTable.id],
   }),
-  invitedByUser: one(userTable, {
-    fields: [teamMembershipTable.invitedBy],
-    references: [userTable.id],
+  loyaltyCustomer: one(loyaltyCustomerTable, {
+    fields: [orderTable.loyaltyCustomerId],
+    references: [loyaltyCustomerTable.id],
+  }),
+  items: many(orderItemTable),
+}));
+
+export const orderItemRelations = relations(orderItemTable, ({ one }) => ({
+  order: one(orderTable, {
+    fields: [orderItemTable.orderId],
+    references: [orderTable.id],
+  }),
+  product: one(productTable, {
+    fields: [orderItemTable.productId],
+    references: [productTable.id],
   }),
 }));
 
-export const teamInvitationRelations = relations(teamInvitationTable, ({ one }) => ({
-  team: one(teamTable, {
-    fields: [teamInvitationTable.teamId],
-    references: [teamTable.id],
-  }),
-  invitedByUser: one(userTable, {
-    fields: [teamInvitationTable.invitedBy],
-    references: [userTable.id],
-  }),
-  acceptedByUser: one(userTable, {
-    fields: [teamInvitationTable.acceptedBy],
-    references: [userTable.id],
-  }),
-}));
-
-export const creditTransactionRelations = relations(creditTransactionTable, ({ one }) => ({
-  user: one(userTable, {
-    fields: [creditTransactionTable.userId],
-    references: [userTable.id],
-  }),
-}));
-
-export const purchasedItemsRelations = relations(purchasedItemsTable, ({ one }) => ({
-  user: one(userTable, {
-    fields: [purchasedItemsTable.userId],
-    references: [userTable.id],
-  }),
-}));
-
-export const userRelations = relations(userTable, ({ many }) => ({
+export const userRelations = relations(userTable, ({ one, many }) => ({
   passkeys: many(passKeyCredentialTable),
-  creditTransactions: many(creditTransactionTable),
-  purchasedItems: many(purchasedItemsTable),
-  teamMemberships: many(teamMembershipTable),
+  orders: many(orderTable),
+  loyaltyCustomer: one(loyaltyCustomerTable, {
+    fields: [userTable.id],
+    references: [loyaltyCustomerTable.userId],
+  }),
 }));
 
 export const passKeyCredentialRelations = relations(passKeyCredentialTable, ({ one }) => ({
@@ -353,11 +365,36 @@ export const passKeyCredentialRelations = relations(passKeyCredentialTable, ({ o
   }),
 }));
 
+export const loyaltyCustomerRelations = relations(loyaltyCustomerTable, ({ one, many }) => ({
+  user: one(userTable, {
+    fields: [loyaltyCustomerTable.userId],
+    references: [userTable.id],
+  }),
+  orders: many(orderTable),
+}));
+
+export const productDropRelations = relations(productDropTable, ({ many }) => ({
+  items: many(productDropItemTable),
+}));
+
+export const productDropItemRelations = relations(productDropItemTable, ({ one }) => ({
+  drop: one(productDropTable, {
+    fields: [productDropItemTable.dropId],
+    references: [productDropTable.id],
+  }),
+  product: one(productTable, {
+    fields: [productDropItemTable.productId],
+    references: [productTable.id],
+  }),
+}));
+
+// Type exports
 export type User = InferSelectModel<typeof userTable>;
 export type PassKeyCredential = InferSelectModel<typeof passKeyCredentialTable>;
-export type CreditTransaction = InferSelectModel<typeof creditTransactionTable>;
-export type PurchasedItem = InferSelectModel<typeof purchasedItemsTable>;
-export type Team = InferSelectModel<typeof teamTable>;
-export type TeamMembership = InferSelectModel<typeof teamMembershipTable>;
-export type TeamRole = InferSelectModel<typeof teamRoleTable>;
-export type TeamInvitation = InferSelectModel<typeof teamInvitationTable>;
+export type Category = InferSelectModel<typeof categoryTable>;
+export type Product = InferSelectModel<typeof productTable>;
+export type Order = InferSelectModel<typeof orderTable>;
+export type OrderItem = InferSelectModel<typeof orderItemTable>;
+export type LoyaltyCustomer = InferSelectModel<typeof loyaltyCustomerTable>;
+export type ProductDrop = InferSelectModel<typeof productDropTable>;
+export type ProductDropItem = InferSelectModel<typeof productDropItemTable>;
