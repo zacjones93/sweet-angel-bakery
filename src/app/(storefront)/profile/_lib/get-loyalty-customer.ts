@@ -9,7 +9,7 @@ import type { User } from "@/db/schema";
  */
 export async function getCurrentLoyaltyCustomer(): Promise<User | null> {
   const session = await getSessionFromCookie();
-  
+
   if (!session) {
     return null;
   }

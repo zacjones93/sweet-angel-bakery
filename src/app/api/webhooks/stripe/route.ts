@@ -179,8 +179,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       status: ORDER_STATUS.PENDING, // Processing - order received, awaiting bakery confirmation
       stripePaymentIntentId: session.payment_intent as string,
       userId: userId || null,
-      // Keep loyaltyCustomerId null for now during migration
-      loyaltyCustomerId: null,
     })
     .returning();
 

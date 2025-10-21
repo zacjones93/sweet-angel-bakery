@@ -231,30 +231,11 @@ export const ORDER_STATUS_COLORS: Record<keyof typeof ORDER_STATUS, string> = {
   CANCELLED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 } as const;
 
-// Loyalty Customer table
-export const loyaltyCustomerTable = sqliteTable("loyalty_customer", {
-  ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `lcust_${createId()}`).notNull(),
-  userId: text().references(() => userTable.id), // Link to user account if they create one
-  email: text({ length: 255 }).notNull().unique(),
-  phone: text({ length: 50 }), // Optional for SMS
-  firstName: text({ length: 255 }).notNull(),
-  lastName: text({ length: 255 }).notNull(),
-  emailVerified: integer().default(0).notNull(),
-  phoneVerified: integer().default(0).notNull(),
-  // Notification preferences stored as JSON
-  notificationPreferences: text({ length: 1000 }).default('{"emailNewFlavors":true,"emailDrops":true,"smsDelivery":false,"smsDrops":false}').notNull(),
-}, (table) => ([
-  index('loyalty_customer_email_idx').on(table.email),
-  index('loyalty_customer_user_id_idx').on(table.userId),
-]));
-
 // Orders table
 export const orderTable = sqliteTable("order", {
   ...commonColumns,
   id: text().primaryKey().$defaultFn(() => `ord_${createId()}`).notNull(),
-  userId: text().references(() => userTable.id), // nullable for guest checkout
-  loyaltyCustomerId: text().references(() => loyaltyCustomerTable.id), // Link to loyalty customer if applicable
+  userId: text().references(() => userTable.id), // Link to user (nullable for guest checkout)
   customerEmail: text({ length: 255 }).notNull(),
   customerName: text({ length: 255 }).notNull(),
   customerPhone: text({ length: 50 }), // Optional phone for SMS notifications
@@ -278,7 +259,6 @@ export const orderTable = sqliteTable("order", {
   notes: text({ length: 2000 }),
 }, (table) => ([
   index('order_user_id_idx').on(table.userId),
-  index('order_loyalty_customer_id_idx').on(table.loyaltyCustomerId),
   index('order_payment_status_idx').on(table.paymentStatus),
   index('order_status_idx').on(table.status),
   index('order_created_at_idx').on(table.createdAt),
@@ -369,10 +349,6 @@ export const orderRelations = relations(orderTable, ({ one, many }) => ({
     fields: [orderTable.userId],
     references: [userTable.id],
   }),
-  loyaltyCustomer: one(loyaltyCustomerTable, {
-    fields: [orderTable.loyaltyCustomerId],
-    references: [loyaltyCustomerTable.id],
-  }),
   items: many(orderItemTable),
 }));
 
@@ -387,13 +363,9 @@ export const orderItemRelations = relations(orderItemTable, ({ one }) => ({
   }),
 }));
 
-export const userRelations = relations(userTable, ({ one, many }) => ({
+export const userRelations = relations(userTable, ({ many }) => ({
   passkeys: many(passKeyCredentialTable),
   orders: many(orderTable),
-  loyaltyCustomer: one(loyaltyCustomerTable, {
-    fields: [userTable.id],
-    references: [loyaltyCustomerTable.userId],
-  }),
 }));
 
 export const passKeyCredentialRelations = relations(passKeyCredentialTable, ({ one }) => ({
@@ -401,14 +373,6 @@ export const passKeyCredentialRelations = relations(passKeyCredentialTable, ({ o
     fields: [passKeyCredentialTable.userId],
     references: [userTable.id],
   }),
-}));
-
-export const loyaltyCustomerRelations = relations(loyaltyCustomerTable, ({ one, many }) => ({
-  user: one(userTable, {
-    fields: [loyaltyCustomerTable.userId],
-    references: [userTable.id],
-  }),
-  orders: many(orderTable),
 }));
 
 export const productDropRelations = relations(productDropTable, ({ many }) => ({
@@ -433,6 +397,5 @@ export type Category = InferSelectModel<typeof categoryTable>;
 export type Product = InferSelectModel<typeof productTable>;
 export type Order = InferSelectModel<typeof orderTable>;
 export type OrderItem = InferSelectModel<typeof orderItemTable>;
-export type LoyaltyCustomer = InferSelectModel<typeof loyaltyCustomerTable>;
 export type ProductDrop = InferSelectModel<typeof productDropTable>;
 export type ProductDropItem = InferSelectModel<typeof productDropItemTable>;

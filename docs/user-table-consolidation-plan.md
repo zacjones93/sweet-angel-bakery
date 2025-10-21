@@ -197,7 +197,7 @@ export const userTable = sqliteTable(
 2. Drop `loyalty_customer` table
 3. Generate final migration: `pnpm db:generate consolidate-user-tables`
 
-## Code Changes
+## Code Changes (✅ Commit: 17eca35)
 
 ### 1. Authentication System Updates
 
