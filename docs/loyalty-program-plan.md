@@ -12,9 +12,9 @@
 | Checkout flow with loyalty signup | `429ae33` | ✅ Complete |
 | Order confirmation emails & webhooks | `d8c27bb` | ✅ Complete |
 | Loyalty customer login pages | `14250b2` | ✅ Complete |
+| Profile pages (orders, notifications, settings) | `e078b0e` | ✅ Complete |
 
 ### 🚧 In Progress
-- Profile page (order history, preferences)
 - Admin drop management interface
 
 ### 📋 Planned
