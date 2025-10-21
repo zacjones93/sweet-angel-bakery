@@ -5,6 +5,8 @@ import { render } from '@react-email/render'
 import { ResetPasswordEmail } from "@/react-email/reset-password";
 import { VerifyEmail } from "@/react-email/verify-email";
 import { TeamInviteEmail } from "@/react-email/team-invite";
+import { MagicLinkEmail } from "@/react-email/magic-link";
+import { OrderConfirmationEmail } from "@/react-email/order-confirmation";
 import isProd from "./is-prod";
 
 interface BrevoEmailOptions {
@@ -267,6 +269,104 @@ export async function sendTeamInvitationEmail({
       subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
       htmlContent: html,
       tags: ["team-invitation"],
+    });
+  }
+}
+
+export async function sendMagicLinkEmail({
+  email,
+  magicToken,
+  customerName
+}: {
+  email: string;
+  magicToken: string;
+  customerName: string;
+}) {
+  const magicLink = `${SITE_URL}/login/verify?token=${magicToken}`;
+
+  if (!isProd) {
+    console.warn('\n\n\nMagic link url: ', magicLink)
+    return
+  }
+
+  const html = await render(MagicLinkEmail({
+    magicLink,
+    customerName
+  }));
+
+  const provider = await getEmailProvider();
+
+  if (!provider && isProd) {
+    throw new Error("No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.");
+  }
+
+  if (provider === "resend") {
+    await sendResendEmail({
+      to: [email],
+      subject: `Your login link for ${SITE_DOMAIN}`,
+      html,
+      tags: [{ name: "type", value: "magic-link" }],
+    });
+  } else {
+    await sendBrevoEmail({
+      to: [{ email, name: customerName }],
+      subject: `Your login link for ${SITE_DOMAIN}`,
+      htmlContent: html,
+      tags: ["magic-link"],
+    });
+  }
+}
+
+export async function sendOrderConfirmationEmail({
+  email,
+  customerName,
+  orderNumber,
+  orderItems,
+  total,
+}: {
+  email: string;
+  customerName: string;
+  orderNumber: string;
+  orderItems: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  total: number;
+}) {
+  if (!isProd) {
+    console.warn('\n\n\nOrder confirmation email would be sent to:', email);
+    console.warn('Order #:', orderNumber);
+    console.warn('Items:', orderItems);
+    return;
+  }
+
+  const html = await render(OrderConfirmationEmail({
+    customerName,
+    orderNumber,
+    orderItems,
+    total,
+  }));
+
+  const provider = await getEmailProvider();
+
+  if (!provider && isProd) {
+    throw new Error("No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.");
+  }
+
+  if (provider === "resend") {
+    await sendResendEmail({
+      to: [email],
+      subject: `Order Confirmed - Sweet Angel Bakery #${orderNumber}`,
+      html,
+      tags: [{ name: "type", value: "order-confirmation" }],
+    });
+  } else {
+    await sendBrevoEmail({
+      to: [{ email, name: customerName }],
+      subject: `Order Confirmed - Sweet Angel Bakery #${orderNumber}`,
+      htmlContent: html,
+      tags: ["order-confirmation"],
     });
   }
 }
