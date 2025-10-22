@@ -81,7 +81,7 @@ export default function BaseLayout({
         <Toaster
           richColors
           closeButton
-          position="top-right"
+          position="bottom-right"
           expand
           duration={7000}
         />

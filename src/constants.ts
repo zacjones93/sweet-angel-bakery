@@ -15,7 +15,7 @@ export const SESSION_COOKIE_NAME = "session";
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "google-oauth-state";
 export const GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME = "google-oauth-code-verifier";
 
-export const REDIRECT_AFTER_SIGN_IN = "/dashboard" as Route;
+export const REDIRECT_AFTER_SIGN_IN = "/profile" as Route;
 
 // Sales Tax Configuration
 // Idaho state sales tax rate for Boise/Caldwell area (6% state + 0% local)

@@ -49,8 +49,15 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
+        console.log(`[Webhook] Handling checkout.session.completed event`);
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutSessionCompleted(session);
+        try {
+          await handleCheckoutSessionCompleted(session);
+          console.log(`[Webhook] Successfully processed checkout session ${session.id}`);
+        } catch (error) {
+          console.error(`[Webhook] Error in handleCheckoutSessionCompleted:`, error);
+          throw error;
+        }
         break;
       }
 
@@ -86,7 +93,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (err) {
-    console.error("Error processing webhook:", err);
+    console.error("[Webhook] Error processing webhook:", err);
+    console.error("[Webhook] Error details:", err instanceof Error ? err.message : String(err));
+    console.error("[Webhook] Error stack:", err instanceof Error ? err.stack : 'No stack trace');
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
@@ -95,16 +104,8 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  // Extract metadata
-  const items: Array<{
-    productId: string;
-    quantity: number;
-    customizations?: OrderItemCustomizations;
-    name: string;
-    price: number;
-  }> = JSON.parse(
-    session.metadata?.items || "[]"
-  );
+  console.log(`[Webhook] Processing checkout session: ${session.id}`);
+
   const customerName = session.metadata?.customerName || "Guest";
   const customerEmail = session.customer_email || session.customer_details?.email || "";
   const customerPhone = session.metadata?.customerPhone || "";
@@ -112,22 +113,124 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const smsOptIn = session.metadata?.smsOptIn === "true";
   const existingUserId = session.metadata?.userId || "";
 
-  if (!items.length) {
-    console.error("No items in session metadata");
+  console.log(`[Webhook] Customer: ${customerEmail}, User ID: ${existingUserId || 'none'}`);
+
+  // Retrieve line items from Stripe instead of metadata to avoid character limits
+  const stripe = await getStripe();
+
+  console.log(`[Webhook] Fetching line items for session ${session.id}...`);
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    expand: ['data.price.product'],
+  });
+
+  console.log(`[Webhook] Found ${lineItems.data.length} line items`);
+
+  if (!lineItems.data.length) {
+    console.error("[Webhook] No line items in checkout session");
     return;
   }
 
-  // Get product details
-  const productIds = items.map((item) => item.productId);
+  // Filter out the tax line item and reconstruct cart items
   const db = getDB();
-  const products = await db
-    .select()
-    .from(productTable)
-    .where(inArray(productTable.id, productIds));
+  const items: Array<{
+    productId: string;
+    quantity: number;
+    customizations?: OrderItemCustomizations;
+    name: string;
+    price: number;
+  }> = [];
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  // We need to match Stripe prices back to our products
+  // Build a map of Stripe price IDs to products
+  const allProducts = await db.select().from(productTable);
+  const stripePriceMap = new Map<string, { product: typeof allProducts[0], variantId?: string }>();
 
-  // Calculate totals (use prices from cart items which account for variants)
+  for (const product of allProducts) {
+    // Add main product price
+    if (product.stripePriceId) {
+      stripePriceMap.set(product.stripePriceId, { product });
+    }
+
+    // Add variant prices
+    if (product.customizations) {
+      const customizations = JSON.parse(product.customizations);
+      if (customizations?.type === "size_variants") {
+        const sizeConfig = customizations as SizeVariantsConfig;
+        for (const variant of sizeConfig.variants) {
+          if (variant.stripePriceId) {
+            stripePriceMap.set(variant.stripePriceId, { product, variantId: variant.id });
+          }
+        }
+      }
+    }
+  }
+
+  // Process line items from Stripe
+  for (const lineItem of lineItems.data) {
+    let productInfo = lineItem.price?.id ? stripePriceMap.get(lineItem.price.id) : undefined;
+
+    // If not found by price ID, check for product metadata (ad-hoc prices)
+    if (!productInfo && lineItem.price?.product) {
+      const stripeProduct = lineItem.price.product;
+      // Check if the expanded product has metadata with our product ID
+      if (typeof stripeProduct === 'object' && 'metadata' in stripeProduct && stripeProduct.metadata?.productId) {
+        const productId = stripeProduct.metadata.productId;
+        const product = allProducts.find(p => p.id === productId);
+        if (product) {
+          productInfo = {
+            product,
+            variantId: stripeProduct.metadata.variantId,
+          };
+        }
+      }
+    }
+
+    if (!productInfo) {
+      // This might be a tax line item or other non-product item, skip it
+      continue;
+    }
+
+    const { product, variantId } = productInfo;
+    let customizations: OrderItemCustomizations | undefined;
+    let name = product.name;
+    let price = product.price; // Use 'price' not 'priceInCents'
+
+    // If this is a variant, reconstruct customizations
+    if (variantId) {
+      const productCustomizations = product.customizations
+        ? JSON.parse(product.customizations)
+        : null;
+
+      if (productCustomizations?.type === "size_variants") {
+        const sizeConfig = productCustomizations as SizeVariantsConfig;
+        const variant = sizeConfig.variants.find((v) => v.id === variantId);
+        if (variant) {
+          customizations = {
+            type: "size_variant",
+            selectedVariantId: variantId,
+            finalPriceInCents: variant.priceInCents,
+          };
+          name = `${product.name} - ${variant.name}`;
+          price = variant.priceInCents;
+        }
+      }
+    }
+
+    items.push({
+      productId: product.id,
+      quantity: lineItem.quantity || 1,
+      customizations,
+      name,
+      price,
+    });
+  }
+
+  if (items.length === 0) {
+    console.error("No valid product items found in line items");
+    return;
+  }
+
+  // Calculate totals
   const subtotal = items.reduce((sum, item) => {
     return sum + item.price * item.quantity;
   }, 0);
@@ -184,7 +287,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Create order items and reduce inventory
   for (const item of items) {
-    const product = productMap.get(item.productId);
+    const product = allProducts.find(p => p.id === item.productId);
     if (!product) {
       console.error(`Product ${item.productId} not found`);
       continue;
