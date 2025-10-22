@@ -6,22 +6,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive, production-ready Next.js SaaS template designed to run on Cloudflare Workers with OpenNext. It includes authentication, team management, billing, and other common SaaS features needed to launch a modern web application.
+Sweet Angel Bakery e-commerce platform - a Next.js application for online bakery orders, built on Cloudflare Workers with OpenNext. Features include product catalog, shopping cart, checkout, order management, and loyalty program.
 
-**Live Demo**: [nextjs-saas-template.lubomirgeorgiev.com](https://nextjs-saas-template.lubomirgeorgiev.com/sign-up)
+**Based on**: [cloudflare-workers-nextjs-saas-template](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
 
-**GitHub Repository**: [cloudflare-workers-nextjs-saas-template](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
+## Payment Provider
+
+**IMPORTANT**: This application uses **Square** as the payment provider, NOT Stripe.
+
+- All payments are processed through Square
+- Square Payment Links for checkout
+- Square Catalog API for product management
+- Square webhooks for order processing
+- Merchant fee tracking for revenue analytics
+
+While the codebase includes a Stripe provider implementation (for reference/fallback), **all active development and production usage should use Square**.
 
 ## Key Capabilities
 
-- **Authentication & Security**: Complete auth system with Lucia Auth, WebAuthn/Passkeys, OAuth, rate limiting, and session management
-- **Multi-tenancy**: Teams/organizations with role-based permissions and tenant isolation
-- **Billing System**: Credit-based billing with Stripe integration, usage tracking, and transaction history
-- **Admin Dashboard**: User management, credit administration, and analytics
+- **E-commerce**: Product catalog, shopping cart, checkout with Square integration
+- **Payment Processing**: Square Payment Links, webhooks, and fee tracking
+- **Order Management**: Admin dashboard for order fulfillment and status tracking
+- **Loyalty Program**: Customer accounts with order history and early access to product drops
+- **Product Drops**: Scheduled releases with loyalty member early access
+- **Authentication**: Magic link login, profile management, notification preferences
 - **Modern Stack**: Next.js 15, React Server Components, TypeScript, Tailwind CSS, Shadcn UI
-- **Edge Computing**: Cloudflare Workers with D1 database, KV storage, and global deployment
-- **Email System**: React Email templates with Resend/Brevo integration
-- **Developer Experience**: Full TypeScript support, Drizzle ORM, automated deployments
+- **Edge Computing**: Cloudflare Workers with D1 database, KV storage, R2 file storage
+- **Email/SMS**: Order confirmations and notifications via Resend/Brevo and Twilio
+- **Revenue Analytics**: Admin dashboard with fee tracking and provider comparison
 
 You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind CSS and DrizzleORM.
 
@@ -46,25 +58,31 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - Cloudflare R2 (File Storage)
 - OpenNext for SSR/Edge deployment
 
+### Payment Processing
+
+- **Square SDK** (`square@43.1.1`) - Primary payment provider
+- Merchant provider abstraction layer in `src/lib/merchant-provider/`
+- Fee tracking for revenue analytics
+- Webhook handlers for order processing
+
 ### Authentication & Authorization
 
 - Lucia Auth (User Management)
+- Magic link authentication (passwordless)
 - KV-based session management
 - CUID2 for ID generation
-- Team-based multi-tenancy
 
 ## Key Architecture Patterns
 
 ### Route Organization (App Router)
 
 - Route groups use `(groupName)` for layout organization without affecting URLs
-- `(auth)/` - Authentication flows (sign-in, sign-up, OAuth, passkeys)
-- `(dashboard)/` - Main application features
-- `(admin)/` - Admin-only routes with special guards
-- `(settings)/` - User settings and preferences
+- `(auth)/` - Authentication flows (magic link login, password reset)
+- `(storefront)/` - Customer-facing pages (products, cart, checkout, profile, orders)
+- `(admin)/` - Admin-only routes (orders, products, revenue stats)
 - `(legal)/` - Terms, privacy policy
-- `(marketing)/` - Public landing pages
-- `teams/[teamSlug]/` - Dynamic team-scoped routes
+
+**Note**: Team-related routes (`(dashboard)/`, `teams/`) are part of the original template but not actively used in the bakery application.
 
 ### Server Actions Pattern (ZSA)
 
@@ -81,37 +99,61 @@ export const myAction = createServerAction()
 
 See `src/actions/` for examples.
 
-### Team Authorization Flow
+### Merchant Provider Pattern
 
-1. User's team memberships fetched via `getUserTeamsWithPermissions(userId)`
-2. Permissions resolved from either system roles or custom roles
-3. Check permissions with constants from `TEAM_PERMISSIONS` enum
-4. Team context passed through server actions and components
+**CRITICAL**: Always use the merchant provider abstraction, never import Square or Stripe directly.
+
+**Files**:
+- `src/lib/merchant-provider/factory.ts` - Provider factory (use `getMerchantProvider()`)
+- `src/lib/merchant-provider/types.ts` - Shared interfaces
+- `src/lib/merchant-provider/providers/square.ts` - Square implementation
+- `src/lib/merchant-provider/providers/stripe.ts` - Stripe implementation (reference only)
+- `src/lib/merchant-provider/fee-calculator.ts` - Fee calculation utilities
+
+**Usage**:
+```typescript
+import { getMerchantProvider } from "@/lib/merchant-provider/factory";
+
+// In server actions or API routes
+const provider = await getMerchantProvider();
+
+// Provider selected based on MERCHANT_PROVIDER env var
+// Current: 'square'
+// Available methods: createCheckout, handleWebhook, createProduct, refundPayment, getPayment
+```
+
+**Environment Variables**:
+```bash
+# Required for Square
+MERCHANT_PROVIDER=square
+SQUARE_ACCESS_TOKEN=EAAAl...
+SQUARE_LOCATION_ID=L...
+SQUARE_ENVIRONMENT=sandbox  # or production
+SQUARE_WEBHOOK_SIGNATURE_KEY=...
+```
+
+**Never do**:
+- ❌ `import Stripe from 'stripe'`
+- ❌ `import { Client } from 'square'`
+
+**Always do**:
+- ✅ `import { getMerchantProvider } from "@/lib/merchant-provider/factory"`
 
 ## Development Status
 
-### Completed Features
+### Completed Features (Bakery-Specific)
 
-- Infrastructure setup (Next.js, Cloudflare Workers, D1, KV)
-- Authentication system (Lucia Auth)
-- User management and settings
-- Session management with KV storage
-- Dashboard layout with navigation
-- Password reset flow
-- Email system with templates
-- Security enhancements (rate limiting, input sanitization)
-- Credit-based billing system
-- Stripe payment processing
-- Multi-tenancy implementation
-- Team management with roles and permissions
-- Admin dashboard
-
-### In Progress
-
-- Real-time updates
-- Analytics dashboard
-- File upload system with R2
-- Audit logging
+- Product catalog with categories
+- Shopping cart with size variant support
+- Square payment integration (checkout, webhooks)
+- Order management system with comprehensive status workflow
+- Customer loyalty program with magic link login
+- Product drops with early access for loyalty members
+- Admin dashboard (orders, products, revenue analytics)
+- Email/SMS notifications
+- Merchant fee tracking and revenue reporting
+- Profile management with notification preferences
+- Product image uploads to Cloudflare R2
 
 ### Key Features
 
