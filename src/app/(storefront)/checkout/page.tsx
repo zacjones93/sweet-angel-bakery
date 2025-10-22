@@ -127,7 +127,7 @@ export default function CheckoutPage() {
       setIsRedirecting(true);
       // Clear cart before redirecting
       clearCart();
-      // Redirect to Stripe Checkout
+      // Redirect to payment provider checkout (Stripe or Square)
       window.location.href = data.url;
     }
   }
