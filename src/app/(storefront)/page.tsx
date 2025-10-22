@@ -9,7 +9,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section - Simple and Clean like Hudson's */}
-      <section className="py-24 md:py-32">
+      <section className="py-24 md:py-32  bg-gradient-to-b from-bakery-pink/30 to-transparent">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-5xl md:text-7xl lg:text-8xl mb-12 text-balance">
             <span className="font-sans text-lg md:text-2xl text-muted-foreground block mb-6">
@@ -24,13 +24,35 @@ export default async function HomePage() {
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
             Handcrafted cakes and cookies made with love, using the finest
-            ingredients. Order online for pickup today.
+            ingredients. Order online for delivery orpickup on Wednesdays and
+            Saturdays.
           </p>
           <Button size="lg" asChild className="text-lg px-8 py-6">
             <Link href="/">View Menu</Link>
           </Button>
         </div>
       </section>
+
+      {/* Featured Products */}
+      {products && products.length > 0 && (
+        <section className="py-20">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-display font-bold mb-12 text-center">
+              Featured Treats
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            <div className="text-center mt-12">
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/">Browse All Products</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Loyalty Program Section */}
       <section className="py-20 bg-gradient-to-b from-bakery-pink/10 to-transparent">
@@ -129,7 +151,7 @@ export default async function HomePage() {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Joining is free and automatic when you place your first order
+                Joining is free
               </p>
             </div>
           </div>
@@ -166,27 +188,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Featured Products */}
-      {products && products.length > 0 && (
-        <section className="py-20">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-12 text-center">
-              Featured Treats
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-            <div className="text-center mt-12">
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/">Browse All Products</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Visit Us Section */}
       {/* <section className="py-20 bg-secondary/10">

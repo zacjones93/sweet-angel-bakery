@@ -35,7 +35,7 @@ export const requestMagicLinkAction = createServerAction()
     }
 
     // Check if user exists
-    const db = getDB(env.NEXT_TAG_CACHE_D1);
+    const db = getDB();
     const [user] = await db
       .select()
       .from(userTable)

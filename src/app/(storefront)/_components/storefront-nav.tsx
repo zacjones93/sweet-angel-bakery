@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { ShoppingCart, Menu, User } from "lucide-react";
+import type { Route } from "next";
+import { ShoppingCart, Menu, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/state/cart-context";
@@ -11,60 +11,68 @@ import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServerAction } from "zsa-react";
 import { getCurrentLoyaltyCustomerAction } from "../_actions/get-current-loyalty-customer.action";
+import ThemeSwitch from "@/components/theme-switch";
 
 export function StorefrontNav() {
   const { items } = useCart();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const [isOpen, setIsOpen] = useState(false);
-  const [loyaltyCustomer, setLoyaltyCustomer] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
+  const [currentUser, setCurrentUser] = useState<{
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
     phone: string | null;
+    role: "admin" | "user";
   } | null>(null);
-  const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
-  const { execute: getLoyaltyCustomer } = useServerAction(
+  const { execute: getCurrentUser } = useServerAction(
     getCurrentLoyaltyCustomerAction
   );
 
   useEffect(() => {
-    async function loadLoyaltyCustomer() {
-      setIsLoadingLoyalty(true);
-      const [data] = await getLoyaltyCustomer({});
+    async function loadCurrentUser() {
+      setIsLoadingUser(true);
+      const [data] = await getCurrentUser({});
       if (data) {
-        setLoyaltyCustomer(data);
+        const { id, ...userData } = data;
+        setCurrentUser(userData as typeof currentUser);
       }
-      setIsLoadingLoyalty(false);
+      setIsLoadingUser(false);
     }
-    loadLoyaltyCustomer();
-  }, [getLoyaltyCustomer]);
+    loadCurrentUser();
+  }, [getCurrentUser]);
 
   return (
     <nav className="border-b bg-background sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link href="/" className="relative h-12 w-48 flex-shrink-0 flex flex-col items-center justify-center gap-1">
+            <Link
+              href="/"
+              className="relative h-12 w-48 flex-shrink-0 flex flex-col items-center justify-center gap-1"
+            >
               <span className="font-script text-bakery-pink">Sweet Angel</span>
-              <span className="font-display text-bakery-blue uppercase">Bakery</span>
+              <span className="font-display text-bakery-blue uppercase">
+                Bakery
+              </span>
             </Link>
 
             <div className="hidden lg:flex gap-8">
               <Link
-                href="/products"
+                href={"/products" as Route}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 All Products
               </Link>
               <Link
-                href="/products/cakes"
+                href={"/products/cakes" as Route}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Cakes
               </Link>
               <Link
-                href="/products/cookies"
+                href={"/products/cookies" as Route}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Cookies
@@ -73,20 +81,34 @@ export function StorefrontNav() {
           </div>
 
           <div className="flex items-center gap-4">
-            {isLoadingLoyalty ? (
+            {isLoadingUser ? (
               <Skeleton className="h-10 w-10 rounded-full" />
-            ) : loyaltyCustomer ? (
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/profile">
-                  <User className="h-5 w-5" />
-                  <span className="sr-only">Profile</span>
-                </Link>
-              </Button>
             ) : (
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Sign In</Link>
-              </Button>
+              <>
+                {currentUser?.role === "admin" && (
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href="/admin">
+                      <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      <span className="sr-only">Admin</span>
+                    </Link>
+                  </Button>
+                )}
+                {currentUser ? (
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href="/profile">
+                      <User className="h-5 w-5" />
+                      <span className="sr-only">Profile</span>
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                )}
+              </>
             )}
+
+            <ThemeSwitch className="border-none" />
 
             <Button variant="ghost" asChild className="relative">
               <Link href="/cart">
@@ -109,27 +131,27 @@ export function StorefrontNav() {
               <SheetContent side="right">
                 <div className="mt-8 flex flex-col gap-4">
                   <Link
-                    href="/products"
+                    href={"/products" as Route}
                     className="text-lg font-medium hover:text-primary transition-colors"
                     onClick={() => setIsOpen(false)}
                   >
                     All Products
                   </Link>
                   <Link
-                    href="/products/cakes"
+                    href={"/products/cakes" as Route}
                     className="text-lg font-medium hover:text-primary transition-colors"
                     onClick={() => setIsOpen(false)}
                   >
                     Cakes
                   </Link>
                   <Link
-                    href="/products/cookies"
+                    href={"/products/cookies" as Route}
                     className="text-lg font-medium hover:text-primary transition-colors"
                     onClick={() => setIsOpen(false)}
                   >
                     Cookies
                   </Link>
-                  {loyaltyCustomer && (
+                  {currentUser && (
                     <>
                       <div className="border-t my-2" />
                       <Link
@@ -139,9 +161,18 @@ export function StorefrontNav() {
                       >
                         Profile
                       </Link>
+                      {currentUser.role === "admin" && (
+                        <Link
+                          href="/admin"
+                          className="text-lg font-medium hover:text-primary transition-colors text-red-600 dark:text-red-400"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Admin
+                        </Link>
+                      )}
                     </>
                   )}
-                  {!loyaltyCustomer && (
+                  {!currentUser && (
                     <>
                       <div className="border-t my-2" />
                       <Link
@@ -153,6 +184,10 @@ export function StorefrontNav() {
                       </Link>
                     </>
                   )}
+                  <div className="border-t my-2" />
+                  <ThemeSwitch className="border-none w-full">
+                    Theme
+                  </ThemeSwitch>
                 </div>
               </SheetContent>
             </Sheet>

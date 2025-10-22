@@ -74,7 +74,7 @@ export default function SignupPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                We've sent you a login link. Click it to access your loyalty
+                We&apos;ve sent you a login link. Click it to access your loyalty
                 account and start enjoying exclusive perks!
               </p>
               <div className="rounded-lg bg-muted/50 p-4 space-y-2">
@@ -314,7 +314,7 @@ export default function SignupPage() {
         </Card>
 
         <div className="mt-8 rounded-lg border bg-muted/50 p-6">
-          <h3 className="font-semibold mb-2">What You'll Get</h3>
+          <h3 className="font-semibold mb-2">What You&apos;ll Get</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start">
               <span className="mr-2">⚡</span>
