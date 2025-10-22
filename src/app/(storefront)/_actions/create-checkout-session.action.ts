@@ -119,6 +119,13 @@ export const createCheckoutSessionAction = createServerAction()
               name: item.name,
               description: product.description || undefined,
               images: product.imageUrl ? [product.imageUrl] : undefined,
+              // Store product ID in metadata for webhook recovery (for products without Stripe price IDs)
+              metadata: {
+                productId: product.id,
+                ...(item.customizations?.type === "size_variant" && {
+                  variantId: item.customizations.selectedVariantId,
+                }),
+              },
             },
             unit_amount: item.price, // Use the calculated price from cart
           },
@@ -142,6 +149,9 @@ export const createCheckoutSessionAction = createServerAction()
           name: "Idaho Sales Tax (6%)",
           description: "State sales tax for Boise/Caldwell area",
           images: undefined,
+          metadata: {
+            productId: "tax",
+          },
         },
         unit_amount: tax, // tax amount in cents
       },
@@ -149,6 +159,8 @@ export const createCheckoutSessionAction = createServerAction()
     });
 
     // Create Stripe checkout session
+    // Note: We don't store items in metadata anymore to avoid 500 char limit
+    // Instead, we retrieve line items from Stripe in the webhook handler
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
@@ -157,7 +169,6 @@ export const createCheckoutSessionAction = createServerAction()
       cancel_url: `${SITE_URL}/cart`,
       customer_email: input.customerEmail,
       metadata: {
-        items: JSON.stringify(input.items),
         customerName: input.customerName || "",
         customerPhone: input.customerPhone || "",
         joinLoyalty: input.joinLoyalty ? "true" : "false",

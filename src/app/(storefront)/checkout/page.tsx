@@ -29,35 +29,36 @@ export default function CheckoutPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [joinLoyalty, setJoinLoyalty] = useState(true);
   const [smsOptIn, setSmsOptIn] = useState(false);
-  const [loyaltyCustomer, setLoyaltyCustomer] = useState<{
+  const [currentUser, setCurrentUser] = useState<{
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
     phone: string | null;
   } | null>(null);
   const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const { execute: getLoyaltyCustomer } = useServerAction(
     getCurrentLoyaltyCustomerAction
   );
 
-  // Load loyalty customer on mount and when returning from profile edit
+  // Load current user on mount and when returning from profile edit
   useEffect(() => {
-    async function loadLoyaltyCustomer() {
+    async function loadCurrentUser() {
       setIsLoadingLoyalty(true);
       const [data] = await getLoyaltyCustomer({});
       if (data) {
-        setLoyaltyCustomer(data);
-        setCustomerName(`${data.firstName} ${data.lastName}`);
-        setCustomerEmail(data.email);
+        setCurrentUser(data);
+        setCustomerName(`${data.firstName || ""} ${data.lastName || ""}`);
+        setCustomerEmail(data.email || "");
         setCustomerPhone(data.phone || "");
         // Already a loyalty member, no need to join again
         setJoinLoyalty(false);
       }
       setIsLoadingLoyalty(false);
     }
-    loadLoyaltyCustomer();
+    loadCurrentUser();
   }, [getLoyaltyCustomer, searchParams]); // Re-load when returning from edit
 
   const { execute, isPending, error } = useServerAction(
@@ -93,7 +94,7 @@ export default function CheckoutPage() {
       customerPhone: customerPhone || undefined,
       joinLoyalty,
       smsOptIn,
-      loyaltyCustomerId: loyaltyCustomer?.id, // Pass loyalty customer ID if logged in
+      userId: currentUser?.id, // Pass user ID if logged in
     });
 
     if (err) {
@@ -102,6 +103,8 @@ export default function CheckoutPage() {
     }
 
     if (data?.url) {
+      // Set redirecting state before clearing cart to prevent empty state flash
+      setIsRedirecting(true);
       // Clear cart before redirecting
       clearCart();
       // Redirect to Stripe Checkout
@@ -110,6 +113,22 @@ export default function CheckoutPage() {
   }
 
   if (items.length === 0) {
+    if (isRedirecting) {
+      return (
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+            <h1 className="text-2xl font-display font-bold mb-2">
+              Redirecting to checkout...
+            </h1>
+            <p className="text-muted-foreground">
+              Please wait while we prepare your order
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto text-center">
@@ -137,11 +156,11 @@ export default function CheckoutPage() {
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>
               <CardDescription>
-                {loyaltyCustomer
+                {currentUser
                   ? "We'll use your loyalty member information for this order"
                   : "Enter your details to complete your order"}
               </CardDescription>
-              {!loyaltyCustomer && !isLoadingLoyalty && (
+              {!currentUser && !isLoadingLoyalty && (
                 <p className="text-sm text-muted-foreground pt-2">
                   Already a loyalty member?{" "}
                   <Link
@@ -160,7 +179,7 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <form onSubmit={handleCheckout} className="space-y-4">
-                  {loyaltyCustomer && (
+                  {currentUser && (
                     <div className="rounded-lg bg-bakery-pink/10 border border-bakery-pink/20 p-4 space-y-3 mb-4">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2 flex-1">
@@ -206,7 +225,7 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {!loyaltyCustomer && (
+                  {!currentUser && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>

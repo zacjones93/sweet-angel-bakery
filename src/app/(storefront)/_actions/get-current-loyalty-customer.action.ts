@@ -19,5 +19,6 @@ export const getCurrentLoyaltyCustomerAction = createServerAction()
       lastName: customer.lastName,
       email: customer.email,
       phone: customer.phone,
+      role: customer.role,
     };
   });

@@ -13,7 +13,11 @@ import { ShoppingCart, Plus, Minus } from "lucide-react";
 import { useCart } from "@/state/cart-context";
 import { toast } from "sonner";
 import { ProductVariantSelector } from "./product-variant-selector";
-import type { ProductCustomizations } from "@/types/customizations";
+import type {
+  ProductCustomizations,
+  SizeVariant,
+  SizeVariantsConfig,
+} from "@/types/customizations";
 import { createId } from "@paralleldrive/cuid2";
 
 type Product = {
@@ -36,9 +40,12 @@ export function ProductCard({ product }: { product: Product }) {
 
   // For size variants, track selected variant
   const hasVariants = product.customizations?.type === "size_variants";
+  const variants: SizeVariant[] =
+    hasVariants && product?.customizations?.type === "size_variants"
+      ? product.customizations.variants
+      : [];
   const defaultVariant = hasVariants
-    ? product.customizations.variants.find((v) => v.isDefault) ||
-      product.customizations.variants[0]
+    ? variants.find((v) => v.isDefault) || variants[0]
     : null;
 
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -50,7 +57,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   // Get selected variant and its quantity
   const selectedVariant = hasVariants
-    ? product.customizations.variants.find((v) => v.id === selectedVariantId)
+    ? variants.find((v) => v.id === selectedVariantId)
     : null;
 
   // Use variant quantity if available, otherwise use product quantity
@@ -95,8 +102,7 @@ export function ProductCard({ product }: { product: Product }) {
 
     // Get variant name for display
     const variantName = hasVariants
-      ? product.customizations?.variants.find((v) => v.id === selectedVariantId)
-          ?.name
+      ? variants.find((v) => v.id === selectedVariantId)?.name
       : null;
 
     const displayName = variantName
@@ -130,9 +136,7 @@ export function ProductCard({ product }: { product: Product }) {
     } else {
       removeItem(cartItemId);
       const variantName = hasVariants
-        ? product.customizations?.variants.find(
-            (v) => v.id === selectedVariantId
-          )?.name
+        ? variants.find((v) => v.id === selectedVariantId)?.name
         : null;
       const displayName = variantName
         ? `${product.name} (${variantName})`
@@ -146,7 +150,7 @@ export function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 group">
+    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 group flex flex-col h-full">
       <CardHeader className="p-0">
         {product.imageUrl ? (
           <div className="relative aspect-square overflow-hidden">
@@ -163,8 +167,8 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         )}
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="space-y-3">
+      <CardContent className="p-6 flex-1 flex flex-col">
+        <div className="space-y-3 flex-1">
           <div>
             <h3 className="font-display font-bold text-xl mb-1">
               {product.name}
@@ -175,11 +179,9 @@ export function ProductCard({ product }: { product: Product }) {
               </p>
             )}
           </div>
-          {product.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {product.description}
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.625rem]">
+            {product.description || " "}
+          </p>
           {!hasVariants && (
             <p className="text-2xl font-bold text-primary">
               {formatPrice(product.price)}
@@ -202,7 +204,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         {hasVariants && product.customizations && (
           <ProductVariantSelector
-            config={product.customizations}
+            config={product.customizations as SizeVariantsConfig}
             onVariantChange={handleVariantChange}
             className="mt-4"
           />
