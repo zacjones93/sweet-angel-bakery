@@ -24,7 +24,8 @@
     "scrape:products": "pnpm tsx scripts/scrape-products.mjs",
     "scrape:sync-stripe": "pnpm tsx scripts/sync-stripe.mjs",
     "scrape:generate-sql": "pnpm tsx scripts/generate-product-sql.mjs",
-    "scrape:all": "pnpm scrape:products && pnpm scrape:sync-stripe && pnpm scrape:generate-sql"
+    "scrape:all": "pnpm scrape:products && pnpm scrape:sync-stripe && pnpm scrape:generate-sql",
+    "sync:square": "pnpm tsx scripts/sync-square.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
