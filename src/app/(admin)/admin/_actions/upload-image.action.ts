@@ -7,8 +7,8 @@ export const uploadProductImageAction = createServerAction()
   .handler(async ({ request }) => {
     await requireAdmin();
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const formData = await request?.formData();
+    const file = formData?.get("file") as File;
 
     if (!file) {
       throw new Error("No file provided");

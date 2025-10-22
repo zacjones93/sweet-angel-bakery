@@ -104,6 +104,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   });
 
   const isSubmitting = isCreating || isUpdating;
+  const hasSizeVariants = customizations?.type === "size_variants";
 
   const handleImageUpload = async (file: File) => {
     setIsUploadingImage(true);
@@ -317,9 +318,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                   step="0.01"
                   placeholder="12.99"
                   {...field}
+                  disabled={hasSizeVariants}
                 />
               </FormControl>
-              <FormDescription>Price in dollars</FormDescription>
+              <FormDescription>
+                {hasSizeVariants
+                  ? "Price is managed by size variants below"
+                  : "Price in dollars"}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -447,11 +453,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                   step="1"
                   placeholder="0"
                   {...field}
+                  disabled={hasSizeVariants}
                 />
               </FormControl>
               <FormDescription>
-                Current inventory count. Orders will be prevented when stock
-                reaches 0.
+                {hasSizeVariants
+                  ? "Quantity is managed by size variants below"
+                  : "Current inventory count. Orders will be prevented when stock reaches 0."}
               </FormDescription>
               <FormMessage />
             </FormItem>

@@ -7,6 +7,7 @@ import { eq, desc } from "drizzle-orm";
 import { requireAdmin } from "@/utils/auth";
 import { getStripe } from "@/lib/stripe";
 import { productCustomizationsSchema } from "@/schemas/customizations.schema";
+import { SizeVariant } from "@/types/customizations";
 
 // Get all products with category info
 export const getProductsAction = createServerAction()
@@ -36,11 +37,25 @@ export const getProductsAction = createServerAction()
       .leftJoin(categoryTable, eq(productTable.categoryId, categoryTable.id))
       .orderBy(desc(productTable.createdAt));
 
-    // Parse customizations JSON
-    return products.map(p => ({
-      ...p,
-      customizations: p.customizations ? JSON.parse(p.customizations) : null,
-    }));
+    // Parse customizations JSON and calculate total quantity from variations
+    return products.map(p => {
+      const customizations = p.customizations ? JSON.parse(p.customizations) : null;
+
+      // If product has size variants, calculate total quantity from variants
+      let totalQuantity = p.quantityAvailable;
+      if (customizations?.type === 'size_variants' && customizations.variants) {
+        totalQuantity = customizations.variants.reduce(
+          (sum: number, variant: SizeVariant) => sum + (variant.quantityAvailable || 0),
+          0
+        );
+      }
+
+      return {
+        ...p,
+        customizations,
+        quantityAvailable: totalQuantity,
+      };
+    });
   });
 
 // Get single product
