@@ -2,13 +2,13 @@
 
 import { createServerAction } from "zsa";
 import { z } from "zod";
-import { getStripe } from "@/lib/stripe";
+import { getMerchantProvider } from "@/lib/merchant-provider/factory";
 import { SITE_URL } from "@/constants";
 import { productTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { getDB } from "@/db";
-import { calculateTax } from "@/utils/tax";
 import { orderItemCustomizationsSchema } from "@/schemas/customizations.schema";
+import type { CheckoutLineItem } from "@/lib/merchant-provider/types";
 import type { SizeVariantsConfig } from "@/types/customizations";
 
 const createCheckoutSessionInputSchema = z.object({
@@ -37,9 +37,9 @@ const createCheckoutSessionInputSchema = z.object({
 export const createCheckoutSessionAction = createServerAction()
   .input(createCheckoutSessionInputSchema)
   .handler(async ({ input }) => {
-    const stripe = await getStripe();
+    const provider = await getMerchantProvider();
     const db = getDB();
-    // Fetch products to validate availability and get Stripe IDs
+    // Fetch products to validate availability
     const productIds = input.items.map((item) => item.productId);
     // Deduplicate product IDs (same product might have multiple variants in cart)
     const uniqueProductIds = [...new Set(productIds)];
@@ -52,7 +52,7 @@ export const createCheckoutSessionAction = createServerAction()
       throw new Error("Some products not found");
     }
 
-    // Validate inventory
+    // Validate inventory (implementation stays the same)
     for (const item of input.items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product) {
@@ -84,95 +84,29 @@ export const createCheckoutSessionAction = createServerAction()
       }
     }
 
-    // Build line items for Stripe
-    const lineItems = input.items.map((item) => {
+    // Build line items for merchant provider
+    const lineItems: CheckoutLineItem[] = input.items.map((item) => {
       const product = products.find((p) => p.id === item.productId)!;
 
-      // Parse product customizations
-      const productCustomizations = product.customizations
-        ? JSON.parse(product.customizations)
-        : null;
-
-      // Determine which Stripe price ID to use
-      let stripePriceId: string | null = null;
-
-      if (
-        productCustomizations?.type === "size_variants" &&
-        item.customizations?.type === "size_variant"
-      ) {
-        // Find the selected variant's Stripe price ID
-        const sizeConfig = productCustomizations as SizeVariantsConfig;
-        const variantId = item.customizations.selectedVariantId;
-        const variant = sizeConfig.variants.find((v) => v.id === variantId);
-        stripePriceId = variant?.stripePriceId || product.stripePriceId;
-      } else {
-        // Use product's default Stripe price ID
-        stripePriceId = product.stripePriceId;
-      }
-
-      // If we have a Stripe price ID, use it; otherwise create price_data
-      if (stripePriceId) {
-        return {
-          price: stripePriceId,
-          quantity: item.quantity,
-        };
-      } else {
-        return {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.name,
-              description: product.description || undefined,
-              images: product.imageUrl ? [product.imageUrl] : undefined,
-              // Store product ID in metadata for webhook recovery (for products without Stripe price IDs)
-              metadata: {
-                productId: product.id,
-                ...(item.customizations?.type === "size_variant" && {
-                  variantId: item.customizations.selectedVariantId,
-                }),
-              },
-            },
-            unit_amount: item.price, // Use the calculated price from cart
-          },
-          quantity: item.quantity,
-        };
-      }
+      return {
+        productId: product.id,
+        name: item.name,
+        description: product.description || undefined,
+        price: item.price,
+        quantity: item.quantity,
+        imageUrl: product.imageUrl || undefined,
+        customizations: item.customizations,
+      };
     });
 
-    // Calculate subtotal and tax (use prices from cart items)
-    const subtotal = input.items.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
-    }, 0);
-
-    const tax = calculateTax(subtotal);
-
-    // Add tax as a separate line item
-    lineItems.push({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "Idaho Sales Tax (6%)",
-          description: "State sales tax for Boise/Caldwell area",
-          images: undefined,
-          metadata: {
-            productId: "tax",
-          },
-        },
-        unit_amount: tax, // tax amount in cents
-      },
-      quantity: 1,
-    });
-
-    // Create Stripe checkout session
-    // Note: We don't store items in metadata anymore to avoid 500 char limit
-    // Instead, we retrieve line items from Stripe in the webhook handler
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      mode: "payment",
-      success_url: `${SITE_URL}/purchase/thanks?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${SITE_URL}/cart`,
-      customer_email: input.customerEmail,
+    // Create checkout session using merchant provider
+    const session = await provider.createCheckout({
+      lineItems,
+      customerEmail: input.customerEmail,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      successUrl: `${SITE_URL}/purchase/thanks?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${SITE_URL}/cart`,
       metadata: {
         customerName: input.customerName || "",
         customerPhone: input.customerPhone || "",
@@ -187,12 +121,8 @@ export const createCheckoutSessionAction = createServerAction()
       },
     });
 
-    if (!session.url) {
-      throw new Error("Failed to create checkout session");
-    }
-
     return {
-      sessionId: session.id,
+      sessionId: session.sessionId,
       url: session.url,
     };
   });

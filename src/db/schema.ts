@@ -140,8 +140,11 @@ export const productTable = sqliteTable("product", {
     enum: productStatusTuple,
   }).default(PRODUCT_STATUS.ACTIVE).notNull(),
   quantityAvailable: integer().default(0).notNull(), // inventory tracking
-  stripeProductId: text({ length: 255 }), // Stripe product ID
-  stripePriceId: text({ length: 255 }), // Stripe price ID (for base/default price)
+  merchantProvider: text({ length: 50 }).default('stripe'), // 'stripe' or 'square'
+  stripeProductId: text({ length: 255 }), // Stripe product ID (legacy, keeping for backward compatibility)
+  stripePriceId: text({ length: 255 }), // Stripe price ID (legacy, keeping for backward compatibility)
+  merchantProductId: text({ length: 255 }), // Provider product ID (Stripe/Square)
+  merchantPriceId: text({ length: 255 }), // Provider price ID (Stripe/Square)
   isNewFlavor: integer().default(0).notNull(), // Flag for "new flavor" notifications
   newFlavorUntil: integer({
     mode: "timestamp",
@@ -256,7 +259,9 @@ export const orderTable = sqliteTable("order", {
   status: text({
     enum: orderStatusTuple,
   }).default(ORDER_STATUS.PENDING).notNull(),
-  stripePaymentIntentId: text({ length: 255 }),
+  merchantProvider: text({ length: 50 }).default('stripe').notNull(), // 'stripe' or 'square'
+  stripePaymentIntentId: text({ length: 255 }), // Legacy field, keeping for backward compatibility
+  paymentIntentId: text({ length: 255 }), // Provider payment intent ID (Stripe/Square)
   fulfillmentType: text({ length: 50 }), // 'pickup' or 'delivery'
   pickupTime: integer({
     mode: "timestamp",
@@ -269,6 +274,8 @@ export const orderTable = sqliteTable("order", {
   index('order_status_idx').on(table.status),
   index('order_created_at_idx').on(table.createdAt),
   index('order_stripe_payment_intent_id_idx').on(table.stripePaymentIntentId),
+  index('order_payment_intent_id_idx').on(table.paymentIntentId),
+  index('order_merchant_provider_idx').on(table.merchantProvider),
 ]));
 
 // Order items table
@@ -336,6 +343,34 @@ export const productDropItemTable = sqliteTable("product_drop_item", {
   index('product_drop_item_product_id_idx').on(table.productId),
 ]));
 
+// Merchant Fee table - tracks processing fees for revenue analytics
+export const merchantFeeTable = sqliteTable("merchant_fee", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `mfee_${createId()}`).notNull(),
+  orderId: text().notNull().references(() => orderTable.id, { onDelete: 'cascade' }),
+  merchantProvider: text({ length: 50 }).notNull(), // 'stripe' or 'square'
+
+  // Fee breakdown
+  orderAmount: integer().notNull(), // Order total in cents
+  percentageFee: integer().notNull(), // Percentage fee in basis points (e.g., 290 = 2.9%)
+  fixedFee: integer().notNull(), // Fixed fee in cents (e.g., 30 = $0.30)
+  totalFee: integer().notNull(), // Total fee in cents (calculated)
+
+  // Net revenue
+  netAmount: integer().notNull(), // Order amount minus fees
+
+  // Metadata
+  paymentIntentId: text({ length: 255 }), // Provider's payment ID
+  calculatedAt: integer({
+    mode: "timestamp",
+  }).notNull(), // Timestamp when fee was calculated
+}, (table) => ([
+  index('merchant_fee_order_id_idx').on(table.orderId),
+  index('merchant_fee_merchant_provider_idx').on(table.merchantProvider),
+  index('merchant_fee_calculated_at_idx').on(table.calculatedAt),
+  index('merchant_fee_created_at_idx').on(table.createdAt),
+]));
+
 // Relations
 export const categoryRelations = relations(categoryTable, ({ many }) => ({
   products: many(productTable),
@@ -356,6 +391,7 @@ export const orderRelations = relations(orderTable, ({ one, many }) => ({
     references: [userTable.id],
   }),
   items: many(orderItemTable),
+  merchantFees: many(merchantFeeTable),
 }));
 
 export const orderItemRelations = relations(orderItemTable, ({ one }) => ({
@@ -396,6 +432,13 @@ export const productDropItemRelations = relations(productDropItemTable, ({ one }
   }),
 }));
 
+export const merchantFeeRelations = relations(merchantFeeTable, ({ one }) => ({
+  order: one(orderTable, {
+    fields: [merchantFeeTable.orderId],
+    references: [orderTable.id],
+  }),
+}));
+
 // Type exports
 export type User = InferSelectModel<typeof userTable>;
 export type PassKeyCredential = InferSelectModel<typeof passKeyCredentialTable>;
@@ -405,3 +448,4 @@ export type Order = InferSelectModel<typeof orderTable>;
 export type OrderItem = InferSelectModel<typeof orderItemTable>;
 export type ProductDrop = InferSelectModel<typeof productDropTable>;
 export type ProductDropItem = InferSelectModel<typeof productDropItemTable>;
+export type MerchantFee = InferSelectModel<typeof merchantFeeTable>;
