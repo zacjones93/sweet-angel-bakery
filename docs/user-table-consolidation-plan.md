@@ -5,12 +5,14 @@
 **Status**: Successfully completed on October 21, 2025
 
 **Commit History**:
+
 - Phase 1 (Schema Update): `b1c635d`
 - Phase 2 (Data Migration): `54df6b2`
 - Phase 3 (Code Changes): `17eca35`
 - Phase 4 (Final Cleanup): `60449b0`
 
 **Summary**:
+
 - ✅ Added loyalty fields to `userTable` (phone, phoneVerified, notificationPreferences)
 - ✅ Migrated 2 loyalty customers to user table (1 new user created, 1 merged)
 - ✅ Updated 3 orders to reference userId
