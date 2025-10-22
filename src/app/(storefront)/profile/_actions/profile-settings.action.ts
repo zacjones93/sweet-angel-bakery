@@ -4,9 +4,8 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getCurrentLoyaltyCustomer } from "../_lib/get-loyalty-customer";
 import { getDB } from "@/db";
-import { loyaltyCustomerTable } from "@/db/schema";
+import { userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const getProfileSettingsAction = createServerAction()
   .input(z.object({}))
@@ -38,17 +37,16 @@ export const updateProfileSettingsAction = createServerAction()
       throw new Error("Not authenticated");
     }
 
-    const { env } = await getCloudflareContext();
-    const db = getDB(env.NEXT_TAG_CACHE_D1);
+    const db = getDB();
 
     await db
-      .update(loyaltyCustomerTable)
+      .update(userTable)
       .set({
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone,
       })
-      .where(eq(loyaltyCustomerTable.id, customer.id));
+      .where(eq(userTable.id, customer.id));
 
     return { success: true };
   });

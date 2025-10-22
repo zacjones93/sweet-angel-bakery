@@ -12,7 +12,6 @@ import {
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   Card,
   CardContent,
@@ -25,7 +24,7 @@ import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
 // Disable caching - always fetch fresh order data
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function OrdersPage() {
@@ -35,14 +34,13 @@ export default async function OrdersPage() {
     return null; // Layout will redirect
   }
 
-  const { env } = await getCloudflareContext();
-  const db = getDB(env.NEXT_TAG_CACHE_D1);
+  const db = getDB();
 
   // Fetch orders for this customer
   const orders = await db
     .select()
     .from(orderTable)
-    .where(eq(orderTable.loyaltyCustomerId, customer.id))
+    .where(eq(orderTable.userId, customer.id))
     .orderBy(desc(orderTable.createdAt))
     .all();
 
@@ -106,11 +104,14 @@ export default async function OrdersPage() {
 
           // Find status key by comparing against raw status values (not labels)
           const statusKey = Object.entries(ORDER_STATUS_LABELS).find(
-            ([key, value]) => ORDER_STATUS[key as keyof typeof ORDER_STATUS] === order.status
+            ([key, value]) =>
+              ORDER_STATUS[key as keyof typeof ORDER_STATUS] === order.status
           )?.[0] as keyof typeof ORDER_STATUS_LABELS | undefined;
 
           const paymentStatusKey = Object.entries(PAYMENT_STATUS_LABELS).find(
-            ([key, value]) => PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] === order.paymentStatus
+            ([key, value]) =>
+              PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] ===
+              order.paymentStatus
           )?.[0] as keyof typeof PAYMENT_STATUS_LABELS | undefined;
 
           return (
