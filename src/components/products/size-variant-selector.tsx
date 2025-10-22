@@ -4,7 +4,6 @@ import { useState } from "react";
 import { type SizeVariantsConfig } from "@/types/customizations";
 import { calculateSizeVariantPrice } from "@/types/customizations";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 

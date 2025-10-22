@@ -46,20 +46,23 @@ export default async function OrdersPage() {
 
   // Fetch order items for all orders
   const orderIds = orders.map((o) => o.id);
-  let orderItems: any[] = [];
-  let products: any[] = [];
+  type OrderItemWithProduct = {
+    order_item: typeof orderItemTable.$inferSelect;
+    product: typeof productTable.$inferSelect;
+  };
+  const orderItems: OrderItemWithProduct[] = [];
 
   if (orderIds.length > 0) {
-    orderItems = await db
+    orderItems.push(...await db
       .select()
       .from(orderItemTable)
       .innerJoin(productTable, eq(orderItemTable.productId, productTable.id))
       .where(inArray(orderItemTable.orderId, orderIds))
-      .all();
+      .all());
   }
 
   // Group items by order
-  const orderItemsMap = new Map<string, any[]>();
+  const orderItemsMap = new Map<string, OrderItemWithProduct[]>();
   orderItems.forEach((item) => {
     const orderId = item.order_item.orderId;
     if (!orderItemsMap.has(orderId)) {
@@ -79,12 +82,12 @@ export default async function OrdersPage() {
         <p className="text-muted-foreground mb-6">
           Start shopping to see your orders here!
         </p>
-        <a
+        <Link
           href="/"
           className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           Browse Products
-        </a>
+        </Link>
       </div>
     );
   }

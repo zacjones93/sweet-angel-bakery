@@ -20,5 +20,10 @@ export const getCurrentLoyaltyCustomerAction = createServerAction()
       email: customer.email,
       phone: customer.phone,
       role: customer.role,
+      streetAddress1: customer.streetAddress1,
+      streetAddress2: customer.streetAddress2,
+      city: customer.city,
+      state: customer.state,
+      zipCode: customer.zipCode,
     };
   });

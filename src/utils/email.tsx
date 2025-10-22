@@ -4,7 +4,6 @@ import { SITE_DOMAIN, SITE_URL } from "@/constants";
 import { render } from '@react-email/render'
 import { ResetPasswordEmail } from "@/react-email/reset-password";
 import { VerifyEmail } from "@/react-email/verify-email";
-import { TeamInviteEmail } from "@/react-email/team-invite";
 import { MagicLinkEmail } from "@/react-email/magic-link";
 import { OrderConfirmationEmail } from "@/react-email/order-confirmation";
 import isProd from "./is-prod";
@@ -81,7 +80,7 @@ async function sendResendEmail({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json() as unknown;
     throw new Error(`Failed to send email via Resend: ${JSON.stringify(error)}`);
   }
 
@@ -136,7 +135,7 @@ async function sendBrevoEmail({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json() as unknown;
     throw new Error(`Failed to send email via Brevo: ${JSON.stringify(error)}`);
   }
 
@@ -225,54 +224,6 @@ export async function sendVerificationEmail({
   }
 }
 
-export async function sendTeamInvitationEmail({
-  email,
-  invitationToken,
-  teamName,
-  inviterName
-}: {
-  email: string;
-  invitationToken: string;
-  teamName: string;
-  inviterName: string;
-}) {
-  const inviteUrl = `${SITE_URL}/team-invite?token=${invitationToken}`;
-
-  if (!isProd) {
-    console.warn('\n\n\nTeam invitation url: ', inviteUrl)
-    return
-  }
-
-  const html = await render(TeamInviteEmail({
-    inviteLink: inviteUrl,
-    recipientEmail: email,
-    teamName,
-    inviterName
-  }));
-
-  const provider = await getEmailProvider();
-
-  if (!provider && isProd) {
-    throw new Error("No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.");
-  }
-
-  if (provider === "resend") {
-    await sendResendEmail({
-      to: [email],
-      subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-      html,
-      tags: [{ name: "type", value: "team-invitation" }],
-    });
-  } else {
-    await sendBrevoEmail({
-      to: [{ email }],
-      subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-      htmlContent: html,
-      tags: ["team-invitation"],
-    });
-  }
-}
-
 export async function sendMagicLinkEmail({
   email,
   magicToken,
@@ -285,7 +236,7 @@ export async function sendMagicLinkEmail({
   const magicLink = `${SITE_URL}/login/verify?token=${magicToken}`;
 
   if (!isProd) {
-    console.warn('\n\n\nMagic link url: ', magicLink)
+    console.log('\n=== MAGIC LINK ===\n', magicLink, '\n==================\n')
     return
   }
 

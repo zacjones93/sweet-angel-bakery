@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ShoppingBag, Bell, User, LogOut } from "lucide-react";
@@ -8,20 +9,20 @@ import { Button } from "@/components/ui/button";
 import { logoutAction } from "../_actions/logout.action";
 import { useServerAction } from "zsa-react";
 
-const navItems = [
+const navItems: Array<{ title: string; href: Route; icon: typeof ShoppingBag }> = [
   {
     title: "Orders",
-    href: "/profile",
+    href: "/profile" as Route,
     icon: ShoppingBag,
   },
   {
     title: "Notifications",
-    href: "/profile/notifications",
+    href: "/profile/notifications" as Route,
     icon: Bell,
   },
   {
     title: "Settings",
-    href: "/profile/settings",
+    href: "/profile/settings" as Route,
     icon: User,
   },
 ];

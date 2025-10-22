@@ -7,6 +7,7 @@ import { formatDate } from "@/utils/format-date";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import type { orderStatusTuple } from "@/db/schema";
 
 interface PageProps {
   params: Promise<{
@@ -58,7 +59,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 </div>
                 <UpdateOrderStatusDialog
                   orderId={order.id}
-                  currentStatus={order.status as any}
+                  currentStatus={order.status}
                 />
               </div>
             </CardHeader>
@@ -81,7 +82,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     Status
                   </p>
                   <div className="mt-1">
-                    <OrderStatusBadge status={order.status as any} />
+                    <OrderStatusBadge status={order.status} />
                   </div>
                 </div>
                 <div>

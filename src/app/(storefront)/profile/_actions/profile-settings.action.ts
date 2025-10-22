@@ -21,6 +21,11 @@ export const getProfileSettingsAction = createServerAction()
       lastName: customer.lastName,
       email: customer.email,
       phone: customer.phone,
+      streetAddress1: customer.streetAddress1,
+      streetAddress2: customer.streetAddress2,
+      city: customer.city,
+      state: customer.state,
+      zipCode: customer.zipCode,
     };
   });
 
@@ -29,6 +34,11 @@ export const updateProfileSettingsAction = createServerAction()
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     phone: z.string().nullable(),
+    streetAddress1: z.string().nullable(),
+    streetAddress2: z.string().nullable(),
+    city: z.string().nullable(),
+    state: z.string().nullable(),
+    zipCode: z.string().nullable(),
   }))
   .handler(async ({ input }) => {
     const customer = await getCurrentLoyaltyCustomer();
@@ -45,6 +55,11 @@ export const updateProfileSettingsAction = createServerAction()
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone,
+        streetAddress1: input.streetAddress1,
+        streetAddress2: input.streetAddress2,
+        city: input.city,
+        state: input.state,
+        zipCode: input.zipCode,
       })
       .where(eq(userTable.id, customer.id));
 

@@ -14,6 +14,10 @@ export const verifyMagicLinkAction = createServerAction()
   .handler(async ({ input }) => {
     const { env } = await getCloudflareContext();
 
+    if (!env.NEXT_INC_CACHE_KV) {
+      throw new Error("KV namespace not available");
+    }
+
     // Verify the magic link token and create session
     const result = await verifyMagicLinkAndCreateSession({
       token: input.token,

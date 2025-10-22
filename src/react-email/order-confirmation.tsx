@@ -12,7 +12,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
-import { SITE_DOMAIN, SITE_URL } from "@/constants";
+import { SITE_URL } from "@/constants";
 
 interface OrderConfirmationEmailProps {
   customerName?: string;
@@ -46,12 +46,22 @@ export const OrderConfirmationEmail = ({
           <Heading style={heading}>Order Confirmed!</Heading>
           <Text style={paragraph}>Hi {customerName},</Text>
           <Text style={paragraph}>
-            Thank you for your order! We're excited to bake your goodies fresh
+            Thank you for your order! We&apos;re excited to bake your goodies fresh
             for you.
           </Text>
 
           <Section style={orderBox}>
-            <Text style={orderNumber}>Order #{orderNumber}</Text>
+            <Text
+              style={{
+                color: "#1a1a1a",
+                fontSize: "18px",
+                fontWeight: "bold",
+                margin: "0 0 16px",
+                textAlign: "center" as const,
+              }}
+            >
+              Order #{orderNumber}
+            </Text>
 
             <Hr style={divider} />
 
@@ -84,7 +94,7 @@ export const OrderConfirmationEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            We'll send you an email when your order is ready for pickup or out
+            We&apos;ll send you an email when your order is ready for pickup or out
             for delivery.
           </Text>
 
@@ -104,7 +114,7 @@ export const OrderConfirmationEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            Have questions? Reply to this email and we'll be happy to help!
+            Have questions? Reply to this email and we&apos;ll be happy to help!
           </Text>
 
           <Text style={footer}>Sweet Angel Bakery • {SITE_URL}</Text>
@@ -169,14 +179,6 @@ const orderBox = {
   borderRadius: "6px",
   padding: "24px",
   margin: "24px 0",
-};
-
-const orderNumber = {
-  color: "#1a1a1a",
-  fontSize: "18px",
-  fontWeight: "bold",
-  margin: "0 0 16px",
-  textAlign: "center" as const,
 };
 
 const divider = {

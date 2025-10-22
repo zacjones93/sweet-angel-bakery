@@ -14,7 +14,7 @@ interface OrderStatusBadgeProps {
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
   // Find the key that matches the status value
   const statusKey = Object.entries(ORDER_STATUS).find(
-    ([_, value]) => value === status
+    ([, value]) => value === status
   )?.[0] as keyof typeof ORDER_STATUS | undefined;
 
   if (!statusKey) {

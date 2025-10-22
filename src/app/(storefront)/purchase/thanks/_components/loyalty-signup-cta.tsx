@@ -36,7 +36,7 @@ export function LoyaltySignupCTA({ customerEmail, customerName }: Props) {
     const firstName = nameParts[0] || customerName;
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const [data, err] = await execute({
+    const [, err] = await execute({
       email: customerEmail,
       firstName,
       lastName,
@@ -64,7 +64,7 @@ export function LoyaltySignupCTA({ customerEmail, customerName }: Props) {
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
             <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-lg">You're All Set!</CardTitle>
+          <CardTitle className="text-lg">You&apos;re All Set!</CardTitle>
           <CardDescription>
             Check your email for a login link to access your loyalty account
           </CardDescription>

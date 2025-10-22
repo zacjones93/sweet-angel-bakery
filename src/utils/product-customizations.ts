@@ -8,7 +8,6 @@ import {
   calculateSizeVariantPrice,
   calculateCustomBuilderPrice,
   getDefaultSizeVariantId,
-  getDefaultCustomBuilderSelections,
 } from "@/types/customizations";
 
 /**
@@ -86,11 +85,6 @@ export function calculateOrderItemPrice(
   // If no customizations selected, return default price
   if (!orderItemCustomizations) {
     return getProductDisplayPrice(product.price, product.customizations);
-  }
-
-  // Validate that customization types match
-  if (product.customizations.type !== orderItemCustomizations.type) {
-    throw new Error('Customization type mismatch');
   }
 
   // Calculate based on selection

@@ -37,7 +37,7 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const [data, err] = await execute({
+    const [, err] = await execute({
       email: formData.email,
       firstName: formData.firstName,
       lastName: formData.lastName,

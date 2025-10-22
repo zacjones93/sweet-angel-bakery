@@ -79,12 +79,12 @@ export default async function OrderDetailsPage({ params }: Props) {
 
   // Find status key by comparing against raw status values (not labels)
   const statusKey = Object.entries(ORDER_STATUS_LABELS).find(
-    ([key, value]) =>
+    ([key]) =>
       ORDER_STATUS[key as keyof typeof ORDER_STATUS] === order.status
   )?.[0] as keyof typeof ORDER_STATUS_LABELS | undefined;
 
   const paymentStatusKey = Object.entries(PAYMENT_STATUS_LABELS).find(
-    ([key, value]) =>
+    ([key]) =>
       PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] === order.paymentStatus
   )?.[0] as keyof typeof PAYMENT_STATUS_LABELS | undefined;
 
@@ -229,7 +229,7 @@ export default async function OrderDetailsPage({ params }: Props) {
         <CardContent>
           <div className="space-y-4">
             {items.map((item) => {
-              const customizations = item.order_item.customizations
+              const customizations: { size?: string; options?: Array<{ name: string }> } | null = item.order_item.customizations
                 ? JSON.parse(item.order_item.customizations)
                 : null;
 
@@ -280,7 +280,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                               <span className="font-medium">Options:</span>
                               <ul className="list-disc list-inside ml-2">
                                 {customizations.options.map(
-                                  (opt: any, idx: number) => (
+                                  (opt, idx) => (
                                     <li key={idx}>{opt.name}</li>
                                   )
                                 )}

@@ -4,13 +4,12 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getDB } from "@/db";
-import { orderTable, orderItemTable, productTable, userTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { orderTable, orderItemTable, productTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { calculateTax } from "@/utils/tax";
 import { findOrCreateUser } from "@/utils/auth";
 import type { OrderItemCustomizations, SizeVariantsConfig } from "@/types/customizations";
 
-export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();

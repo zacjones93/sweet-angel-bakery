@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -26,10 +25,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Plus, X, GripVertical, DollarSign, Trash2 } from "lucide-react";
+import { Plus, X, Trash2 } from "lucide-react";
 
 interface CustomizationsFormProps {
   value: ProductCustomizations;
@@ -92,7 +90,7 @@ export function CustomizationsForm({
           <Label>Customization Type</Label>
           <Select
             value={customizationType}
-            onValueChange={(value: any) => handleTypeChange(value)}
+            onValueChange={(value) => handleTypeChange(value as "none" | "size_variants" | "custom_builder")}
           >
             <SelectTrigger>
               <SelectValue />
@@ -418,7 +416,7 @@ function CustomBuilderEditor({
 
         {config.options.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            No customization options yet. Click "Add Option" to get started.
+            No customization options yet. Click &quot;Add Option&quot; to get started.
           </div>
         )}
 
@@ -552,7 +550,7 @@ function CustomBuilderEditor({
                   </Button>
                 </div>
 
-                {option.choices.map((choice, choiceIndex) => (
+                {option.choices.map((choice) => (
                   <div
                     key={choice.id}
                     className="flex items-start gap-2 p-3 rounded-lg border"

@@ -2,10 +2,10 @@
 
 import { useCart } from "@/state/cart-context";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Trash2, Minus, Plus } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import Image from "next/image";
 
 export default function CartPage() {
@@ -26,7 +26,7 @@ export default function CartPage() {
             Add some delicious items to your cart to get started!
           </p>
           <Button asChild>
-            <Link href="/products">Browse Products</Link>
+            <Link href={"/products" as Route}>Browse Products</Link>
           </Button>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function CartPage() {
             </Button>
 
             <Button variant="outline" className="w-full mt-2" asChild>
-              <Link href="/products">Continue Shopping</Link>
+              <Link href={"/products" as Route}>Continue Shopping</Link>
             </Button>
           </Card>
         </div>

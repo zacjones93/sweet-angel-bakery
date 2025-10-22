@@ -48,9 +48,9 @@ export function UpdateOrderStatusDialog({
 
     setIsLoading(true);
     try {
-      const [data, err] = await updateOrderStatusAction({
+      const [, err] = await updateOrderStatusAction({
         orderId,
-        status: selectedStatus as any,
+        status: selectedStatus as typeof ORDER_STATUS[keyof typeof ORDER_STATUS],
       });
 
       if (err) {
@@ -60,7 +60,7 @@ export function UpdateOrderStatusDialog({
 
       // Find the label for the new status
       const statusKey = Object.entries(ORDER_STATUS).find(
-        ([_, value]) => value === selectedStatus
+        ([, value]) => value === selectedStatus
       )?.[0] as keyof typeof ORDER_STATUS | undefined;
 
       const statusLabel = statusKey
@@ -70,7 +70,7 @@ export function UpdateOrderStatusDialog({
       toast.success(`Order status updated to ${statusLabel}`);
       setOpen(false);
       router.refresh();
-    } catch (error) {
+    } catch {
       toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);

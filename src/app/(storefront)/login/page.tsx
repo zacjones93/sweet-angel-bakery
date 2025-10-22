@@ -28,7 +28,7 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const [data, err] = await execute({
+    const [, err] = await execute({
       email,
       callback: callback || undefined,
     });
@@ -52,7 +52,7 @@ export default function LoginPage() {
               </div>
               <CardTitle>Check Your Email</CardTitle>
               <CardDescription>
-                We've sent a login link to <strong>{email}</strong>
+                We&apos;ve sent a login link to <strong>{email}</strong>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -61,7 +61,7 @@ export default function LoginPage() {
                 account. The link will expire in 15 minutes.
               </p>
               <p className="text-xs text-muted-foreground text-center">
-                Didn't receive the email? Check your spam folder or{" "}
+                Didn&apos;t receive the email? Check your spam folder or{" "}
                 <button
                   onClick={() => setSubmitted(false)}
                   className="text-primary underline underline-offset-4 hover:no-underline"
@@ -110,8 +110,26 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-                  {error.message}
+                <div className="p-3 text-sm bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md">
+                  {error.message === "USER_NOT_FOUND" ? (
+                    <>
+                      <p className="font-medium text-amber-900 dark:text-amber-200 mb-1">
+                        No account found with this email
+                      </p>
+                      <p className="text-amber-700 dark:text-amber-300">
+                        If you don&apos;t have an account, please{" "}
+                        <Link
+                          href="/signup"
+                          className="underline underline-offset-4 hover:no-underline font-medium"
+                        >
+                          create one first
+                        </Link>
+                        .
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-destructive">{error.message}</p>
+                  )}
                 </div>
               )}
 

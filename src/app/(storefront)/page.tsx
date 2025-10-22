@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { getStorefrontProductsAction } from "./_actions/storefront.action";
 import { ProductCard } from "./_components/product-card";
@@ -175,7 +176,7 @@ export default async function HomePage() {
               asChild
               className="text-lg px-8"
             >
-              <Link href="/products/cakes">View Cakes</Link>
+              <Link href={"/products/cakes" as Route}>View Cakes</Link>
             </Button>
             <Button
               size="lg"
@@ -183,7 +184,7 @@ export default async function HomePage() {
               asChild
               className="text-lg px-8"
             >
-              <Link href="/products/cookies">View Cookies</Link>
+              <Link href={"/products/cookies" as Route}>View Cookies</Link>
             </Button>
           </div>
         </div>

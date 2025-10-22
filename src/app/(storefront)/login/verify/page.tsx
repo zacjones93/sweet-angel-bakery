@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Route } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { verifyMagicLinkAction } from "../_actions/verify-magic-link.action";
@@ -35,7 +36,7 @@ export default function VerifyMagicLinkPage() {
 
       // Redirect to callback URL or profile after 2 seconds
       setTimeout(() => {
-        router.push(data?.callback || "/profile");
+        router.push((data?.callback || "/profile") as Route);
       }, 2000);
     }
 

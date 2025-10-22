@@ -3,7 +3,7 @@ import { OrdersTable } from "./_components/orders-table";
 import { getOrdersAction } from "../_actions/orders.action";
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { parseAsInteger, parseAsString } from "nuqs/server";
+import type { orderStatusTuple } from "@/db/schema";
 
 export const metadata: Metadata = {
   title: "Order Management",
@@ -23,7 +23,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   const page = params.page ? parseInt(params.page) : 1;
   const search = params.search;
-  const status = params.status as any;
+  const status = params.status as typeof orderStatusTuple[number] | undefined;
 
   const [result, err] = await getOrdersAction({
     page,
@@ -48,7 +48,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
       />
       <div className="container mx-auto py-6">
         <OrdersTable
-          orders={orders as any}
+          orders={orders}
           totalCount={totalCount}
           currentPage={currentPage}
           totalPages={totalPages}

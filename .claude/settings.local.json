@@ -27,7 +27,10 @@
       "Bash(pnpm dev:*)",
       "Bash(pnpm drizzle-kit generate:*)",
       "Bash(pnpm scrape:products:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(pnpm build:*)"
     ],
     "deny": [],
     "ask": []

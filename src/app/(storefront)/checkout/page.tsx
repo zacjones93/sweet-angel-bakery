@@ -29,12 +29,22 @@ export default function CheckoutPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [joinLoyalty, setJoinLoyalty] = useState(true);
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [streetAddress1, setStreetAddress1] = useState("");
+  const [streetAddress2, setStreetAddress2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     firstName: string | null;
     lastName: string | null;
     email: string | null;
     phone: string | null;
+    streetAddress1: string | null;
+    streetAddress2: string | null;
+    city: string | null;
+    state: string | null;
+    zipCode: string | null;
   } | null>(null);
   const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -53,6 +63,11 @@ export default function CheckoutPage() {
         setCustomerName(`${data.firstName || ""} ${data.lastName || ""}`);
         setCustomerEmail(data.email || "");
         setCustomerPhone(data.phone || "");
+        setStreetAddress1(data.streetAddress1 || "");
+        setStreetAddress2(data.streetAddress2 || "");
+        setCity(data.city || "");
+        setState(data.state || "");
+        setZipCode(data.zipCode || "");
         // Already a loyalty member, no need to join again
         setJoinLoyalty(false);
       }
@@ -95,6 +110,11 @@ export default function CheckoutPage() {
       joinLoyalty,
       smsOptIn,
       userId: currentUser?.id, // Pass user ID if logged in
+      streetAddress1: streetAddress1 || undefined,
+      streetAddress2: streetAddress2 || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      zipCode: zipCode || undefined,
     });
 
     if (err) {
@@ -199,6 +219,13 @@ export default function CheckoutPage() {
                               <p className="text-sm text-muted-foreground">
                                 {customerPhone}
                               </p>
+                            )}
+                            {streetAddress1 && (
+                              <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
+                                <p>{streetAddress1}</p>
+                                {streetAddress2 && <p>{streetAddress2}</p>}
+                                <p>{city}, {state} {zipCode}</p>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -315,6 +342,72 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                       )}
+
+                      <div className="pt-4 border-t">
+                        <h3 className="text-sm font-semibold mb-3">Delivery Address</h3>
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="streetAddress1">Street Address</Label>
+                            <Input
+                              id="streetAddress1"
+                              type="text"
+                              placeholder="123 Main St"
+                              value={streetAddress1}
+                              onChange={(e) => setStreetAddress1(e.target.value)}
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="streetAddress2">Apt, Suite, etc. (Optional)</Label>
+                            <Input
+                              id="streetAddress2"
+                              type="text"
+                              placeholder="Apt 4B"
+                              value={streetAddress2}
+                              onChange={(e) => setStreetAddress2(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="city">City</Label>
+                              <Input
+                                id="city"
+                                type="text"
+                                placeholder="Austin"
+                                value={city}
+                                onChange={(e) => setCity(e.target.value)}
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="state">State</Label>
+                              <Input
+                                id="state"
+                                type="text"
+                                placeholder="TX"
+                                value={state}
+                                onChange={(e) => setState(e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="zipCode">ZIP Code</Label>
+                            <Input
+                              id="zipCode"
+                              type="text"
+                              placeholder="78701"
+                              value={zipCode}
+                              onChange={(e) => setZipCode(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </>
                   )}
 

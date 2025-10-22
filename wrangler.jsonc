@@ -4,8 +4,8 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"account_id": "0d5667a195a90458761fe59fca898f9c",
-	"name": "cloudflare-workers-nextjs-saas-template",
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"name": "sweet-angel-bakery",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-03-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -22,29 +22,29 @@
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */
-	"placement": { "mode": "smart" },
-
+	"placement": {
+		"mode": "smart"
+	},
 	/**
 	 * Bindings
 	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
-
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"EMAIL_FROM": "no-reply@notifications.lubomirgeorgiev.com",
-		"EMAIL_FROM_NAME": "Lubomir Georgiev",
-		"EMAIL_REPLY_TO": "lubo@lubomirgeorgiev.com"
+		"EMAIL_FROM": "info@sweetangelbakery.com",
+		"EMAIL_FROM_NAME": "Sweet Angel Bakery",
+		"EMAIL_REPLY_TO": "info@sweetangelbakery.com",
+		"NEXT_PUBLIC_SITE_URL": "https://sweet-angel-bakery.zacjones93.workers.dev"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
-
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
@@ -52,10 +52,9 @@
 	"services": [
 		{
 			"binding": "WORKER_SELF_REFERENCE",
-			"service": "cloudflare-workers-nextjs-saas-template"
+			"service": "sweet-angel-bakery"
 		}
 	],
-
 	"durable_objects": {
 		"bindings": [
 			{
@@ -64,26 +63,24 @@
 			}
 		]
 	},
-
 	"migrations": [
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["DOQueueHandler"]
 		}
 	],
-
 	"d1_databases": [
 		{
 			"binding": "NEXT_TAG_CACHE_D1",
-			"database_name": "cloudflare-workers-nextjs-saas",
-			"database_id": "db968793-55f4-481e-b281-7e1907a775b1",
+			"database_name": "sweet-angel-bakery",
+			"database_id": "b186ae4b-08fb-4c07-996c-0965ba56e3bd",
 			"migrations_dir": "src/db/migrations"
 		}
 	],
 	"kv_namespaces": [
 		{
 			"binding": "NEXT_INC_CACHE_KV",
-			"id": "e922d6e22f4a46b6a92be653e90c6ca1"
+			"id": "874ced7a82f7447787180d9584f7ce19"
 		}
 	],
 	"r2_buckets": [

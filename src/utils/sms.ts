@@ -88,7 +88,7 @@ async function sendVonageMessage({ to, message }: SendSMSOptions) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json() as unknown;
     throw new Error(`Failed to send SMS via Vonage: ${JSON.stringify(error)}`);
   }
 

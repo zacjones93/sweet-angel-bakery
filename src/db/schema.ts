@@ -59,6 +59,12 @@ export const userTable = sqliteTable("user", {
   notificationPreferences: text({ length: 1000 })
     .default('{"emailNewFlavors":true,"emailDrops":true,"smsDelivery":false,"smsDrops":false}')
     .notNull(),
+  // Delivery address fields
+  streetAddress1: text({ length: 255 }),
+  streetAddress2: text({ length: 255 }),
+  city: text({ length: 100 }),
+  state: text({ length: 50 }),
+  zipCode: text({ length: 20 }),
 }, (table) => ([
   index('email_idx').on(table.email),
   index('google_account_id_idx').on(table.googleAccountId),

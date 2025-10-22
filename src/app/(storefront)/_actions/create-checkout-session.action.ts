@@ -27,6 +27,11 @@ const createCheckoutSessionInputSchema = z.object({
   joinLoyalty: z.boolean().optional(),
   smsOptIn: z.boolean().optional(),
   userId: z.string().optional(), // Pass existing user ID if logged in
+  streetAddress1: z.string().optional(),
+  streetAddress2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
 });
 
 export const createCheckoutSessionAction = createServerAction()
@@ -174,6 +179,11 @@ export const createCheckoutSessionAction = createServerAction()
         joinLoyalty: input.joinLoyalty ? "true" : "false",
         smsOptIn: input.smsOptIn ? "true" : "false",
         userId: input.userId || "", // Pass user ID if logged in
+        streetAddress1: input.streetAddress1 || "",
+        streetAddress2: input.streetAddress2 || "",
+        city: input.city || "",
+        state: input.state || "",
+        zipCode: input.zipCode || "",
       },
     });
 

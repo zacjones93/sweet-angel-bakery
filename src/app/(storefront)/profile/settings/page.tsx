@@ -18,6 +18,7 @@ import {
 } from "../_actions/profile-settings.action";
 import { useServerAction } from "zsa-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Route } from "next";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -28,6 +29,11 @@ export default function SettingsPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [streetAddress1, setStreetAddress1] = useState("");
+  const [streetAddress2, setStreetAddress2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
 
   const { execute: getSettings, isPending: isLoading } = useServerAction(
     getProfileSettingsAction
@@ -40,12 +46,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadSettings() {
-      const [data, err] = await getSettings({});
+      const [data] = await getSettings({});
       if (data) {
-        setFirstName(data.firstName);
-        setLastName(data.lastName);
-        setEmail(data.email);
+        setFirstName(data.firstName || "");
+        setLastName(data.lastName || "");
+        setEmail(data.email || "");
         setPhone(data.phone || "");
+        setStreetAddress1(data.streetAddress1 || "");
+        setStreetAddress2(data.streetAddress2 || "");
+        setCity(data.city || "");
+        setState(data.state || "");
+        setZipCode(data.zipCode || "");
       }
     }
     loadSettings();
@@ -54,16 +65,21 @@ export default function SettingsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
-    const [data, err] = await updateSettings({
+    const [, err] = await updateSettings({
       firstName,
       lastName,
       phone: phone || null,
+      streetAddress1: streetAddress1 || null,
+      streetAddress2: streetAddress2 || null,
+      city: city || null,
+      state: state || null,
+      zipCode: zipCode || null,
     });
 
     if (!err) {
       if (callbackUrl) {
         // Redirect back to callback URL
-        router.push(callbackUrl);
+        router.push(callbackUrl as Route);
       } else {
         alert("Settings saved successfully!");
       }
@@ -154,6 +170,63 @@ export default function SettingsPage() {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="streetAddress1">Street Address</Label>
+              <Input
+                id="streetAddress1"
+                type="text"
+                placeholder="123 Main St"
+                value={streetAddress1}
+                onChange={(e) => setStreetAddress1(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="streetAddress2">Apt, Suite, etc. (Optional)</Label>
+              <Input
+                id="streetAddress2"
+                type="text"
+                placeholder="Apt 4B"
+                value={streetAddress2}
+                onChange={(e) => setStreetAddress2(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2 md:col-span-1">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  type="text"
+                  placeholder="Austin"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  type="text"
+                  placeholder="TX"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="zipCode">ZIP Code</Label>
+                <Input
+                  id="zipCode"
+                  type="text"
+                  placeholder="78701"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                />
+              </div>
+            </div>
+
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
                 {error.message}
@@ -179,7 +252,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Loyalty Program Membership</CardTitle>
-          <CardDescription>You're a valued loyalty member</CardDescription>
+          <CardDescription>You&apos;re a valued loyalty member</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

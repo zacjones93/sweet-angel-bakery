@@ -35,7 +35,7 @@ export function StorefrontNav() {
       setIsLoadingUser(true);
       const [data] = await getCurrentUser({});
       if (data) {
-        const { id, ...userData } = data;
+        const { ...userData } = data;
         setCurrentUser(userData as typeof currentUser);
       }
       setIsLoadingUser(false);

@@ -42,7 +42,7 @@ type Product = {
 
 export function ProductsTable({ products }: { products: Product[] }) {
   const router = useRouter();
-  const { execute: deleteProduct, isPending } =
+  const { execute: deleteProduct } =
     useServerAction(deleteProductAction);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -50,7 +50,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
     setDeletingId(id);
-    const [result, error] = await deleteProduct({ id });
+    const [, error] = await deleteProduct({ id });
 
     if (error) {
       toast.error(error.message);

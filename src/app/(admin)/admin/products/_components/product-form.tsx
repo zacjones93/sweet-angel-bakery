@@ -31,7 +31,7 @@ import {
 } from "../../_actions/products.action";
 import { toast } from "sonner";
 import { PRODUCT_STATUS } from "@/db/schema";
-import { Upload, X, ImageIcon } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import Image from "next/image";
 import { type ProductCustomizations } from "@/types/customizations";
 import { CustomizationsForm } from "./customizations-form";
@@ -98,7 +98,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       categoryId: product?.categoryId || "",
       price: product ? (product.price / 100).toString() : "",
       imageUrl: product?.imageUrl || "",
-      status: (product?.status as any) || PRODUCT_STATUS.ACTIVE,
+      status: (product?.status as typeof PRODUCT_STATUS[keyof typeof PRODUCT_STATUS]) || PRODUCT_STATUS.ACTIVE,
       quantityAvailable: product?.quantityAvailable?.toString() || "0",
     },
   });
@@ -119,11 +119,11 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { message?: string };
         throw new Error(error.message || "Failed to upload image");
       }
 
-      const { url } = await response.json();
+      const { url } = await response.json() as { url: string };
 
       form.setValue("imageUrl", url);
       setImagePreview(url);
@@ -206,7 +206,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     }
 
     if (product) {
-      const [result, error] = await updateProduct({
+      const [, error] = await updateProduct({
         id: product.id,
         name: values.name,
         description: values.description,
@@ -226,7 +226,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         router.refresh();
       }
     } else {
-      const [result, error] = await createProduct({
+      const [, error] = await createProduct({
         name: values.name,
         description: values.description,
         categoryId: values.categoryId,

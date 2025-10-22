@@ -27,7 +27,7 @@ export interface KVSession {
   continent?: string;
   ip?: string | null;
   userAgent?: string | null;
-  authenticationType?: "passkey" | "password" | "google-oauth";
+  authenticationType?: "passkey" | "password" | "google-oauth" | "magic-link";
   passkeyCredentialId?: string;
   /**
    * Teams data - contains list of teams the user is a member of
@@ -185,7 +185,7 @@ export async function updateKVSession(sessionId: string, userId: string, expires
   }
 
   // Get updated teams data with permissions
-  const teamsWithPermissions = await getUserTeamsWithPermissions(userId);
+  const teamsWithPermissions = await getUserTeamsWithPermissions();
 
   const updatedSession: KVSession = {
     ...session,
@@ -292,7 +292,7 @@ export async function updateAllSessionsOfUser(userId: string) {
   if (!newUserData) return;
 
   // Get updated teams data with permissions
-  const teamsWithPermissions = await getUserTeamsWithPermissions(userId);
+  const teamsWithPermissions = await getUserTeamsWithPermissions();
 
   for (const sessionObj of sessions) {
     const session = await kv.get(sessionObj.key);

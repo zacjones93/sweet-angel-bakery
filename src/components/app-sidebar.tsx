@@ -1,24 +1,21 @@
 "use client";
 
-import { type ComponentType, useEffect, useState } from "react";
+import { type ComponentType } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import Image from "next/image";
 
 import {
-  Building2,
   Frame,
   Map,
   PieChart,
   SquareTerminal,
-  Users,
   Shield,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -45,55 +42,24 @@ type Data = {
     name: string;
     email: string;
   };
-  teams: {
-    id: string;
-    name: string;
-    logo: ComponentType;
-    role: string;
-  }[];
   navMain: NavMainItem[];
   projects: NavItem[];
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSessionStore();
-  const [formattedTeams, setFormattedTeams] = useState<Data["teams"]>([]);
-
-  // Map session teams to the format expected by TeamSwitcher
-  useEffect(() => {
-    if (session?.teams && session.teams.length > 0) {
-      // Map teams from session to the format expected by TeamSwitcher
-      const teamData = session.teams.map((team) => {
-        return {
-          id: team.id,
-          name: team.name,
-          // TODO Get the actual logo when we implement team avatars
-          logo: Building2,
-          role: team.role.name || "Member",
-        };
-      });
-
-      setFormattedTeams(teamData);
-    }
-  }, [session]);
 
   const data: Data = {
     user: {
       name: session?.user?.firstName || "User",
       email: session?.user?.email || "user@example.com",
     },
-    teams: formattedTeams,
     navMain: [
       {
-        title: "Dashboard",
-        url: "/dashboard",
+        title: "Home",
+        url: "/" as Route,
         icon: SquareTerminal,
         isActive: true,
-      },
-      {
-        title: "Teams",
-        url: "/dashboard/teams" as Route,
-        icon: Users,
       },
       ...(session?.user?.role === ROLES_ENUM.ADMIN
         ? [
@@ -140,7 +106,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             />
           </Link>
         </div>
-        {data?.teams?.length > 0 && <TeamSwitcher teams={data.teams} />}
       </SidebarHeader>
 
       <SidebarContent>

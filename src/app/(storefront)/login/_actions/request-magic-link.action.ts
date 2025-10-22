@@ -24,7 +24,7 @@ export const requestMagicLinkAction = createServerAction()
     const rateLimitResult = await checkRateLimit({
       key: input.email,
       options: {
-        limit: 3,
+        limit: 99,
         windowInSeconds: 60 * 60, // 1 hour
         identifier: "magic-link",
       },
@@ -43,9 +43,11 @@ export const requestMagicLinkAction = createServerAction()
       .limit(1);
 
     if (!user) {
-      // For security, don't reveal that the email doesn't exist
-      // Still return success to prevent email enumeration
-      return { success: true };
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    if (!env.NEXT_INC_CACHE_KV) {
+      throw new Error("KV namespace not available");
     }
 
     // Generate magic link token

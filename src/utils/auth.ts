@@ -79,7 +79,7 @@ interface CreateSessionParams extends Pick<CreateKVSessionParams, "authenticatio
   token: string;
 }
 
-export async function getUserTeamsWithPermissions(userId: string) {
+export async function getUserTeamsWithPermissions() {
   // Bakery doesn't use teams - return empty array
   return [];
 }
@@ -457,10 +457,20 @@ export async function findOrCreateUser({
         .update(userTable)
         .set({ phone })
         .where(eq(userTable.id, existing.id))
-        .returning();
-      return updated;
+        .returning({
+          id: userTable.id,
+          email: userTable.email,
+          firstName: userTable.firstName,
+          lastName: userTable.lastName,
+        });
+      return updated as { id: string; email: string; firstName: string | null; lastName: string | null };
     }
-    return existing;
+    return {
+      id: existing.id,
+      email: existing.email as string,
+      firstName: existing.firstName,
+      lastName: existing.lastName,
+    };
   }
 
   // Create new user
@@ -475,7 +485,12 @@ export async function findOrCreateUser({
       emailVerified: null, // Will verify via magic link
       phoneVerified: 0,
     })
-    .returning();
+    .returning({
+      id: userTable.id,
+      email: userTable.email,
+      firstName: userTable.firstName,
+      lastName: userTable.lastName,
+    });
 
-  return newUser;
+  return newUser as { id: string; email: string; firstName: string | null; lastName: string | null };
 }

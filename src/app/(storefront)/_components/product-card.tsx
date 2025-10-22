@@ -18,7 +18,6 @@ import type {
   SizeVariant,
   SizeVariantsConfig,
 } from "@/types/customizations";
-import { createId } from "@paralleldrive/cuid2";
 
 type Product = {
   id: string;

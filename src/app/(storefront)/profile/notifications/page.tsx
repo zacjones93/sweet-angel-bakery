@@ -44,7 +44,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     async function loadPreferences() {
-      const [data, err] = await getPreferences({});
+      const [data] = await getPreferences({});
       if (data?.preferences) {
         setPreferences(data.preferences);
       }
@@ -53,7 +53,7 @@ export default function NotificationsPage() {
   }, [getPreferences]);
 
   async function handleSave() {
-    const [data, err] = await updatePreferences({ preferences });
+    const [, err] = await updatePreferences({ preferences });
     if (!err) {
       // Show success message
       alert("Preferences saved successfully!");

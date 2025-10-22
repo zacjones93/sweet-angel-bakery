@@ -7,7 +7,6 @@ import {
 } from "@/types/customizations";
 import { calculateCustomBuilderPrice } from "@/types/customizations";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -91,7 +90,7 @@ export function CustomCakeBuilder({
       const enrichedSelections: SelectedCustomBuilder = {
         type: "custom_builder",
         selections: Object.entries(selections)
-          .filter(([_, choiceIds]) => choiceIds.length > 0)
+          .filter(([, choiceIds]) => choiceIds.length > 0)
           .map(([optionId, choiceIds]) => {
             const option = config.options.find((o) => o.id === optionId)!;
             const choiceNames = choiceIds
@@ -154,12 +153,6 @@ export function CustomCakeBuilder({
     if (cents === 0) return "";
     const sign = cents > 0 ? "+" : "";
     return ` (${sign}${formatPrice(cents)})`;
-  };
-
-  const getChoicePrice = (optionId: string, choiceId: string) => {
-    const option = config.options.find((o) => o.id === optionId);
-    const choice = option?.choices.find((c) => c.id === choiceId);
-    return choice?.priceModifier || 0;
   };
 
   // Sort options by display order
@@ -328,7 +321,7 @@ export function CustomCakeBuilder({
             </div>
 
             {Object.entries(selections)
-              .filter(([_, choiceIds]) => choiceIds.length > 0)
+              .filter(([, choiceIds]) => choiceIds.length > 0)
               .map(([optionId, choiceIds]) => {
                 const option = config.options.find((o) => o.id === optionId);
                 if (!option) return null;

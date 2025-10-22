@@ -47,7 +47,6 @@ export function Navigation() {
     ...(session
       ? ([
           { name: "Settings", href: "/settings" },
-          { name: "Dashboard", href: "/dashboard" },
           ...(session.user.role === ROLES_ENUM.ADMIN
             ? ([{ name: "Admin", href: "/admin" }] as NavItem[])
             : []),
