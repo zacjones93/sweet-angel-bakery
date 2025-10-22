@@ -3,7 +3,6 @@
 import { getDB } from "@/db";
 import { orderTable, orderItemTable, productTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getCurrentLoyaltyCustomer } from "../../_lib/get-loyalty-customer";
@@ -20,8 +19,7 @@ export const getOrderDetailsAction = createServerAction()
       throw new Error("Not authenticated");
     }
 
-    const { env } = await getCloudflareContext();
-    const db = getDB(env.NEXT_TAG_CACHE_D1);
+    const db = getDB();
 
     // Fetch the order
     const order = await db
@@ -35,7 +33,7 @@ export const getOrderDetailsAction = createServerAction()
     }
 
     // Verify the order belongs to this customer
-    if (order.loyaltyCustomerId !== customer.id) {
+    if (order.userId !== customer.id) {
       throw new Error("Unauthorized");
     }
 

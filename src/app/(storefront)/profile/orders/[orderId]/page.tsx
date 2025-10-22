@@ -12,7 +12,6 @@ import {
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   Card,
   CardContent,
@@ -24,10 +23,16 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, format } from "date-fns";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
-import { CalendarIcon, MapPinIcon, PackageIcon, TruckIcon, CheckCircle2Icon } from "lucide-react";
+import {
+  CalendarIcon,
+  MapPinIcon,
+  PackageIcon,
+  TruckIcon,
+  CheckCircle2Icon,
+} from "lucide-react";
 
 // Disable caching - always fetch fresh order data
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 interface Props {
@@ -42,8 +47,7 @@ export default async function OrderDetailsPage({ params }: Props) {
     redirect("/login");
   }
 
-  const { env } = await getCloudflareContext();
-  const db = getDB(env.NEXT_TAG_CACHE_D1);
+  const db = getDB();
 
   // Fetch the order
   const order = await db
@@ -57,7 +61,7 @@ export default async function OrderDetailsPage({ params }: Props) {
   }
 
   // Verify the order belongs to this customer
-  if (order.loyaltyCustomerId !== customer.id) {
+  if (order.userId !== customer.id) {
     notFound();
   }
 
@@ -75,27 +79,37 @@ export default async function OrderDetailsPage({ params }: Props) {
 
   // Find status key by comparing against raw status values (not labels)
   const statusKey = Object.entries(ORDER_STATUS_LABELS).find(
-    ([key, value]) => ORDER_STATUS[key as keyof typeof ORDER_STATUS] === order.status
+    ([key, value]) =>
+      ORDER_STATUS[key as keyof typeof ORDER_STATUS] === order.status
   )?.[0] as keyof typeof ORDER_STATUS_LABELS | undefined;
 
   const paymentStatusKey = Object.entries(PAYMENT_STATUS_LABELS).find(
-    ([key, value]) => PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] === order.paymentStatus
+    ([key, value]) =>
+      PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] === order.paymentStatus
   )?.[0] as keyof typeof PAYMENT_STATUS_LABELS | undefined;
 
   // Status timeline - showing progression through order workflow
   const statusSteps = [
-    { key: 'PENDING', label: 'Processing', icon: PackageIcon },
-    { key: 'CONFIRMED', label: 'Confirmed', icon: CheckCircle2Icon },
-    { key: 'IN_PRODUCTION', label: 'In Production', icon: PackageIcon },
+    { key: "PENDING", label: "Processing", icon: PackageIcon },
+    { key: "CONFIRMED", label: "Confirmed", icon: CheckCircle2Icon },
+    { key: "IN_PRODUCTION", label: "In Production", icon: PackageIcon },
     {
-      key: order.fulfillmentType === 'delivery' ? 'OUT_FOR_DELIVERY' : 'READY_FOR_PICKUP',
-      label: order.fulfillmentType === 'delivery' ? 'Out for Delivery' : 'Ready for Pickup',
-      icon: order.fulfillmentType === 'delivery' ? TruckIcon : MapPinIcon
+      key:
+        order.fulfillmentType === "delivery"
+          ? "OUT_FOR_DELIVERY"
+          : "READY_FOR_PICKUP",
+      label:
+        order.fulfillmentType === "delivery"
+          ? "Out for Delivery"
+          : "Ready for Pickup",
+      icon: order.fulfillmentType === "delivery" ? TruckIcon : MapPinIcon,
     },
-    { key: 'COMPLETED', label: 'Completed', icon: CheckCircle2Icon },
+    { key: "COMPLETED", label: "Completed", icon: CheckCircle2Icon },
   ];
 
-  const currentStatusIndex = statusSteps.findIndex(step => step.key === statusKey);
+  const currentStatusIndex = statusSteps.findIndex(
+    (step) => step.key === statusKey
+  );
 
   return (
     <div className="space-y-6">
@@ -108,22 +122,27 @@ export default async function OrderDetailsPage({ params }: Props) {
             </h1>
             <p className="text-muted-foreground flex items-center gap-2 mt-1">
               <CalendarIcon className="h-4 w-4" />
-              Placed {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })} on{" "}
-              {format(new Date(order.createdAt), "MMMM d, yyyy 'at' h:mm a")}
+              Placed{" "}
+              {formatDistanceToNow(new Date(order.createdAt), {
+                addSuffix: true,
+              })}{" "}
+              on {format(new Date(order.createdAt), "MMMM d, yyyy 'at' h:mm a")}
             </p>
           </div>
           <div className="flex gap-2">
             <Badge
               variant="secondary"
-              className={paymentStatusKey ? PAYMENT_STATUS_COLORS[paymentStatusKey] : ""}
+              className={
+                paymentStatusKey ? PAYMENT_STATUS_COLORS[paymentStatusKey] : ""
+              }
             >
-              {PAYMENT_STATUS_LABELS[paymentStatusKey || 'PENDING']}
+              {PAYMENT_STATUS_LABELS[paymentStatusKey || "PENDING"]}
             </Badge>
             <Badge
               variant="secondary"
               className={statusKey ? ORDER_STATUS_COLORS[statusKey] : ""}
             >
-              {ORDER_STATUS_LABELS[statusKey || 'PENDING']}
+              {ORDER_STATUS_LABELS[statusKey || "PENDING"]}
             </Badge>
           </div>
         </div>
@@ -143,29 +162,53 @@ export default async function OrderDetailsPage({ params }: Props) {
               const isCurrent = index === currentStatusIndex;
 
               return (
-                <div key={step.key} className="flex flex-col items-center flex-1">
+                <div
+                  key={step.key}
+                  className="flex flex-col items-center flex-1"
+                >
                   <div className="relative flex items-center w-full">
                     {index > 0 && (
-                      <div className={`flex-1 h-1 ${isActive ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                      <div
+                        className={`flex-1 h-1 ${
+                          isActive
+                            ? "bg-primary"
+                            : "bg-gray-200 dark:bg-gray-700"
+                        }`}
+                      />
                     )}
                     <div
                       className={`
                         rounded-full p-3 z-10
-                        ${isCurrent
-                          ? 'bg-primary text-primary-foreground ring-4 ring-primary/20'
-                          : isActive
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                        ${
+                          isCurrent
+                            ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                            : isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
                         }
                       `}
                     >
                       <StepIcon className="h-5 w-5" />
                     </div>
                     {index < statusSteps.length - 1 && (
-                      <div className={`flex-1 h-1 ${isActive && index < currentStatusIndex ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                      <div
+                        className={`flex-1 h-1 ${
+                          isActive && index < currentStatusIndex
+                            ? "bg-primary"
+                            : "bg-gray-200 dark:bg-gray-700"
+                        }`}
+                      />
                     )}
                   </div>
-                  <p className={`text-xs mt-2 text-center ${isCurrent ? 'font-semibold' : isActive ? 'font-medium' : 'text-muted-foreground'}`}>
+                  <p
+                    className={`text-xs mt-2 text-center ${
+                      isCurrent
+                        ? "font-semibold"
+                        : isActive
+                        ? "font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
                     {step.label}
                   </p>
                 </div>
@@ -179,7 +222,9 @@ export default async function OrderDetailsPage({ params }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Order Items</CardTitle>
-          <CardDescription>{items.length} {items.length === 1 ? 'item' : 'items'}</CardDescription>
+          <CardDescription>
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -211,7 +256,9 @@ export default async function OrderDetailsPage({ params }: Props) {
 
                   {/* Product Details */}
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{item.product.name}</h3>
+                    <h3 className="font-semibold text-lg">
+                      {item.product.name}
+                    </h3>
                     {item.product.description && (
                       <p className="text-sm text-muted-foreground mt-1">
                         {item.product.description}
@@ -223,19 +270,23 @@ export default async function OrderDetailsPage({ params }: Props) {
                       <div className="mt-2 space-y-1">
                         {customizations.size && (
                           <p className="text-sm">
-                            <span className="font-medium">Size:</span> {customizations.size}
+                            <span className="font-medium">Size:</span>{" "}
+                            {customizations.size}
                           </p>
                         )}
-                        {customizations.options && customizations.options.length > 0 && (
-                          <div className="text-sm">
-                            <span className="font-medium">Options:</span>
-                            <ul className="list-disc list-inside ml-2">
-                              {customizations.options.map((opt: any, idx: number) => (
-                                <li key={idx}>{opt.name}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        {customizations.options &&
+                          customizations.options.length > 0 && (
+                            <div className="text-sm">
+                              <span className="font-medium">Options:</span>
+                              <ul className="list-disc list-inside ml-2">
+                                {customizations.options.map(
+                                  (opt: any, idx: number) => (
+                                    <li key={idx}>{opt.name}</li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -245,7 +296,8 @@ export default async function OrderDetailsPage({ params }: Props) {
                       </p>
                       <p className="font-semibold">
                         {formatPrice(
-                          item.order_item.priceAtPurchase * item.order_item.quantity
+                          item.order_item.priceAtPurchase *
+                            item.order_item.quantity
                         )}
                       </p>
                     </div>
@@ -284,22 +336,26 @@ export default async function OrderDetailsPage({ params }: Props) {
         <Card>
           <CardHeader>
             <CardTitle>
-              {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Pickup'} Details
+              {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}{" "}
+              Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {order.fulfillmentType === 'delivery' && order.deliveryAddress ? (
+            {order.fulfillmentType === "delivery" && order.deliveryAddress ? (
               <div>
                 <p className="text-sm font-medium mb-1">Delivery Address</p>
                 <p className="text-sm text-muted-foreground whitespace-pre-line">
                   {order.deliveryAddress}
                 </p>
               </div>
-            ) : order.fulfillmentType === 'pickup' && order.pickupTime ? (
+            ) : order.fulfillmentType === "pickup" && order.pickupTime ? (
               <div>
                 <p className="text-sm font-medium mb-1">Pickup Time</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(order.pickupTime), "MMMM d, yyyy 'at' h:mm a")}
+                  {format(
+                    new Date(order.pickupTime),
+                    "MMMM d, yyyy 'at' h:mm a"
+                  )}
                 </p>
               </div>
             ) : null}
@@ -313,9 +369,13 @@ export default async function OrderDetailsPage({ params }: Props) {
 
             <div>
               <p className="text-sm font-medium mb-1">Contact</p>
-              <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+              <p className="text-sm text-muted-foreground">
+                {order.customerEmail}
+              </p>
               {order.customerPhone && (
-                <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
+                <p className="text-sm text-muted-foreground">
+                  {order.customerPhone}
+                </p>
               )}
             </div>
           </CardContent>
@@ -324,10 +384,7 @@ export default async function OrderDetailsPage({ params }: Props) {
 
       {/* Back Link */}
       <div>
-        <a
-          href="/profile"
-          className="text-sm text-primary hover:underline"
-        >
+        <a href="/profile" className="text-sm text-primary hover:underline">
           &larr; Back to all orders
         </a>
       </div>
