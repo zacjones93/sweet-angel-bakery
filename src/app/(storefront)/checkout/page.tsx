@@ -220,13 +220,29 @@ export default function CheckoutPage() {
                                 {customerPhone}
                               </p>
                             )}
-                            {streetAddress1 && (
-                              <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
-                                <p>{streetAddress1}</p>
-                                {streetAddress2 && <p>{streetAddress2}</p>}
-                                <p>{city}, {state} {zipCode}</p>
-                              </div>
-                            )}
+                            
+                            {/* Always show delivery address section */}
+                            <div className="mt-2 pt-2 border-t">
+                              <p className="text-xs font-semibold text-bakery-pink uppercase mb-1">
+                                Delivery Address
+                              </p>
+                              {streetAddress1 ? (
+                                <div className="text-sm text-muted-foreground">
+                                  <p>{streetAddress1}</p>
+                                  {streetAddress2 && <p>{streetAddress2}</p>}
+                                  <p>{city}, {state} {zipCode}</p>
+                                </div>
+                              ) : (
+                                <div className="text-sm">
+                                  <p className="text-amber-600 font-medium">
+                                    ⚠️ No delivery address on file
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Please add your delivery address to complete checkout
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <Button

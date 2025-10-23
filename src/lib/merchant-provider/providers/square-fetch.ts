@@ -55,6 +55,11 @@ export class SquareFetchProvider implements IMerchantProvider {
 		endpoint: string,
 		options: RequestInit = {}
 	): Promise<T> {
+		console.log(`[Square] Request: ${options.method || 'GET'} ${endpoint}`);
+		if (options.body) {
+			console.log(`[Square] Request body:`, JSON.parse(options.body as string));
+		}
+
 		const response = await fetch(`${this.baseUrl}${endpoint}`, {
 			...options,
 			headers: {
@@ -68,12 +73,19 @@ export class SquareFetchProvider implements IMerchantProvider {
 		const data = await response.json();
 
 		if (!response.ok) {
-			console.error("[Square] API Error:", data);
-			throw new Error(
-				`Square API error: ${data.errors?.[0]?.detail || response.statusText}`
-			);
+			console.error("[Square] API Error Response:", JSON.stringify(data, null, 2));
+			console.error("[Square] Status:", response.status);
+			console.error("[Square] Status Text:", response.statusText);
+
+			// Extract detailed error info
+			const errorDetails = data.errors?.map((err: { category?: string; code?: string; detail?: string; field?: string }) => {
+				return `${err.code || 'UNKNOWN'}: ${err.detail || 'No detail'}${err.field ? ` (field: ${err.field})` : ''}`;
+			}).join(', ') || response.statusText;
+
+			throw new Error(`Square API error: ${errorDetails}`);
 		}
 
+		console.log(`[Square] Response:`, data);
 		return data as T;
 	}
 
