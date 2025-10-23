@@ -95,7 +95,7 @@ export const createCheckoutSessionAction = createServerAction()
         price: item.price,
         quantity: item.quantity,
         imageUrl: product.imageUrl || undefined,
-        customizations: item.customizations,
+        customizations: item.customizations || undefined,
       };
     });
 
