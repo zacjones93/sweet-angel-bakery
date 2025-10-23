@@ -16,8 +16,9 @@ export async function getMerchantProvider(): Promise<IMerchantProvider> {
 			break;
 		}
 		case "square": {
-			const { SquareProvider } = await import("./providers/square");
-			providerInstance = new SquareProvider();
+			// Use fetch-based provider (Edge runtime compatible)
+			const { SquareFetchProvider } = await import("./providers/square-fetch");
+			providerInstance = new SquareFetchProvider();
 			break;
 		}
 		default:

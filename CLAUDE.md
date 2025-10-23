@@ -12,20 +12,24 @@ Sweet Angel Bakery e-commerce platform - a Next.js application for online bakery
 
 ## Payment Provider
 
-**IMPORTANT**: This application uses **Square** as the payment provider, NOT Stripe.
+**IMPORTANT**: This application currently uses **Stripe** as the payment provider.
 
-- All payments are processed through Square
-- Square Payment Links for checkout
-- Square Catalog API for product management
-- Square webhooks for order processing
-- Merchant fee tracking for revenue analytics
+**Square SDK Limitation**: The Square Node.js SDK is not compatible with Cloudflare Workers Edge runtime. See `docs/square-edge-runtime-limitation.md` for details and workarounds.
 
-While the codebase includes a Stripe provider implementation (for reference/fallback), **all active development and production usage should use Square**.
+**Current Configuration**:
+- Payment provider: **Stripe** (Edge runtime compatible)
+- Merchant provider abstraction supports both Stripe and Square
+- To use Square, the provider would need to be rewritten using fetch API instead of the SDK
+
+**Switching Providers**:
+Set `MERCHANT_PROVIDER` in `.dev.vars`:
+- `stripe` - Works out of the box (recommended for Edge runtime)
+- `square` - Requires fetch-based implementation (SDK not compatible)
 
 ## Key Capabilities
 
-- **E-commerce**: Product catalog, shopping cart, checkout with Square integration
-- **Payment Processing**: Square Payment Links, webhooks, and fee tracking
+- **E-commerce**: Product catalog, shopping cart, checkout with Stripe integration
+- **Payment Processing**: Stripe Checkout, webhooks, and fee tracking
 - **Order Management**: Admin dashboard for order fulfillment and status tracking
 - **Loyalty Program**: Customer accounts with order history and early access to product drops
 - **Product Drops**: Scheduled releases with loyalty member early access
