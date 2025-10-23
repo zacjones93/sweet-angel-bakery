@@ -12,7 +12,7 @@
  *   - SQUARE_ENVIRONMENT (sandbox or production)
  */
 
-import { Client, Environment } from 'square';
+import { Client } from 'square';
 import { getDB } from '../src/db/index.js';
 import { productTable } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -22,8 +22,8 @@ import crypto from 'crypto';
 const accessToken = process.env.SQUARE_ACCESS_TOKEN;
 const locationId = process.env.SQUARE_LOCATION_ID;
 const environment = process.env.SQUARE_ENVIRONMENT === 'production'
-  ? Environment.Production
-  : Environment.Sandbox;
+  ? 'production'
+  : 'sandbox';
 
 if (!accessToken) {
   console.error('❌ Missing SQUARE_ACCESS_TOKEN environment variable');

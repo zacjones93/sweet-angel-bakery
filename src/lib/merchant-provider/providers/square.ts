@@ -1,5 +1,5 @@
 import "server-only";
-import { Client, Environment } from "square";
+import { Client } from "square";
 import type {
 	IMerchantProvider,
 	CheckoutOptions,
@@ -43,12 +43,16 @@ export class SquareProvider implements IMerchantProvider {
 		if (!accessToken) throw new Error("SQUARE_ACCESS_TOKEN not configured");
 		if (!locationId) throw new Error("SQUARE_LOCATION_ID not configured");
 
+		// Use string literals instead of Environment enum to avoid Edge runtime issues
 		const environment =
 			process.env.SQUARE_ENVIRONMENT === "production"
-				? Environment.Production
-				: Environment.Sandbox;
+				? "production"
+				: "sandbox";
 
-		this.client = new Client({ accessToken, environment });
+		this.client = new Client({
+			accessToken,
+			environment: environment as "production" | "sandbox"
+		});
 		this.locationId = locationId;
 	}
 
