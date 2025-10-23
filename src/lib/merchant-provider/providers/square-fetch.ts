@@ -120,6 +120,16 @@ export class SquareFetchProvider implements IMerchantProvider {
 			},
 		];
 
+		// Filter out empty/null metadata values (Square rejects empty strings)
+		const cleanMetadata: Record<string, string> = {};
+		if (options.metadata) {
+			for (const [key, value] of Object.entries(options.metadata)) {
+				if (value && value.trim()) {
+					cleanMetadata[key] = value;
+				}
+			}
+		}
+
 		const result = await this.request<{
 			payment_link: {
 				id: string;
@@ -133,7 +143,8 @@ export class SquareFetchProvider implements IMerchantProvider {
 				order: {
 					location_id: this.locationId,
 					line_items: lineItems,
-					metadata: options.metadata,
+					// Only include metadata if there are non-empty values
+					...(Object.keys(cleanMetadata).length > 0 && { metadata: cleanMetadata }),
 				},
 				checkout_options: {
 					redirect_url: options.successUrl,

@@ -20,6 +20,7 @@ import { Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { calculateOrderTotals, formatCents } from "@/utils/tax";
 import { getCurrentLoyaltyCustomerAction } from "../_actions/get-current-loyalty-customer.action";
+import { toast } from "sonner";
 
 export default function CheckoutPage() {
   const { items, totalAmount, clearCart } = useCart();
@@ -53,6 +54,9 @@ export default function CheckoutPage() {
     getCurrentLoyaltyCustomerAction
   );
 
+  // Convert searchParams to string to properly detect changes
+  const searchParamsString = searchParams.toString();
+
   // Load current user on mount and when returning from profile edit
   useEffect(() => {
     async function loadCurrentUser() {
@@ -74,7 +78,8 @@ export default function CheckoutPage() {
       setIsLoadingLoyalty(false);
     }
     loadCurrentUser();
-  }, [getLoyaltyCustomer, searchParams]); // Re-load when returning from edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParamsString]); // Re-load when searchParams change (e.g., returning from profile edit)
 
   const { execute, isPending, error } = useServerAction(
     createCheckoutSessionAction
@@ -93,6 +98,14 @@ export default function CheckoutPage() {
     e.preventDefault();
 
     if (items.length === 0) {
+      return;
+    }
+
+    // Validate delivery address for logged-in users
+    if (currentUser && !streetAddress1) {
+      toast.error(
+        "Please add a delivery address to your profile before checking out."
+      );
       return;
     }
 
@@ -220,7 +233,7 @@ export default function CheckoutPage() {
                                 {customerPhone}
                               </p>
                             )}
-                            
+
                             {/* Always show delivery address section */}
                             <div className="mt-2 pt-2 border-t">
                               <p className="text-xs font-semibold text-bakery-pink uppercase mb-1">
@@ -230,7 +243,9 @@ export default function CheckoutPage() {
                                 <div className="text-sm text-muted-foreground">
                                   <p>{streetAddress1}</p>
                                   {streetAddress2 && <p>{streetAddress2}</p>}
-                                  <p>{city}, {state} {zipCode}</p>
+                                  <p>
+                                    {city}, {state} {zipCode}
+                                  </p>
                                 </div>
                               ) : (
                                 <div className="text-sm">
@@ -238,7 +253,8 @@ export default function CheckoutPage() {
                                     ⚠️ No delivery address on file
                                   </p>
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    Please add your delivery address to complete checkout
+                                    Please add your delivery address to complete
+                                    checkout
                                   </p>
                                 </div>
                               )}
@@ -360,28 +376,38 @@ export default function CheckoutPage() {
                       )}
 
                       <div className="pt-4 border-t">
-                        <h3 className="text-sm font-semibold mb-3">Delivery Address</h3>
+                        <h3 className="text-sm font-semibold mb-3">
+                          Delivery Address
+                        </h3>
                         <div className="space-y-3">
                           <div className="space-y-2">
-                            <Label htmlFor="streetAddress1">Street Address</Label>
+                            <Label htmlFor="streetAddress1">
+                              Street Address
+                            </Label>
                             <Input
                               id="streetAddress1"
                               type="text"
                               placeholder="123 Main St"
                               value={streetAddress1}
-                              onChange={(e) => setStreetAddress1(e.target.value)}
+                              onChange={(e) =>
+                                setStreetAddress1(e.target.value)
+                              }
                               required
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="streetAddress2">Apt, Suite, etc. (Optional)</Label>
+                            <Label htmlFor="streetAddress2">
+                              Apt, Suite, etc. (Optional)
+                            </Label>
                             <Input
                               id="streetAddress2"
                               type="text"
                               placeholder="Apt 4B"
                               value={streetAddress2}
-                              onChange={(e) => setStreetAddress2(e.target.value)}
+                              onChange={(e) =>
+                                setStreetAddress2(e.target.value)
+                              }
                             />
                           </div>
 

@@ -6,6 +6,7 @@ import { getCurrentLoyaltyCustomer } from "../_lib/get-loyalty-customer";
 import { getDB } from "@/db";
 import { userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { updateAllSessionsOfUser } from "@/utils/kv-session";
 
 export const getProfileSettingsAction = createServerAction()
   .input(z.object({}))
@@ -62,6 +63,9 @@ export const updateProfileSettingsAction = createServerAction()
         zipCode: input.zipCode,
       })
       .where(eq(userTable.id, customer.id));
+
+    // Update all sessions with the new user data
+    await updateAllSessionsOfUser(customer.id);
 
     return { success: true };
   });

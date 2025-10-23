@@ -19,6 +19,7 @@ import {
 import { useServerAction } from "zsa-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -77,11 +78,11 @@ export default function SettingsPage() {
     });
 
     if (!err) {
+      toast.success("Settings saved successfully!");
       if (callbackUrl) {
-        // Redirect back to callback URL
-        router.push(callbackUrl as Route);
-      } else {
-        alert("Settings saved successfully!");
+        // Redirect back to callback URL with a timestamp to trigger refresh
+        const separator = callbackUrl.includes("?") ? "&" : "?";
+        router.push(`${callbackUrl}${separator}updated=${Date.now()}` as Route);
       }
     }
   }
@@ -170,6 +171,14 @@ export default function SettingsPage() {
               </p>
             </div>
 
+            <div className="pt-4 border-t">
+              <h3 className="text-sm font-semibold mb-1">Delivery Address</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Required for delivery orders. We'll use this address to deliver
+                your treats.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="streetAddress1">Street Address</Label>
               <Input
@@ -182,7 +191,9 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="streetAddress2">Apt, Suite, etc. (Optional)</Label>
+              <Label htmlFor="streetAddress2">
+                Apt, Suite, etc. (Optional)
+              </Label>
               <Input
                 id="streetAddress2"
                 type="text"
