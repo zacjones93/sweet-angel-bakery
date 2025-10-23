@@ -33,10 +33,22 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type Props = {
-  searchParams: Promise<{ session_id?: string }>;
+  searchParams: Promise<{ session_id?: string; provider?: string }>;
 };
 
-async function getOrderFromSession(sessionId: string) {
+async function getOrderFromSession(sessionId: string, provider?: string) {
+  // For Square, we don't have a session ID - show generic success message
+  if (provider === "square" || sessionId === "{CHECKOUT_SESSION_ID}") {
+    return {
+      session: null,
+      order: null,
+      items: [],
+      totalAmount: 0,
+      isLoyaltyMember: false,
+      isSquare: true,
+    };
+  }
+
   const stripe = await getStripe();
 
   try {
@@ -196,14 +208,61 @@ async function getOrderFromSession(sessionId: string) {
   }
 }
 
-async function OrderDetails({ sessionId }: { sessionId: string }) {
-  const data = await getOrderFromSession(sessionId);
+async function OrderDetails({ sessionId, provider }: { sessionId: string; provider?: string }) {
+  const data = await getOrderFromSession(sessionId, provider);
 
   if (!data) {
     notFound();
   }
 
-  const { session, order, items, totalAmount, isLoyaltyMember } = data;
+  const { session, order, items, totalAmount, isLoyaltyMember, isSquare } = data as typeof data & { isSquare?: boolean };
+
+  // For Square payments, show simplified success page
+  if (isSquare) {
+    return (
+      <div className="container mx-auto max-w-2xl py-12 px-4">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <CheckCircle2 className="w-16 h-16 text-green-600" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2">Thank You for Your Order!</h1>
+          <p className="text-muted-foreground">
+            Your payment was successful. We&apos;ll send a confirmation email shortly.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Confirmation</CardTitle>
+            <CardDescription>
+              Your order is being processed
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-lg mb-2">🎉 Payment Complete!</p>
+              <p>You should receive a confirmation email shortly.</p>
+              <p className="mt-4 text-sm">
+                Check your email for order details and pickup information.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground mb-4">
+            Your order will be ready for pickup soon. We&apos;ll notify you when it&apos;s ready.
+          </p>
+          <Link
+            href="/"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Get payment status from DB order if available, otherwise fall back to Stripe session
   // Find status key by comparing against raw status values (not labels)
@@ -395,6 +454,16 @@ function LoadingState() {
 export default async function PurchaseThanksPage({ searchParams }: Props) {
   const params = await searchParams;
   const sessionId = params.session_id;
+  const provider = params.provider;
+
+  // For Square, we don't require session ID
+  if (provider === "square") {
+    return (
+      <Suspense fallback={<LoadingState />}>
+        <OrderDetails sessionId="" provider="square" />
+      </Suspense>
+    );
+  }
 
   if (!sessionId) {
     notFound();
@@ -402,7 +471,7 @@ export default async function PurchaseThanksPage({ searchParams }: Props) {
 
   return (
     <Suspense fallback={<LoadingState />}>
-      <OrderDetails sessionId={sessionId} />
+      <OrderDetails sessionId={sessionId} provider={provider} />
     </Suspense>
   );
 }

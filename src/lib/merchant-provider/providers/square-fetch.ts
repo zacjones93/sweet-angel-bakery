@@ -130,11 +130,19 @@ export class SquareFetchProvider implements IMerchantProvider {
 			}
 		}
 
+		// Square doesn't replace {CHECKOUT_SESSION_ID} placeholder in redirect URL
+		// So we use a generic success page that doesn't require session ID
+		const successUrl = options.successUrl.replace(
+			/\?session_id=\{CHECKOUT_SESSION_ID\}/,
+			"?provider=square"
+		);
+
 		const result = await this.request<{
 			payment_link: {
 				id: string;
 				url: string;
 				version: number;
+				order_id: string;
 			};
 		}>("/v2/online-checkout/payment-links", {
 			method: "POST",
@@ -147,7 +155,7 @@ export class SquareFetchProvider implements IMerchantProvider {
 					...(Object.keys(cleanMetadata).length > 0 && { metadata: cleanMetadata }),
 				},
 				checkout_options: {
-					redirect_url: options.successUrl,
+					redirect_url: successUrl,
 					merchant_support_email: options.customerEmail,
 					ask_for_shipping_address: false,
 				},
