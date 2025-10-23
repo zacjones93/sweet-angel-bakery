@@ -17,10 +17,16 @@ export async function POST(req: NextRequest) {
 
   const webhookSecret = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
   if (!webhookSecret) {
-    console.error("Missing SQUARE_WEBHOOK_SIGNATURE_KEY");
+    console.warn("[Square Webhook] SQUARE_WEBHOOK_SIGNATURE_KEY not configured - ignoring webhook");
+    // Return 200 to prevent Square from retrying
+    // This happens during local development before webhooks are set up
     return NextResponse.json(
-      { error: "Webhook secret not configured" },
-      { status: 500 }
+      {
+        received: true,
+        processed: false,
+        message: "Webhook secret not configured"
+      },
+      { status: 200 }
     );
   }
 
