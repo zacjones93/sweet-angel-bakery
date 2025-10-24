@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { FileDown, Printer, Package, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FulfillmentStatusSelector } from "../_components/fulfillment-status-selector";
+import { ExportDeliveryButton } from "../_components/export-delivery-button";
+import { ExportPickupButton } from "../_components/export-pickup-button";
 
 export const metadata: Metadata = {
   title: "Orders by Fulfillment",
@@ -122,14 +124,7 @@ export default async function OrdersByFulfillmentPage({ searchParams }: PageProp
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Export Route
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print List
-                      </Button>
+                      <ExportDeliveryButton deliveryDate={delivery.date} />
                     </div>
                   </div>
                 </CardHeader>
@@ -203,10 +198,10 @@ export default async function OrdersByFulfillmentPage({ searchParams }: PageProp
                             {location.count} orders · Revenue: {formatCents(location.totalRevenue)}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <Printer className="mr-2 h-4 w-4" />
-                          Print List
-                        </Button>
+                        <ExportPickupButton
+                          pickupDate={pickup.date}
+                          pickupLocationId={location.locationId}
+                        />
                       </div>
 
                       {location.orders.map((orderData) => (
