@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FileDown, Printer, Package, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FulfillmentStatusSelector } from "../_components/fulfillment-status-selector";
 
 export const metadata: Metadata = {
   title: "Orders by Fulfillment",
