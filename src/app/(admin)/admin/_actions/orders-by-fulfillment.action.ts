@@ -26,21 +26,23 @@ export const getOrdersByFulfillmentAction = createServerAction()
 
     // Date filtering based on fulfillment method
     if (input.fulfillmentMethod === "delivery") {
+      conditions.push(eq(orderTable.fulfillmentMethod, "delivery"));
+      conditions.push(isNotNull(orderTable.deliveryDate));
       if (input.startDate) {
         conditions.push(gte(orderTable.deliveryDate, input.startDate));
       }
       if (input.endDate) {
         conditions.push(lte(orderTable.deliveryDate, input.endDate));
       }
-      conditions.push(eq(orderTable.fulfillmentMethod, "delivery"));
     } else if (input.fulfillmentMethod === "pickup") {
+      conditions.push(eq(orderTable.fulfillmentMethod, "pickup"));
+      conditions.push(isNotNull(orderTable.pickupDate));
       if (input.startDate) {
         conditions.push(gte(orderTable.pickupDate, input.startDate));
       }
       if (input.endDate) {
         conditions.push(lte(orderTable.pickupDate, input.endDate));
       }
-      conditions.push(eq(orderTable.fulfillmentMethod, "pickup"));
     } else {
       // For "all", we need to check both delivery and pickup dates
       if (input.startDate && input.endDate) {
@@ -48,11 +50,13 @@ export const getOrdersByFulfillmentAction = createServerAction()
           or(
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
+              isNotNull(orderTable.deliveryDate),
               gte(orderTable.deliveryDate, input.startDate),
               lte(orderTable.deliveryDate, input.endDate)
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
+              isNotNull(orderTable.pickupDate),
               gte(orderTable.pickupDate, input.startDate),
               lte(orderTable.pickupDate, input.endDate)
             )
@@ -63,10 +67,12 @@ export const getOrdersByFulfillmentAction = createServerAction()
           or(
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
+              isNotNull(orderTable.deliveryDate),
               gte(orderTable.deliveryDate, input.startDate)
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
+              isNotNull(orderTable.pickupDate),
               gte(orderTable.pickupDate, input.startDate)
             )
           )
@@ -76,10 +82,12 @@ export const getOrdersByFulfillmentAction = createServerAction()
           or(
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
+              isNotNull(orderTable.deliveryDate),
               lte(orderTable.deliveryDate, input.endDate)
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
+              isNotNull(orderTable.pickupDate),
               lte(orderTable.pickupDate, input.endDate)
             )
           )
