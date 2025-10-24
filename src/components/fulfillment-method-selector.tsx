@@ -112,7 +112,7 @@ export function FulfillmentMethodSelector({
         method: "delivery",
         deliveryZipCode: zipCode,
         deliveryFee: deliveryOptions.feeAmount,
-        deliveryDate: deliveryOptions.deliveryDate,
+        deliveryDate: deliveryOptions.deliveryDate ?? undefined,
       });
     } else if (method === "pickup" && selectedPickupLocationId && pickupOptions?.available) {
       const selectedLocation = pickupOptions.locations.find(
@@ -194,7 +194,7 @@ export function FulfillmentMethodSelector({
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Delivery Date:</span>
                             <span className="font-medium">
-                              {format(new Date(deliveryOptions.deliveryDate), "EEE, MMM d")}
+                              {deliveryOptions.deliveryDate && format(new Date(deliveryOptions.deliveryDate), "EEE, MMM d")}
                             </span>
                           </div>
                           {deliveryOptions.timeWindow && (
@@ -216,10 +216,12 @@ export function FulfillmentMethodSelector({
                               {deliveryOptions.zoneName}
                             </div>
                           )}
-                          <div className="text-xs text-muted-foreground pt-1 border-t">
-                            Order by{" "}
-                            {format(new Date(deliveryOptions.cutoffDate), "EEE, MMM d 'at' h:mm a")}
-                          </div>
+                          {deliveryOptions.cutoffDate && (
+                            <div className="text-xs text-muted-foreground pt-1 border-t">
+                              Order by{" "}
+                              {format(new Date(deliveryOptions.cutoffDate), "EEE, MMM d 'at' h:mm a")}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

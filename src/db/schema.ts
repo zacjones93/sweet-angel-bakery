@@ -511,6 +511,14 @@ export const orderRelations = relations(orderTable, ({ one, many }) => ({
   }),
   items: many(orderItemTable),
   merchantFees: many(merchantFeeTable),
+  deliveryZone: one(deliveryZoneTable, {
+    fields: [orderTable.deliveryZoneId],
+    references: [deliveryZoneTable.id],
+  }),
+  pickupLocation: one(pickupLocationTable, {
+    fields: [orderTable.pickupLocationId],
+    references: [pickupLocationTable.id],
+  }),
 }));
 
 export const orderItemRelations = relations(orderItemTable, ({ one }) => ({
