@@ -13,7 +13,7 @@ As a small bakery with owner-operated deliveries, we cannot fulfill on-demand or
 - Supports per-product delivery restrictions
 - Offers pickup as an alternative to paid delivery
 - Enables configurable delivery fees that can be adjusted without code changes
-- Integrates delivery fees with Stripe checkout
+- Integrates delivery fees with Square checkout
 - Adapts to changing business needs without code changes
 
 ## Goals
@@ -24,7 +24,7 @@ As a small bakery with owner-operated deliveries, we cannot fulfill on-demand or
 3. Allow admin to configure delivery schedules and fees without developer intervention
 4. Support different delivery rules and fees for different products
 5. Provide pickup as a free alternative to paid delivery
-6. Display accurate total costs including delivery fees at checkout and in Stripe
+6. Display accurate total costs including delivery fees at checkout and in Square
 
 ### Secondary Goals
 1. Minimize customer confusion about delivery timing and costs
@@ -40,7 +40,7 @@ As a small bakery with owner-operated deliveries, we cannot fulfill on-demand or
 - As a customer, I want to choose pickup to avoid delivery fees
 - As a customer, I want to know which pickup locations are available and when
 - As a customer, I want to understand why certain products have different delivery windows
-- As a customer, I want to see the total cost including delivery fee before Stripe checkout
+- As a customer, I want to see the total cost including delivery fee before Square checkout
 - As a customer, I want to receive my order on the promised delivery/pickup date
 
 ### Admin/Owner Stories
@@ -58,8 +58,9 @@ As a small bakery with owner-operated deliveries, we cannot fulfill on-demand or
 ### 1. Delivery Schedule Configuration
 
 **Admin Interface:**
-- Define weekly delivery days (e.g., Wednesday, Saturday)
-- Set cutoff rules for each delivery day
+- Define weekly delivery days (Thursday, Saturday per new requirements)
+- Set cutoff rules (Tuesday 11:59 PM per new requirements)
+- **Admin calendar to mark available/unavailable dates**
 - Enable/disable delivery schedule temporarily
 - Configure lead time requirements (minimum days before delivery)
 
@@ -67,26 +68,43 @@ As a small bakery with owner-operated deliveries, we cannot fulfill on-demand or
 ```typescript
 DeliverySchedule {
   id: string
-  dayOfWeek: 0-6 // 0=Sunday, 6=Saturday
-  cutoffDay: 0-6 // Day when orders stop being accepted for this delivery
+  dayOfWeek: 0-6 // 0=Sunday, 6=Saturday (4=Thursday, 6=Saturday per requirements)
+  cutoffDay: 0-6 // Day when orders stop being accepted (2=Tuesday per requirements)
   cutoffTime: string // "23:59" format
   isActive: boolean
   leadTimeDays: number // Minimum days before delivery
   deliveryTimeWindow: string // "9:00 AM - 5:00 PM"
 }
+
+DeliveryCalendarClosure {
+  id: string
+  teamId: string
+  closureDate: string // ISO date "2024-12-25"
+  reason: string // "Christmas", "Vacation", "Emergency closure"
+  affectsDelivery: boolean // If true, no deliveries on this date
+  affectsPickup: boolean // If true, no pickups on this date
+  createdAt: string
+  updatedAt: string
+}
 ```
 
-**Example Configuration:**
+**Example Configuration (All times in Mountain Time - Boise, ID):**
 ```
-Wednesday Deliveries:
-- Cutoff: Tuesday 11:59 PM
-- Lead time: 1 day minimum
-- Delivery window: 10:00 AM - 4:00 PM
+Weekly Ordering Schedule (NEW REQUIREMENT):
+- Tuesday Cutoff: 11:59 PM MT
+- Fulfillment Days: Thursday & Saturday
+- Lead time: 2 days minimum
+- Timezone: America/Boise (Mountain Time)
 
-Saturday Deliveries:
-- Cutoff: Friday 11:59 PM
-- Lead time: 1 day minimum
-- Delivery window: 9:00 AM - 2:00 PM
+Thursday Deliveries/Pickups:
+- Cutoff: Tuesday 11:59 PM MT
+- Lead time: 2 days
+- Delivery window: 10:00 AM - 4:00 PM MT
+
+Saturday Deliveries/Pickups:
+- Cutoff: Tuesday 11:59 PM MT
+- Lead time: 2-4 days (depending on order day)
+- Delivery window: 9:00 AM - 2:00 PM MT
 ```
 
 ### 2. Pickup Locations Configuration
@@ -114,41 +132,74 @@ PickupLocation {
 }
 ```
 
-**Example Configurations:**
+**Example Configurations (Mountain Time - Boise, ID):**
 ```
 Main Bakery Location:
 - Name: Sweet Angel Bakery - Main Store
-- Address: 123 Main St, Seattle, WA
-- Pickup Days: Monday, Wednesday, Friday, Saturday
-- Pickup Hours: 9:00 AM - 6:00 PM
-- Cutoff: Day before at 11:59 PM
+- Address: 123 Main St, Boise, ID
+- Pickup Days: Thursday, Saturday
+- Pickup Hours: 9:00 AM - 6:00 PM MT
+- Cutoff: Tuesday 11:59 PM MT
+- Fee: FREE (pickup is always free)
 - Instructions: "Ring bell at entrance"
+- Timezone: America/Boise (Mountain Time)
 
 Farmers Market Stand:
 - Name: Saturday Farmers Market
-- Address: Pike Place Market, Seattle, WA
+- Address: Capital City Public Market, Boise, ID
 - Pickup Days: Saturday only
-- Pickup Hours: 8:00 AM - 2:00 PM
-- Cutoff: Thursday 11:59 PM
+- Pickup Hours: 8:00 AM - 2:00 PM MT
+- Cutoff: Tuesday 11:59 PM MT
+- Fee: FREE (pickup is always free)
 - Instructions: "Look for Sweet Angel tent"
 - Requires Preorder: Yes (2-day lead time)
+- Timezone: America/Boise (Mountain Time)
 ```
 
-### 3. Delivery Fee Configuration
+### 3. Delivery Zone & Fee Configuration
+
+**NEW REQUIREMENT: Delivery zones with tiered pricing**
 
 **Admin Interface:**
-- Configure base delivery fee
-- Set fee rules by distance/zone
+- **Create configurable delivery zones** - admin defines zone name, fee, and ZIP codes
+- **Add/remove ZIP codes from zones** - each zone contains a list of ZIP codes
+- **Set tiered pricing per zone** - $5 local, $10 extended, or any custom amount
+- **Multiple zones supported** - can have 2+ zones with different fees
 - Set fee rules by order amount (free over $X)
 - Set fee rules by product category
 - Override fees for special days/seasons
+- **Pickup from any location is ALWAYS FREE**
+
+**Key Principle:** Admin has full control over which ZIP codes belong to which zone and what each zone costs.
 
 **Data Structure:**
 ```typescript
+DeliveryZone {
+  id: string
+  teamId: string
+  name: string // Admin-defined: "Local Zone", "Extended Zone", "Premium Zone", etc.
+  zipCodes: string[] // Admin-defined list of ZIP codes (e.g., ["83702", "83703", "83704"])
+  feeAmount: number // Admin-defined fee in cents (e.g., 500 = $5.00, 1000 = $10.00, 1500 = $15.00)
+  isActive: boolean // Admin can enable/disable zones
+  priority: number // Higher priority zones override lower (for overlapping ZIPs)
+  createdAt: string
+  updatedAt: string
+}
+
+// Example: Admin creates "Local Boise Zone"
+// - Name: "Local Boise"
+// - ZIP codes: ["83702", "83703", "83704", "83705", "83706"]
+// - Fee: $5.00 (500 cents)
+//
+// Example: Admin creates "Extended Treasure Valley Zone"
+// - Name: "Extended Treasure Valley"
+// - ZIP codes: ["83642", "83646", "83713", "83714", "83716"]
+// - Fee: $10.00 (1000 cents)
+
 DeliveryFeeRule {
   id: string
   name: string // "Standard Delivery", "Wedding Cake Premium"
-  ruleType: 'base' | 'distance' | 'order_amount' | 'product_category' | 'custom'
+  ruleType: 'base' | 'zone' | 'order_amount' | 'product_category' | 'custom'
   feeAmount: number // In cents (e.g., 1000 = $10.00)
   isActive: boolean
   priority: number // Higher priority rules override lower
@@ -156,10 +207,8 @@ DeliveryFeeRule {
   // Conditional fields based on ruleType
   minimumOrderAmount?: number // For order_amount type
   freeDeliveryThreshold?: number // Free if order > this amount
-  distanceRangeMin?: number // For distance type (miles)
-  distanceRangeMax?: number
+  deliveryZoneId?: string // For zone type
   productCategoryIds?: string[] // For product_category type
-  zipCodes?: string[] // For zone-based delivery
 
   createdAt: string
   updatedAt: string
@@ -168,69 +217,119 @@ DeliveryFeeRule {
 
 **Fee Calculation Algorithm:**
 ```
-1. Start with base delivery fee (if exists)
-2. Check if order meets free delivery threshold → Fee = $0
-3. Apply product category fee overrides (highest priority)
-4. Apply distance-based fees (if configured)
-5. Apply any special promotional fees
-6. Return final calculated fee
+1. If fulfillment method is PICKUP → Fee = $0.00 (ALWAYS FREE)
+2. For DELIVERY:
+   a. Lookup delivery zone by customer's ZIP code
+   b. Start with zone-based fee ($5 local, $10 extended)
+   c. Check if order meets free delivery threshold → Fee = $0
+   d. Apply product category fee overrides (highest priority)
+   e. Apply any special promotional fees
+   f. Return final calculated fee
 
-Example:
-- Base fee: $8.00
+Example 1 - Local Zone:
+- Customer ZIP: 98101 (Local Zone)
+- Zone fee: $5.00
 - Order amount: $45.00
-- Free delivery threshold: $50.00
-- Final fee: $8.00 (threshold not met)
+- Final fee: $5.00
 
-Example 2:
-- Base fee: $8.00
-- Order includes wedding cake (premium fee: $15.00)
-- Final fee: $15.00 (category override)
+Example 2 - Extended Zone:
+- Customer ZIP: 98004 (Extended Zone)
+- Zone fee: $10.00
+- Order amount: $45.00
+- Final fee: $10.00
+
+Example 3 - Pickup (ALWAYS FREE):
+- Customer selects pickup location
+- Final fee: $0.00
 ```
 
-**Example Fee Configurations:**
+**Example Fee Configurations (Fully Configurable by Admin):**
 
 ```
-Configuration A: Simple Flat Fee
-- Base delivery fee: $10.00
-- Free delivery over $75.00
+Configuration A: Boise Metro Area (Admin creates 2 zones)
 
-Configuration B: Tiered by Amount
-- Orders under $50: $12.00
-- Orders $50-$100: $8.00
-- Orders over $100: Free
+Zone 1: "Local Boise"
+- Admin adds ZIP codes: 83702, 83703, 83704, 83705, 83706
+- Admin sets fee: $5.00
+- Status: Active
 
-Configuration C: Product-Specific
-- Standard items: $8.00
-- Wedding cakes: $20.00 (premium handling)
-- Cookies only: $5.00
+Zone 2: "Extended Treasure Valley"
+- Admin adds ZIP codes: 83642, 83646, 83713, 83714, 83716
+- Admin sets fee: $10.00
+- Status: Active
 
-Configuration D: Zone-Based
-- Zone 1 (Downtown): $8.00
-- Zone 2 (Suburbs): $12.00
-- Zone 3 (Extended area): $18.00
-- Pickup: $0.00
+Pickup: $0.00 (ALWAYS FREE)
+
+---
+
+Configuration B: Admin Expands Zones Later
+
+Admin adds more ZIPs to Local Boise zone:
+- Original: 83702, 83703, 83704, 83705, 83706
+- Updated: 83702, 83703, 83704, 83705, 83706, 83709, 83712
+
+Admin creates new zone for rural areas:
+Zone 3: "Rural Idaho"
+- ZIP codes: 83616, 83617, 83622, 83629
+- Fee: $15.00
+
+---
+
+Configuration C: Zone-Based + Free Threshold + Product Override
+- Local Boise Zone: $5.00 (free over $75)
+- Extended Treasure Valley: $10.00 (free over $100)
+- Wedding cakes: $20.00 (premium handling, overrides zone)
+- Pickup: $0.00 (FREE)
+
+---
+
+Key Point: Admin has full control to:
+- Create any number of zones
+- Add/remove any ZIP codes to/from zones
+- Set any fee amount per zone
+- Change fees without developer intervention
 ```
 
-### 4. Delivery Date Calculation Logic
+### 4. Delivery Date Calculation Logic (NEW REQUIREMENTS)
 
-**Algorithm:**
+**Weekly Schedule (Mountain Time - Boise, ID):**
+- **Cutoff Day**: Tuesday at 11:59 PM MT
+- **Fulfillment Days**: Thursday and Saturday
+- **All times are in Mountain Time (America/Boise timezone)**
+- Orders placed Sunday-Tuesday by 11:59 PM MT → Available for Thursday/Saturday
+- Orders placed Wednesday-Saturday → Available for following week's Thursday/Saturday
+
+**Algorithm (All times in Mountain Time - America/Boise):**
 ```
-1. Current date/time = Order placement time
-2. Get all active delivery schedules, sorted by day of week
-3. For each delivery schedule:
-   - Calculate next occurrence of delivery day
-   - Check if current time is before cutoff
-   - Verify lead time requirement met
-   - Apply product-specific restrictions
-4. Return earliest valid delivery date
+1. Current date/time = Order placement time in Mountain Time
+2. Check if before Tuesday 11:59 PM MT cutoff
+3. If before cutoff:
+   - Next fulfillment options: This week's Thursday & Saturday
+4. If after cutoff:
+   - Next fulfillment options: Following week's Thursday & Saturday
+5. Apply product-specific lead time requirements
+6. Return earliest valid delivery/pickup date
+
+Example 1: Order placed Monday 3:00 PM MT
+- Before Tuesday cutoff ✓
+- Available: This Thursday (3 days) or This Saturday (5 days)
+
+Example 2: Order placed Wednesday 9:00 AM MT
+- After Tuesday cutoff ✗
+- Available: Next Thursday (8 days) or Next Saturday (10 days)
+
+Example 3: Order placed Tuesday 10:00 PM MT
+- Before Tuesday cutoff ✓
+- Available: This Thursday (2 days) or This Saturday (4 days)
 ```
 
 **Edge Cases:**
-- Order placed on delivery day (after cutoff) → Goes to next delivery
-- Order placed on delivery day (before cutoff) → Check lead time
+- Order placed Tuesday 11:58 PM MT → Makes cutoff, available Thu/Sat this week
+- Order placed Tuesday 12:01 AM MT (Wednesday) → Missed cutoff, next week
+- Product requires 7-day lead time → Only Saturday options available
 - No delivery days configured → Show error, prevent checkout
-- Product requires 3-day lead time but next delivery is in 2 days → Skip to following delivery
-- Order placed on Saturday for Wednesday delivery with 1-day lead time → Valid (4 days)
+- Admin marks specific dates unavailable → Skip to next available date
+- **All times stored in UTC but displayed/calculated in Mountain Time (America/Boise)**
 
 ### 5. Fulfillment Method Selection
 
@@ -243,14 +342,14 @@ At checkout, customer selects:
 ```
 If customer selects "Delivery":
   → Calculate delivery date
-  → Calculate delivery fee
+  → Calculate delivery fee based on ZIP code zone
   → Require delivery address
-  → Add delivery fee to Stripe line items
+  → Add delivery fee to Square checkout line items
 
 If customer selects "Pickup":
   → Show available pickup locations
   → Calculate pickup date based on location's schedule
-  → Delivery fee = $0.00
+  → Delivery fee = $0.00 (ALWAYS FREE)
   → Require phone number for pickup notification
 ```
 
@@ -351,24 +450,24 @@ Pickup Details
 [Place Order - $69.00]
 ```
 
-**Stripe Checkout Integration:**
+**Square Checkout Integration:**
 ```
-Line Items sent to Stripe:
+Line Items sent to Square:
 - Chocolate Chip Cookies (x2): $24.00
 - Custom Birthday Cake (x1): $45.00
-- Delivery Fee: $8.00 (if delivery selected, otherwise $0.00)
+- Delivery Fee: $5.00 or $10.00 (zone-based, if delivery selected, otherwise $0.00)
 
-Total charged: $77.00
+Total charged: $69.00 (pickup) or $74.00/$79.00 (delivery)
 
-Metadata (stored with Stripe session):
+Metadata (stored with Square order):
 - fulfillmentMethod: "delivery" | "pickup"
 - deliveryDate: "2024-10-26" (if delivery)
 - pickupDate: "2024-10-26" (if pickup)
 - pickupLocationId: "ploc_abc123" (if pickup)
 - pickupLocationName: "Main Store" (if pickup)
 - deliveryAddress: {...} (if delivery)
-- deliveryFeeRuleId: "dfeer_abc" (if delivery)
-- deliveryFeeAmount: 800 (cents, if delivery)
+- deliveryZoneId: "delz_abc" (if delivery)
+- deliveryFeeAmount: 500 or 1000 (cents, if delivery)
 ```
 
 ### 8. Admin Order Management
@@ -416,7 +515,7 @@ Items:
             Delivery Fee: $8.00
                    Total: $77.00
 
-Payment: Paid via Stripe (ch_abc123)
+Payment: Paid via Square (sq_abc123)
 Status: Confirmed
 [Mark as Prepared] [Mark as Out for Delivery] [Mark as Delivered]
 ```
@@ -442,7 +541,7 @@ Items:
             Delivery Fee: $0.00
                    Total: $78.00
 
-Payment: Paid via Stripe (ch_def456)
+Payment: Paid via Square (sq_def456)
 Status: Confirmed
 [Mark as Prepared] [Mark as Ready for Pickup] [Mark as Picked Up]
 ```
@@ -456,12 +555,36 @@ Status: Confirmed
 
 deliveryScheduleTable = sqliteTable("delivery_schedule", {
   id: text("id").primaryKey(), // delsch_*
-  dayOfWeek: integer("day_of_week").notNull(), // 0-6
-  cutoffDay: integer("cutoff_day").notNull(),
+  teamId: text("team_id").notNull().references(() => teamsTable.id),
+  dayOfWeek: integer("day_of_week").notNull(), // 0-6 (4=Thursday, 6=Saturday)
+  cutoffDay: integer("cutoff_day").notNull(), // 2=Tuesday
   cutoffTime: text("cutoff_time").notNull(), // "23:59"
-  leadTimeDays: integer("lead_time_days").default(1),
+  leadTimeDays: integer("lead_time_days").default(2), // Changed from 1 to 2 per requirements
   deliveryTimeWindow: text("delivery_time_window"),
   isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+})
+
+deliveryCalendarClosureTable = sqliteTable("delivery_calendar_closure", {
+  id: text("id").primaryKey(), // delcl_*
+  teamId: text("team_id").notNull().references(() => teamsTable.id),
+  closureDate: text("closure_date").notNull(), // ISO date "2024-12-25"
+  reason: text("reason").notNull(), // "Christmas", "Vacation", etc.
+  affectsDelivery: integer("affects_delivery", { mode: 'boolean' }).default(true),
+  affectsPickup: integer("affects_pickup", { mode: 'boolean' }).default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+})
+
+deliveryZoneTable = sqliteTable("delivery_zone", {
+  id: text("id").primaryKey(), // delz_*
+  teamId: text("team_id").notNull().references(() => teamsTable.id),
+  name: text("name").notNull(), // "Local Zone", "Extended Zone"
+  zipCodes: text("zip_codes").notNull(), // JSON array ["98101", "98102"]
+  feeAmount: integer("fee_amount").notNull(), // In cents (500 = $5.00, 1000 = $10.00)
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  priority: integer("priority").default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 })
@@ -487,7 +610,7 @@ deliveryFeeRuleTable = sqliteTable("delivery_fee_rule", {
   id: text("id").primaryKey(), // dfeer_*
   teamId: text("team_id").notNull().references(() => teamsTable.id),
   name: text("name").notNull(),
-  ruleType: text("rule_type").notNull(), // 'base' | 'distance' | 'order_amount' | 'product_category' | 'custom'
+  ruleType: text("rule_type").notNull(), // 'base' | 'zone' | 'order_amount' | 'product_category' | 'custom'
   feeAmount: integer("fee_amount").notNull(), // In cents
   isActive: integer("is_active", { mode: 'boolean' }).default(true),
   priority: integer("priority").default(0),
@@ -495,10 +618,8 @@ deliveryFeeRuleTable = sqliteTable("delivery_fee_rule", {
   // Conditional fields
   minimumOrderAmount: integer("minimum_order_amount"), // cents
   freeDeliveryThreshold: integer("free_delivery_threshold"), // cents
-  distanceRangeMin: real("distance_range_min"), // miles
-  distanceRangeMax: real("distance_range_max"), // miles
+  deliveryZoneId: text("delivery_zone_id").references(() => deliveryZoneTable.id), // For zone type
   productCategoryIds: text("product_category_ids"), // JSON array
-  zipCodes: text("zip_codes"), // JSON array
 
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -606,7 +727,7 @@ export async function getCartDeliveryDate({
 }>
 
 /**
- * Calculate delivery fee for an order
+ * Calculate delivery fee for an order (NEW: zone-based)
  */
 export async function calculateDeliveryFee({
   cartItems: { productId: string; quantity: number; price: number }[]
@@ -614,9 +735,10 @@ export async function calculateDeliveryFee({
   teamId: string
 }): Promise<{
   feeAmount: number // In cents
-  appliedRule: DeliveryFeeRule
+  appliedZone: DeliveryZone | null // The zone matched by ZIP code
+  appliedRule: DeliveryFeeRule | null
   breakdown: {
-    baseFee: number
+    zoneFee: number // $5 or $10 based on zone
     adjustments: { reason: string; amount: number }[]
   }
 }>
@@ -685,8 +807,14 @@ export function DeliveryInfoBadge({
 // src/app/(admin)/admin/pickup-locations/page.tsx
 // Admin page for managing pickup locations
 
+// src/app/(admin)/admin/delivery-zones/page.tsx
+// Admin page for configuring delivery zones (NEW)
+
 // src/app/(admin)/admin/delivery-fees/page.tsx
 // Admin page for configuring delivery fee rules
+
+// src/app/(admin)/admin/delivery-calendar/page.tsx
+// Admin calendar to mark available/unavailable dates (NEW)
 
 // src/app/(admin)/admin/orders/by-fulfillment/page.tsx
 // View orders grouped by delivery date and pickup location
@@ -695,11 +823,11 @@ export function DeliveryInfoBadge({
 // Individual order view with fulfillment details
 ```
 
-### Stripe Integration
+### Square Integration
 
 **Creating Checkout Session:**
 ```typescript
-// src/app/(storefront)/_actions/create-checkout-session.action.ts
+// src/app/(storefront)/_actions/create-square-payment.action.ts
 
 export async function createCheckoutSession({
   cartItems: CartItem[]
@@ -724,73 +852,73 @@ export async function createCheckoutSession({
     ? await getCartDeliveryDate({ items: cartItems })
     : await getNextPickupDate({ pickupLocationId, cartItems })
 
-  // 3. Build Stripe line items
+  // 3. Build Square line items
   const lineItems = [
     ...cartItems.map(item => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.productName,
-          images: [item.productImage]
-        },
-        unit_amount: item.price // in cents
-      },
-      quantity: item.quantity
+      name: item.productName,
+      quantity: item.quantity.toString(),
+      basePriceMoney: {
+        amount: item.price, // in cents
+        currency: 'USD'
+      }
     })),
     // Add delivery fee as separate line item
     ...(deliveryFee > 0 ? [{
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: 'Delivery Fee',
-          description: `Delivery on ${format(fulfillmentDate, 'MMM dd, yyyy')}`
-        },
-        unit_amount: deliveryFee // in cents
-      },
-      quantity: 1
+      name: 'Delivery Fee',
+      note: `Delivery on ${format(fulfillmentDate, 'MMM dd, yyyy')}`,
+      quantity: '1',
+      basePriceMoney: {
+        amount: deliveryFee, // in cents
+        currency: 'USD'
+      }
     }] : [])
   ]
 
-  // 4. Create Stripe session with metadata
-  const session = await stripe.checkout.sessions.create({
-    line_items: lineItems,
-    mode: 'payment',
-    success_url: `${baseUrl}/orders/{CHECKOUT_SESSION_ID}/success`,
-    cancel_url: `${baseUrl}/cart`,
-    metadata: {
-      teamId,
-      fulfillmentMethod,
-      ...(fulfillmentMethod === 'delivery' ? {
-        deliveryDate: fulfillmentDate.toISOString(),
-        deliveryAddress: JSON.stringify(deliveryAddress),
-        deliveryFeeAmount: deliveryFee.toString(),
-        deliveryFeeRuleId: feeResult.appliedRule.id
-      } : {
-        pickupDate: fulfillmentDate.toISOString(),
-        pickupLocationId,
-        pickupLocationName: location.name
-      })
+  // 4. Create Square checkout with metadata
+  const checkoutResponse = await squareClient.checkoutApi.createPaymentLink({
+    order: {
+      locationId: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
+      lineItems,
+      metadata: {
+        teamId,
+        fulfillmentMethod,
+        ...(fulfillmentMethod === 'delivery' ? {
+          deliveryDate: fulfillmentDate.toISOString(),
+          deliveryAddress: JSON.stringify(deliveryAddress),
+          deliveryFeeAmount: deliveryFee.toString(),
+          deliveryZoneId: feeResult.appliedZone?.id || ''
+        } : {
+          pickupDate: fulfillmentDate.toISOString(),
+          pickupLocationId,
+          pickupLocationName: location.name
+        })
+      }
+    },
+    checkoutOptions: {
+      redirectUrl: `${baseUrl}/purchase/thanks`,
+      merchantSupportEmail: process.env.SUPPORT_EMAIL
     }
   })
 
-  return { sessionId: session.id }
+  return { checkoutUrl: checkoutResponse.result.paymentLink.url }
 }
 ```
 
 **Webhook Handler (Order Creation):**
 ```typescript
-// src/app/api/webhooks/stripe/route.ts
+// src/app/api/webhooks/square/route.ts
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  const metadata = session.metadata
+async function handlePaymentUpdated(payment: Payment) {
+  const order = await squareClient.ordersApi.retrieveOrder(payment.orderId)
+  const metadata = order.result.order.metadata
 
   // Create order with fulfillment details
   await db.insert(ordersTable).values({
     id: generateId('order'),
     teamId: metadata.teamId,
-    stripeSessionId: session.id,
-    stripePaymentIntentId: session.payment_intent,
-    totalAmount: session.amount_total, // includes delivery fee
+    squareOrderId: order.result.order.id,
+    squarePaymentId: payment.id,
+    totalAmount: payment.totalMoney.amount, // includes delivery fee
 
     fulfillmentMethod: metadata.fulfillmentMethod,
 
@@ -799,6 +927,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       deliveryDate: metadata.deliveryDate,
       deliveryAddress: metadata.deliveryAddress,
       deliveryFee: parseInt(metadata.deliveryFeeAmount),
+      deliveryZoneId: metadata.deliveryZoneId,
       deliveryStatus: 'pending'
     } : {}),
 
@@ -816,32 +945,33 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
 ### Flow 1: Customer Orders Single Product with Delivery
 
-1. Customer browses products
-2. Views product page → Sees "Delivery: Wed, Oct 23 ($8.00) | Pickup: Available (Free)"
+1. Customer browses products on Monday
+2. Views product page → Sees "Delivery: Thu, Oct 24 ($5.00) | Pickup: Available (FREE)"
 3. Adds to cart
-4. Views cart → Selects "Delivery" → Sees delivery fee $8.00
-5. Proceeds to checkout
-6. Enters delivery address
-7. Reviews order summary: Subtotal $45.00 + Delivery $8.00 = Total $53.00
-8. Proceeds to Stripe checkout
-9. Stripe shows line items: Product ($45.00) + Delivery Fee ($8.00)
-10. Completes payment
-11. Receives confirmation email with delivery date and total
+4. Views cart → Selects "Delivery" → Enters ZIP code 98101
+5. System shows: Local Zone - $5.00 delivery fee
+6. Proceeds to checkout
+7. Enters delivery address
+8. Reviews order summary: Subtotal $45.00 + Delivery $5.00 = Total $50.00
+9. Proceeds to Square checkout
+10. Square shows line items: Product ($45.00) + Delivery Fee ($5.00 Local Zone)
+11. Completes payment
+12. Receives confirmation email with Thursday delivery date and total
 
 ### Flow 2: Customer Chooses Pickup to Avoid Fee
 
-1. Customer adds cookies to cart ($24.00)
-2. Views cart → Sees "Delivery: $8.00 | Pickup: Free"
+1. Customer adds cookies to cart ($24.00) on Monday
+2. Views cart → Sees "Delivery: $5.00-$10.00 | Pickup: FREE"
 3. Selects "Pickup"
 4. Views 2 available pickup locations
-5. Selects "Main Store - Saturday, Oct 26, 9AM-6PM"
+5. Selects "Main Store - Thursday, Oct 24, 9AM-6PM"
 6. Enters phone number
 7. Proceeds to checkout
 8. Reviews order summary: Subtotal $24.00 + Delivery $0.00 = Total $24.00
-9. Proceeds to Stripe checkout
-10. Stripe shows: Cookies ($24.00) only
+9. Proceeds to Square checkout
+10. Square shows: Cookies ($24.00) only (no delivery fee)
 11. Completes payment
-12. Receives confirmation email with pickup location and date
+12. Receives confirmation email with pickup location (Main Store) and Thursday pickup date
 
 ### Flow 3: Customer Orders Mixed Products
 
@@ -854,18 +984,24 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 7. Proceeds with unified pickup
 8. Completes checkout
 
-### Flow 4: Admin Configures Delivery Schedule
+### Flow 4: Admin Configures Delivery Zones
 
-1. Admin navigates to Settings → Delivery Schedule
-2. Views current schedule (Wed/Sat)
-3. Clicks "Add Delivery Day"
-4. Selects Friday
-5. Sets cutoff: Thursday 11:59 PM
-6. Sets delivery window: 2:00 PM - 6:00 PM
-7. Sets lead time: 1 day
-8. Saves
-9. System validates (no conflicts)
-10. New schedule active immediately
+1. Admin navigates to Settings → Delivery Zones
+2. Clicks "Create New Delivery Zone"
+3. Enters zone name: "Local Boise"
+4. Enters delivery fee: $5.00
+5. Enters ZIP codes: 83702, 83703, 83704, 83705, 83706
+6. Sets priority: 10
+7. Saves zone
+8. System validates ZIP codes (checks format)
+9. Zone is now active
+10. Future orders with those ZIP codes charged $5.00
+
+Later, admin edits the zone:
+11. Clicks "Edit" on Local Boise zone
+12. Adds more ZIP codes: 83709, 83712
+13. Saves
+14. All new orders with 83709/83712 now charged $5.00
 
 ### Flow 5: Admin Configures Pickup Location
 
@@ -881,28 +1017,28 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 10. Saves
 11. New location available to customers immediately
 
-### Flow 6: Admin Configures Delivery Fees
+### Flow 6: Admin Experiments with Zone Pricing
 
-1. Admin navigates to Settings → Delivery Fees
-2. Views existing rules (Base: $8.00)
-3. Clicks "Add Fee Rule"
-4. Selects rule type: "Order Amount"
-5. Sets threshold: Free delivery over $75.00
-6. Sets priority: High
-7. Saves
-8. System recalculates fees for pending orders
-9. New rule applies to all future orders
-
-### Flow 7: Admin Changes Delivery Fee (Experimentation)
-
-1. Admin notices low delivery orders
-2. Navigates to Settings → Delivery Fees
-3. Edits "Base Delivery Fee"
-4. Changes from $10.00 to $6.00
+1. Admin notices low delivery orders from Extended Treasure Valley zone
+2. Navigates to Settings → Delivery Zones
+3. Clicks "Edit" on Extended Treasure Valley zone
+4. Changes fee from $10.00 to $8.00
 5. Saves
-6. System immediately applies to new orders
+6. System immediately applies $8.00 to new orders in those ZIP codes
 7. Monitors conversion rate over next week
-8. Adjusts again if needed
+8. If needed, adjusts fee again or adds more ZIP codes to Local zone
+
+### Flow 7: Admin Adds New Rural Delivery Zone
+
+1. Admin wants to start delivering to rural areas
+2. Navigates to Settings → Delivery Zones
+3. Clicks "Create New Delivery Zone"
+4. Enters zone name: "Rural Idaho"
+5. Enters delivery fee: $15.00 (higher for distance)
+6. Enters ZIP codes: 83616, 83617, 83622, 83629
+7. Sets priority: 3 (lower than local/extended)
+8. Saves
+9. Customers in those ZIP codes can now choose delivery for $15.00
 
 ### Flow 8: Admin Reviews Orders by Fulfillment
 
@@ -922,10 +1058,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
 ## Edge Cases & Validation
 
-### Time Zone Handling
-- All times stored in UTC
-- Display in business local time (configurable)
-- Cutoff calculated in local time zone
+### Time Zone Handling (CRITICAL)
+- **Business Timezone: America/Boise (Mountain Time)**
+- All times stored in UTC in database
+- All times displayed in Mountain Time to customers and admin
+- Cutoff calculated in Mountain Time (11:59 PM MT)
+- Order timestamps converted to MT for cutoff calculations
+- Delivery/pickup windows shown in MT
+- **Never use user's local timezone - always use business timezone (MT)**
 
 ### Holiday/Closure Management
 - Admin can mark specific dates as "No Delivery"
@@ -976,28 +1116,56 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 ### Admin Settings → Delivery Schedule
 
 ```
-Delivery Schedule Configuration
-================================
+Delivery Schedule Configuration (NEW REQUIREMENTS)
+====================================================
+
+Weekly Schedule (Mountain Time - Boise, ID):
+┌─────────────────────────────────────┐
+│ Order Cutoff: Tuesday 11:59 PM MT   │
+│ Fulfillment Days: Thursday, Saturday│
+│ Lead time: 2 days minimum           │
+│ Timezone: America/Boise (MT)        │
+│                              [Edit] │
+└─────────────────────────────────────┘
 
 Active Delivery Days:
 ┌─────────────────────────────────────┐
-│ Wednesday                    [Edit] │
-│ Cutoff: Tuesday 11:59 PM            │
-│ Lead time: 1 day                    │
-│ Window: 10:00 AM - 4:00 PM          │
+│ Thursday                     [Edit] │
+│ Cutoff: Tuesday 11:59 PM MT         │
+│ Lead time: 2 days                   │
+│ Window: 10:00 AM - 4:00 PM MT       │
 ├─────────────────────────────────────┤
 │ Saturday                     [Edit] │
-│ Cutoff: Friday 11:59 PM             │
-│ Lead time: 1 day                    │
-│ Window: 9:00 AM - 2:00 PM           │
+│ Cutoff: Tuesday 11:59 PM MT         │
+│ Lead time: 2-4 days                 │
+│ Window: 9:00 AM - 2:00 PM MT        │
 └─────────────────────────────────────┘
 
 [+ Add Delivery Day]
 
+Calendar View (NEW FEATURE):
+┌─────────────────────────────────────┐
+│        December 2024                │
+│ Sun Mon Tue Wed Thu Fri Sat        │
+│  1   2   3   4   5   6   7         │
+│  8   9  10  11  12  13  14         │
+│ 15  16  17  18  19  20  21         │
+│ 22  23  24 [25] 26  27  28  ← Closed│
+│ 29  30 [31]                   ← Closed│
+│                                     │
+│ ■ = Delivery/Pickup Day            │
+│ [X] = Closed/Unavailable           │
+└─────────────────────────────────────┘
+
+[Mark Date Unavailable]
+
 Temporary Closures:
 ┌─────────────────────────────────────┐
 │ December 25, 2024 - Christmas       │
-│ No deliveries on this date    [×]  │
+│ Affects: ☑ Delivery ☑ Pickup  [×] │
+│                                     │
+│ December 31, 2024 - New Year's Eve │
+│ Affects: ☑ Delivery ☑ Pickup  [×] │
 └─────────────────────────────────────┘
 
 [+ Add Closure Date]
@@ -1009,20 +1177,20 @@ Temporary Closures:
 Pickup Locations
 ================
 
-Active Locations:
+Active Locations (Mountain Time - Boise, ID):
 ┌─────────────────────────────────────────────┐
 │ Sweet Angel Bakery - Main Store     [Edit] │
-│ 123 Main St, Seattle, WA 98101              │
-│ Pickup Days: Mon, Wed, Fri, Sat            │
-│ Hours: 9:00 AM - 6:00 PM                    │
-│ Cutoff: Day before at 11:59 PM              │
+│ 123 Main St, Boise, ID 83702                │
+│ Pickup Days: Thursday, Saturday             │
+│ Hours: 9:00 AM - 6:00 PM MT                 │
+│ Cutoff: Tuesday at 11:59 PM MT              │
 │ Status: ● Active                            │
 ├─────────────────────────────────────────────┤
 │ Saturday Farmers Market          [Edit]     │
-│ Pike Place Market, Seattle, WA              │
-│ Pickup Days: Sat                            │
-│ Hours: 8:00 AM - 2:00 PM                    │
-│ Cutoff: Thursday at 11:59 PM                │
+│ Capital City Public Market, Boise, ID       │
+│ Pickup Days: Saturday                       │
+│ Hours: 8:00 AM - 2:00 PM MT                 │
+│ Cutoff: Tuesday at 11:59 PM MT              │
 │ Status: ● Active                            │
 └─────────────────────────────────────────────┘
 
@@ -1032,11 +1200,63 @@ Inactive Locations (2):
 [Show inactive locations]
 ```
 
+### Admin Settings → Delivery Zones (NEW - Fully Configurable)
+
+```
+Delivery Zones Configuration
+==============================
+Admin creates zones and assigns ZIP codes + fees
+
+Active Zones:
+┌─────────────────────────────────────────────────────────┐
+│ 🏙️ Local Boise                        Priority: 10     │
+│ Fee: $5.00                                      [Edit]  │
+│ ZIP Codes (5): 83702, 83703, 83704, 83705, 83706        │
+│ [+ Add ZIP] [- Remove ZIP]                              │
+│ Status: ● Active                                        │
+├─────────────────────────────────────────────────────────┤
+│ 🌆 Extended Treasure Valley           Priority: 5      │
+│ Fee: $10.00                                     [Edit]  │
+│ ZIP Codes (5): 83642, 83646, 83713, 83714, 83716        │
+│ [+ Add ZIP] [- Remove ZIP]                              │
+│ Status: ● Active                                        │
+└─────────────────────────────────────────────────────────┘
+
+[+ Create New Delivery Zone]
+
+Add Zone Flow:
+┌─────────────────────────────────────────────────────────┐
+│ Create Delivery Zone                                    │
+│                                                          │
+│ Zone Name: [________________]  (e.g., "Local Boise")   │
+│                                                          │
+│ Delivery Fee: $[____]  (e.g., 5.00)                    │
+│                                                          │
+│ ZIP Codes (one per line or comma-separated):            │
+│ ┌────────────────────────────────────────────────────┐ │
+│ │ 83702, 83703, 83704, 83705, 83706                  │ │
+│ │                                                     │ │
+│ └────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Priority: [__10__] (higher = takes precedence)         │
+│                                                          │
+│ [Cancel]  [Create Zone]                                 │
+└─────────────────────────────────────────────────────────┘
+
+Zone Lookup Test:
+┌─────────────────────────────────────────────┐
+│ Enter ZIP Code: [83702]                     │
+│                                              │
+│ Result: Local Boise - $5.00 delivery fee   │
+│ [Look Up]                                   │
+└─────────────────────────────────────────────┘
+```
+
 ### Admin Settings → Delivery Fees
 
 ```
-Delivery Fee Rules
-==================
+Delivery Fee Rules (UPDATED)
+==============================
 
 Active Rules (Priority Order):
 ┌─────────────────────────────────────────────┐
@@ -1050,10 +1270,15 @@ Active Rules (Priority Order):
 │ Applies to: Wedding Cakes                   │
 │ Fee: $20.00                                 │
 ├─────────────────────────────────────────────┤
-│ 🚚 Base Delivery Fee           Priority: 1  │
-│ Type: Base                           [Edit] │
-│ Applies to: All deliveries                  │
-│ Fee: $8.00                                  │
+│ 🚚 Local Zone Delivery         Priority: 5  │
+│ Type: Zone                           [Edit] │
+│ Zone: Local Zone (98101, 98102...)          │
+│ Fee: $5.00                                  │
+├─────────────────────────────────────────────┤
+│ 🚛 Extended Zone Delivery      Priority: 4  │
+│ Type: Zone                           [Edit] │
+│ Zone: Extended Zone (98004, 98005...)       │
+│ Fee: $10.00                                 │
 └─────────────────────────────────────────────┘
 
 [+ Add Fee Rule]
@@ -1062,12 +1287,14 @@ Fee Calculator (Test):
 ┌─────────────────────────────────────────────┐
 │ Test your fee rules:                        │
 │                                              │
+│ Delivery ZIP: [_____]                       │
 │ Order Amount: [$____]                       │
 │ Products:                                    │
 │   [+ Add product]                           │
 │                                              │
-│ Calculated Fee: $X.XX                       │
-│ Applied Rule: [Rule name]                   │
+│ Calculated Fee: $5.00                       │
+│ Applied Zone: Local Zone                    │
+│ Applied Rule: Local Zone Delivery           │
 │ [Calculate]                                 │
 └─────────────────────────────────────────────┘
 
@@ -1118,11 +1345,13 @@ Fulfillment Settings:
 
 ## Implementation Phases
 
-### Phase 1: Core Delivery & Pickup (MVP)
-- [ ] Database schema for delivery schedules and pickup locations
+### Phase 1: Core Delivery & Pickup (MVP) ✅ Commit: 8e1ee5d
+- [x] Database schema for delivery schedules and pickup locations
+- [x] Core utilities for timezone (Mountain Time) handling
+- [x] Core utilities for delivery/pickup date calculation logic
 - [ ] Admin UI to configure delivery days/cutoffs
 - [ ] Admin UI to configure pickup locations
-- [ ] Delivery/pickup date calculation logic
+- [ ] Admin UI to configure delivery zones
 - [ ] Fulfillment method selector in cart
 - [ ] Display delivery/pickup options on product pages
 - [ ] Store fulfillment method with order
@@ -1294,56 +1523,82 @@ The delivery system is successful when:
 
 ## Appendix
 
-### Example Schedule Configurations
+### Example Schedule Configurations (UPDATED)
 
-**Configuration A: Basic (2 days/week)**
-- Wednesday: Cutoff Tuesday 11:59 PM, 1-day lead
-- Saturday: Cutoff Friday 11:59 PM, 1-day lead
+**Configuration A: Standard Weekly Schedule (NEW REQUIREMENT - Mountain Time)**
+- Cutoff: Tuesday 11:59 PM MT
+- Fulfillment Days: Thursday & Saturday
+- Lead time: 2 days minimum
+- Timezone: America/Boise (Mountain Time)
+- Orders Sunday-Tuesday → Available Thu/Sat same week
+- Orders Wednesday-Saturday → Available Thu/Sat following week
 
-**Configuration B: Busy Season (3 days/week)**
-- Wednesday: Cutoff Tuesday 11:59 PM, 1-day lead
-- Friday: Cutoff Thursday 11:59 PM, 1-day lead
-- Saturday: Cutoff Friday 5:00 PM, 0.5-day lead (same-day morning orders)
+**Configuration B: Holiday Modified Schedule**
+- Standard: Tuesday 11:59 PM MT cutoff for Thu/Sat
+- Week of Dec 25th: Mark Dec 25th & 26th as closed in calendar
+- System automatically skips to next available dates
+- All times in Mountain Time
 
-**Configuration C: Custom Products Only (1 day/week)**
-- Saturday: Cutoff Wednesday 11:59 PM, 3-day lead
-- Only for wedding cakes and custom orders
+**Configuration C: Custom Products with Extended Lead Time**
+- Standard products: 2-day lead (Tuesday 11:59 PM MT cutoff for Thu/Sat)
+- Wedding cakes: 7-day lead (only Saturday fulfillment)
+- Custom cakes: 4-day lead (Saturday fulfillment only)
+- All cutoffs in Mountain Time
 
 ### Business Rules Summary
 
-#### Fulfillment Method Rules
+#### Fulfillment Method Rules (UPDATED)
 1. **Customer chooses either delivery OR pickup (not both in MVP)**
-2. **Pickup is always free (delivery fee = $0.00)**
-3. **Delivery incurs configurable delivery fee**
+2. **Pickup is ALWAYS free from any location (delivery fee = $0.00)** ← NEW
+3. **Delivery incurs zone-based delivery fee ($5 local, $10 extended)** ← UPDATED
 4. **If product disallows pickup, hide pickup option**
 5. **If product disallows delivery, hide delivery option**
 
-#### Date Calculation Rules
-6. **Delivery/pickup date must be after order date + lead time**
-7. **Order must be placed before cutoff time for delivery/pickup date**
-8. **If products have different rules, use most restrictive (latest date)**
-9. **Inactive schedules/locations are ignored in calculations**
-10. **If no valid fulfillment option exists, prevent checkout**
-11. **Date and fee calculated at cart view and locked at checkout**
-12. **Admin can override delivery date/fee on individual orders (emergency)**
+#### Date Calculation Rules (UPDATED)
+6. **Weekly cutoff: Tuesday 11:59 PM MT (Mountain Time)** ← NEW
+7. **Fulfillment days: Thursday and Saturday only** ← NEW
+8. **Orders Sunday-Tuesday by 11:59 PM MT → Available Thu/Sat same week** ← NEW
+9. **Orders Wednesday-Saturday → Available Thu/Sat following week** ← NEW
+10. **All times calculated in America/Boise timezone (Mountain Time)** ← NEW
+11. **Delivery/pickup date must be after order date + lead time (2 days minimum)** ← UPDATED
+12. **If products have different rules, use most restrictive (latest date)**
+13. **Inactive schedules/locations are ignored in calculations**
+14. **Admin calendar closures skip affected dates to next available** ← NEW
+15. **If no valid fulfillment option exists, prevent checkout**
+16. **Date and fee calculated at cart view and locked at checkout**
+17. **Admin can override delivery date/fee on individual orders (emergency)**
 
-#### Delivery Fee Rules
-13. **Fee calculated based on active rules sorted by priority**
-14. **Higher priority rules override lower priority rules**
-15. **If multiple rules apply, highest priority wins**
-16. **Free delivery threshold (order amount rule) overrides all fees**
-17. **Product category fees override base fees**
-18. **Delivery fee added as separate Stripe line item**
-19. **Fee changes during checkout require customer confirmation**
-20. **Pickup always results in $0.00 delivery fee**
+#### Delivery Fee Rules (UPDATED)
+17. **Pickup is ALWAYS $0.00 (free from any location)** ← NEW
+18. **Delivery fee determined by ZIP code → delivery zone lookup** ← NEW
+19. **Admin creates zones with custom ZIP code lists and fees** ← NEW
+20. **Admin can add/remove ZIP codes from zones anytime** ← NEW
+21. **Admin can change zone fees without code deployment** ← NEW
+22. **Multiple zones supported (Local $5, Extended $10, Rural $15, etc.)** ← NEW
+23. **Fee calculated based on active zones sorted by priority**
+24. **Higher priority zones override lower priority zones (for overlapping ZIPs)**
+25. **If multiple zones match a ZIP, highest priority zone wins**
+26. **Free delivery threshold (order amount rule) can override zone fees**
+27. **Product category fees can override zone fees (e.g., wedding cakes $20)**
+28. **Delivery fee added as separate line item to Square checkout** ← UPDATED
+29. **Fee changes during checkout require customer confirmation**
+30. **Unknown ZIP codes → show error, suggest pickup or contact**
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** 2025-10-21
+**Document Version:** 3.0
+**Last Updated:** 2025-10-24
 **Author:** AI Assistant
 **Status:** Draft for Review
 
 **Changelog:**
+- v3.0 (2025-10-24): Updated with new requirements:
+  - Weekly ordering schedule: Tuesday 11:59 PM MT cutoff for Thursday/Saturday fulfillment
+  - **All times in Mountain Time (America/Boise timezone)**
+  - Admin calendar for marking available/unavailable dates
+  - Pickup from configurable locations is ALWAYS FREE
+  - Configurable delivery zones with tiered pricing ($5 local, $10 extended)
+  - Changed from Stripe to Square payment integration
+  - Updated all examples to use Boise, ID locations
 - v2.0 (2025-10-21): Added pickup locations, configurable delivery fees, and Stripe integration
 - v1.0 (2025-10-21): Initial delivery scheduling system design
