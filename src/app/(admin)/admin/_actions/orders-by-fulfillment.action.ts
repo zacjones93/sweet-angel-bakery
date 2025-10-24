@@ -4,7 +4,7 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
 import { orderTable, orderItemTable, productTable, pickupLocationTable, deliveryZoneTable } from "@/db/schema";
-import { eq, and, gte, lte, isNotNull, desc } from "drizzle-orm";
+import { eq, and, or, gte, lte, isNotNull, desc } from "drizzle-orm";
 
 /**
  * Get orders grouped by delivery date and pickup location
@@ -24,34 +24,71 @@ export const getOrdersByFulfillmentAction = createServerAction()
     // Build query conditions
     const conditions = [];
 
-    if (input.startDate) {
-      conditions.push(
-        gte(
-          input.fulfillmentMethod === "delivery"
-            ? orderTable.deliveryDate
-            : orderTable.pickupDate,
-          input.startDate
-        )
-      );
-    }
-
-    if (input.endDate) {
-      conditions.push(
-        lte(
-          input.fulfillmentMethod === "delivery"
-            ? orderTable.deliveryDate
-            : orderTable.pickupDate,
-          input.endDate
-        )
-      );
-    }
-
-    if (input.fulfillmentMethod !== "all") {
-      conditions.push(eq(orderTable.fulfillmentMethod, input.fulfillmentMethod));
+    // Date filtering based on fulfillment method
+    if (input.fulfillmentMethod === "delivery") {
+      if (input.startDate) {
+        conditions.push(gte(orderTable.deliveryDate, input.startDate));
+      }
+      if (input.endDate) {
+        conditions.push(lte(orderTable.deliveryDate, input.endDate));
+      }
+      conditions.push(eq(orderTable.fulfillmentMethod, "delivery"));
+    } else if (input.fulfillmentMethod === "pickup") {
+      if (input.startDate) {
+        conditions.push(gte(orderTable.pickupDate, input.startDate));
+      }
+      if (input.endDate) {
+        conditions.push(lte(orderTable.pickupDate, input.endDate));
+      }
+      conditions.push(eq(orderTable.fulfillmentMethod, "pickup"));
+    } else {
+      // For "all", we need to check both delivery and pickup dates
+      if (input.startDate && input.endDate) {
+        conditions.push(
+          or(
+            and(
+              eq(orderTable.fulfillmentMethod, "delivery"),
+              gte(orderTable.deliveryDate, input.startDate),
+              lte(orderTable.deliveryDate, input.endDate)
+            ),
+            and(
+              eq(orderTable.fulfillmentMethod, "pickup"),
+              gte(orderTable.pickupDate, input.startDate),
+              lte(orderTable.pickupDate, input.endDate)
+            )
+          )
+        );
+      } else if (input.startDate) {
+        conditions.push(
+          or(
+            and(
+              eq(orderTable.fulfillmentMethod, "delivery"),
+              gte(orderTable.deliveryDate, input.startDate)
+            ),
+            and(
+              eq(orderTable.fulfillmentMethod, "pickup"),
+              gte(orderTable.pickupDate, input.startDate)
+            )
+          )
+        );
+      } else if (input.endDate) {
+        conditions.push(
+          or(
+            and(
+              eq(orderTable.fulfillmentMethod, "delivery"),
+              lte(orderTable.deliveryDate, input.endDate)
+            ),
+            and(
+              eq(orderTable.fulfillmentMethod, "pickup"),
+              lte(orderTable.pickupDate, input.endDate)
+            )
+          )
+        );
+      }
     }
 
     // Get orders with their items
-    const orders = await db
+    const baseQuery = db
       .select({
         order: orderTable,
         item: orderItemTable,
@@ -63,9 +100,11 @@ export const getOrdersByFulfillmentAction = createServerAction()
       .leftJoin(orderItemTable, eq(orderTable.id, orderItemTable.orderId))
       .leftJoin(productTable, eq(orderItemTable.productId, productTable.id))
       .leftJoin(pickupLocationTable, eq(orderTable.pickupLocationId, pickupLocationTable.id))
-      .leftJoin(deliveryZoneTable, eq(orderTable.deliveryZoneId, deliveryZoneTable.id))
-      .where(and(...conditions))
-      .orderBy(desc(orderTable.createdAt));
+      .leftJoin(deliveryZoneTable, eq(orderTable.deliveryZoneId, deliveryZoneTable.id));
+
+    const orders = conditions.length > 0
+      ? await baseQuery.where(and(...conditions)).orderBy(desc(orderTable.createdAt))
+      : await baseQuery.orderBy(desc(orderTable.createdAt));
 
     // Group orders by fulfillment date and location
     const deliveriesByDate = new Map<string, typeof orders>();
