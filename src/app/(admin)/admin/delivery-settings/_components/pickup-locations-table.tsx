@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Trash, PlusCircle } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,6 +22,7 @@ import { useServerAction } from "zsa-react";
 import { deletePickupLocationAction, togglePickupLocationAction } from "../../_actions/pickup-location.action";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { PickupLocationDialog } from "./pickup-location-dialog";
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -47,6 +48,8 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
   const { execute: deleteLocation } = useServerAction(deletePickupLocationAction);
   const { execute: toggleLocation } = useServerAction(togglePickupLocationAction);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<PickupLocationWithParsed | undefined>();
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this pickup location?")) return;
@@ -75,13 +78,23 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
     return days.map(d => DAYS[d]).join(', ');
   }
 
+  function handleAdd() {
+    setEditingLocation(undefined);
+    setDialogOpen(true);
+  }
+
+  function handleEdit(location: PickupLocationWithParsed) {
+    setEditingLocation(location);
+    setDialogOpen(true);
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">
           Manage pickup locations (always FREE for customers)
         </p>
-        <Button size="sm">
+        <Button size="sm" onClick={handleAdd}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Location
         </Button>
@@ -136,6 +149,12 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => handleEdit(location)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => handleToggle(location.id, !!location.isActive)}
                         >
                           {location.isActive ? 'Disable' : 'Enable'}
@@ -157,6 +176,12 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
           </TableBody>
         </Table>
       </div>
+
+      <PickupLocationDialog
+        location={editingLocation}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

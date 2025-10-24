@@ -23,6 +23,7 @@ import { deleteDeliveryScheduleAction, toggleDeliveryScheduleAction } from "../.
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { DeliverySchedule } from "@/db/schema";
+import { DeliveryScheduleDialog } from "./delivery-schedule-dialog";
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -31,6 +32,8 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
   const { execute: deleteSchedule } = useServerAction(deleteDeliveryScheduleAction);
   const { execute: toggleSchedule } = useServerAction(toggleDeliveryScheduleAction);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<DeliverySchedule | undefined>();
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this delivery schedule?")) return;
@@ -55,13 +58,23 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
     }
   }
 
+  function handleAdd() {
+    setEditingSchedule(undefined);
+    setDialogOpen(true);
+  }
+
+  function handleEdit(schedule: DeliverySchedule) {
+    setEditingSchedule(schedule);
+    setDialogOpen(true);
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">
           Configure weekly delivery days and cutoff times
         </p>
-        <Button size="sm">
+        <Button size="sm" onClick={handleAdd}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Schedule
         </Button>
@@ -111,6 +124,12 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => handleEdit(schedule)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => handleToggle(schedule.id, !!schedule.isActive)}
                         >
                           {schedule.isActive ? 'Disable' : 'Enable'}
@@ -132,6 +151,12 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
           </TableBody>
         </Table>
       </div>
+
+      <DeliveryScheduleDialog
+        schedule={editingSchedule}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

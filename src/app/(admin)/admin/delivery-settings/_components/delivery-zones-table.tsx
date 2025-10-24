@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Trash, PlusCircle } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,6 +22,7 @@ import { useServerAction } from "zsa-react";
 import { deleteDeliveryZoneAction, toggleDeliveryZoneAction } from "../../_actions/delivery-zone.action";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { DeliveryZoneDialog } from "./delivery-zone-dialog";
 
 interface DeliveryZoneWithParsed {
   id: string;
@@ -37,6 +38,8 @@ export function DeliveryZonesTable({ zones }: { zones: DeliveryZoneWithParsed[] 
   const { execute: deleteZone } = useServerAction(deleteDeliveryZoneAction);
   const { execute: toggleZone } = useServerAction(toggleDeliveryZoneAction);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<DeliveryZoneWithParsed | undefined>();
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this delivery zone?")) return;
@@ -72,13 +75,23 @@ export function DeliveryZonesTable({ zones }: { zones: DeliveryZoneWithParsed[] 
     return `${zips.slice(0, 3).join(', ')} +${zips.length - 3} more`;
   }
 
+  function handleAdd() {
+    setEditingZone(undefined);
+    setDialogOpen(true);
+  }
+
+  function handleEdit(zone: DeliveryZoneWithParsed) {
+    setEditingZone(zone);
+    setDialogOpen(true);
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">
           Configure delivery zones with ZIP codes and fees (Pickup is always FREE)
         </p>
-        <Button size="sm">
+        <Button size="sm" onClick={handleAdd}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Zone
         </Button>
@@ -130,6 +143,12 @@ export function DeliveryZonesTable({ zones }: { zones: DeliveryZoneWithParsed[] 
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => handleEdit(zone)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => handleToggle(zone.id, !!zone.isActive)}
                         >
                           {zone.isActive ? 'Disable' : 'Enable'}
@@ -151,6 +170,12 @@ export function DeliveryZonesTable({ zones }: { zones: DeliveryZoneWithParsed[] 
           </TableBody>
         </Table>
       </div>
+
+      <DeliveryZoneDialog
+        zone={editingZone}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }
