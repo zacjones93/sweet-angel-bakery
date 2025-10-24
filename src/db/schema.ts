@@ -240,6 +240,102 @@ export const ORDER_STATUS_COLORS: Record<keyof typeof ORDER_STATUS, string> = {
   CANCELLED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 } as const;
 
+// Delivery Schedule table - defines weekly delivery days, cutoffs, and lead times
+export const deliveryScheduleTable = sqliteTable("delivery_schedule", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `delsch_${createId()}`).notNull(),
+  name: text({ length: 255 }).notNull(), // e.g., "Thursday Delivery", "Saturday Delivery"
+  dayOfWeek: integer().notNull(), // 0-6 (0=Sunday, 4=Thursday, 6=Saturday)
+  cutoffDay: integer().notNull(), // Day when orders stop being accepted (2=Tuesday)
+  cutoffTime: text({ length: 10 }).notNull(), // "23:59" format
+  leadTimeDays: integer().default(2).notNull(), // Minimum days before delivery (default 2 per requirements)
+  deliveryTimeWindow: text({ length: 100 }), // "9:00 AM - 5:00 PM"
+  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+}, (table) => ([
+  index('delivery_schedule_day_of_week_idx').on(table.dayOfWeek),
+  index('delivery_schedule_is_active_idx').on(table.isActive),
+]));
+
+// Delivery Calendar Closures - mark specific dates as unavailable for delivery/pickup
+export const deliveryCalendarClosureTable = sqliteTable("delivery_calendar_closure", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `delcl_${createId()}`).notNull(),
+  closureDate: text({ length: 20 }).notNull(), // ISO date "2024-12-25"
+  reason: text({ length: 500 }).notNull(), // "Christmas", "Vacation", "Emergency closure"
+  affectsDelivery: integer().default(1).notNull(), // If 1, no deliveries on this date
+  affectsPickup: integer().default(1).notNull(), // If 1, no pickups on this date
+}, (table) => ([
+  index('delivery_closure_date_idx').on(table.closureDate),
+]));
+
+// Delivery Zones - admin-configurable zones with ZIP codes and pricing
+export const deliveryZoneTable = sqliteTable("delivery_zone", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `delz_${createId()}`).notNull(),
+  name: text({ length: 255 }).notNull(), // "Local Boise", "Extended Treasure Valley"
+  zipCodes: text({ length: 5000 }).notNull(), // JSON array ["83702", "83703", "83704"]
+  feeAmount: integer().notNull(), // In cents (500 = $5.00, 1000 = $10.00)
+  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  priority: integer().default(0).notNull(), // Higher priority zones override lower (for overlapping ZIPs)
+}, (table) => ([
+  index('delivery_zone_is_active_idx').on(table.isActive),
+  index('delivery_zone_priority_idx').on(table.priority),
+]));
+
+// Pickup Locations - physical locations where customers can pick up orders (ALWAYS FREE)
+export const pickupLocationTable = sqliteTable("pickup_location", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `ploc_${createId()}`).notNull(),
+  name: text({ length: 255 }).notNull(), // "Sweet Angel Bakery - Main Store"
+  address: text({ length: 1000 }).notNull(), // JSON: { street, city, state, zip }
+  pickupDays: text({ length: 100 }).notNull(), // JSON array [4, 6] = Thursday/Saturday
+  pickupTimeWindows: text({ length: 255 }).notNull(), // "10:00 AM - 6:00 PM"
+  instructions: text({ length: 1000 }), // "Ring bell at entrance"
+  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  requiresPreorder: integer().default(0).notNull(), // Must order by cutoff
+  cutoffDay: integer(), // Day when orders stop (2=Tuesday)
+  cutoffTime: text({ length: 10 }), // "23:59"
+  leadTimeDays: integer().default(0).notNull(), // Minimum days before pickup
+}, (table) => ([
+  index('pickup_location_is_active_idx').on(table.isActive),
+]));
+
+// Delivery Fee Rules - configurable fee rules (order amount, product category, custom)
+export const deliveryFeeRuleTable = sqliteTable("delivery_fee_rule", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `dfeer_${createId()}`).notNull(),
+  name: text({ length: 255 }).notNull(), // "Free Delivery Over $75"
+  ruleType: text({ length: 50 }).notNull(), // 'base' | 'zone' | 'order_amount' | 'product_category' | 'custom'
+  feeAmount: integer().notNull(), // In cents
+  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  priority: integer().default(0).notNull(), // Higher priority rules override lower
+
+  // Conditional fields
+  minimumOrderAmount: integer(), // cents - for order_amount type
+  freeDeliveryThreshold: integer(), // cents - free if order > this amount
+  deliveryZoneId: text().references(() => deliveryZoneTable.id), // For zone type
+  productCategoryIds: text({ length: 1000 }), // JSON array - for product_category type
+}, (table) => ([
+  index('delivery_fee_rule_is_active_idx').on(table.isActive),
+  index('delivery_fee_rule_priority_idx').on(table.priority),
+  index('delivery_fee_rule_type_idx').on(table.ruleType),
+]));
+
+// Product Delivery Rules - per-product restrictions and requirements
+export const productDeliveryRulesTable = sqliteTable("product_delivery_rules", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `pdelr_${createId()}`).notNull(),
+  productId: text().notNull().references(() => productTable.id),
+  allowedDeliveryDays: text({ length: 100 }), // JSON array [4, 6] = Thursday/Saturday only
+  minimumLeadTimeDays: integer(), // Override global lead time
+  requiresSpecialHandling: integer().default(0).notNull(), // 1=requires special handling
+  deliveryNotes: text({ length: 1000 }), // Display to customer
+  allowPickup: integer().default(1).notNull(), // 1=allow pickup, 0=delivery only
+  allowDelivery: integer().default(1).notNull(), // 1=allow delivery, 0=pickup only
+}, (table) => ([
+  index('product_delivery_rules_product_id_idx').on(table.productId),
+]));
+
 // Orders table
 export const orderTable = sqliteTable("order", {
   ...commonColumns,
@@ -262,12 +358,31 @@ export const orderTable = sqliteTable("order", {
   merchantProvider: text({ length: 50 }).default('stripe').notNull(), // 'stripe' or 'square'
   stripePaymentIntentId: text({ length: 255 }), // Legacy field, keeping for backward compatibility
   paymentIntentId: text({ length: 255 }), // Provider payment intent ID (Stripe/Square)
-  fulfillmentType: text({ length: 50 }), // 'pickup' or 'delivery'
+  fulfillmentType: text({ length: 50 }), // DEPRECATED: use fulfillmentMethod instead
   pickupTime: integer({
     mode: "timestamp",
-  }),
-  deliveryAddress: text({ length: 1000 }),
+  }), // DEPRECATED: use pickupDate instead
+  deliveryAddress: text({ length: 1000 }), // DEPRECATED: use deliveryAddressJson instead
   notes: text({ length: 2000 }),
+
+  // New fulfillment fields (as per delivery system PRD)
+  fulfillmentMethod: text({ length: 50 }), // 'delivery' | 'pickup'
+
+  // Delivery fields (if fulfillmentMethod === 'delivery')
+  deliveryDate: text({ length: 20 }), // ISO date string "2024-10-26"
+  deliveryTimeWindow: text({ length: 100 }), // "9:00 AM - 2:00 PM"
+  deliveryAddressJson: text({ length: 1000 }), // JSON: { street, city, state, zip }
+  deliveryInstructions: text({ length: 1000 }), // Customer instructions
+  deliveryFee: integer(), // In cents
+  deliveryZoneId: text().references(() => deliveryZoneTable.id), // Zone used for delivery
+  deliveryStatus: text({ length: 50 }), // pending, confirmed, preparing, out_for_delivery, delivered
+
+  // Pickup fields (if fulfillmentMethod === 'pickup')
+  pickupLocationId: text().references(() => pickupLocationTable.id),
+  pickupDate: text({ length: 20 }), // ISO date string "2024-10-26"
+  pickupTimeWindow: text({ length: 100 }), // "9:00 AM - 6:00 PM"
+  pickupStatus: text({ length: 50 }), // pending, confirmed, preparing, ready_for_pickup, picked_up
+  pickupInstructions: text({ length: 1000 }), // Customer instructions
 }, (table) => ([
   index('order_user_id_idx').on(table.userId),
   index('order_payment_status_idx').on(table.paymentStatus),
@@ -276,6 +391,10 @@ export const orderTable = sqliteTable("order", {
   index('order_stripe_payment_intent_id_idx').on(table.stripePaymentIntentId),
   index('order_payment_intent_id_idx').on(table.paymentIntentId),
   index('order_merchant_provider_idx').on(table.merchantProvider),
+  index('order_fulfillment_method_idx').on(table.fulfillmentMethod),
+  index('order_delivery_date_idx').on(table.deliveryDate),
+  index('order_pickup_date_idx').on(table.pickupDate),
+  index('order_pickup_location_id_idx').on(table.pickupLocationId),
 ]));
 
 // Order items table
@@ -439,6 +558,29 @@ export const merchantFeeRelations = relations(merchantFeeTable, ({ one }) => ({
   }),
 }));
 
+export const deliveryZoneRelations = relations(deliveryZoneTable, ({ many }) => ({
+  feeRules: many(deliveryFeeRuleTable),
+  orders: many(orderTable),
+}));
+
+export const pickupLocationRelations = relations(pickupLocationTable, ({ many }) => ({
+  orders: many(orderTable),
+}));
+
+export const deliveryFeeRuleRelations = relations(deliveryFeeRuleTable, ({ one }) => ({
+  deliveryZone: one(deliveryZoneTable, {
+    fields: [deliveryFeeRuleTable.deliveryZoneId],
+    references: [deliveryZoneTable.id],
+  }),
+}));
+
+export const productDeliveryRulesRelations = relations(productDeliveryRulesTable, ({ one }) => ({
+  product: one(productTable, {
+    fields: [productDeliveryRulesTable.productId],
+    references: [productTable.id],
+  }),
+}));
+
 // Type exports
 export type User = InferSelectModel<typeof userTable>;
 export type PassKeyCredential = InferSelectModel<typeof passKeyCredentialTable>;
@@ -449,3 +591,9 @@ export type OrderItem = InferSelectModel<typeof orderItemTable>;
 export type ProductDrop = InferSelectModel<typeof productDropTable>;
 export type ProductDropItem = InferSelectModel<typeof productDropItemTable>;
 export type MerchantFee = InferSelectModel<typeof merchantFeeTable>;
+export type DeliverySchedule = InferSelectModel<typeof deliveryScheduleTable>;
+export type DeliveryCalendarClosure = InferSelectModel<typeof deliveryCalendarClosureTable>;
+export type DeliveryZone = InferSelectModel<typeof deliveryZoneTable>;
+export type PickupLocation = InferSelectModel<typeof pickupLocationTable>;
+export type DeliveryFeeRule = InferSelectModel<typeof deliveryFeeRuleTable>;
+export type ProductDeliveryRules = InferSelectModel<typeof productDeliveryRulesTable>;

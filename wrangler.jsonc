@@ -4,11 +4,14 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"account_id": "36bdee8020bf257168cb0f1638879f05",
 	"name": "sweet-angel-bakery",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-03-01",
-	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
 	// Minification helps to keep the Worker bundle size down and improve start up time.
 	"minify": true,
 	"assets": {
@@ -36,10 +39,10 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"EMAIL_FROM": "info@sweetangelbakery.com",
+		"EMAIL_FROM": "kevin@sweetangelbakery.com",
 		"EMAIL_FROM_NAME": "Sweet Angel Bakery",
-		"EMAIL_REPLY_TO": "info@sweetangelbakery.com",
-		"NEXT_PUBLIC_SITE_URL": "https://sweet-angel-bakery.zacjones93.workers.dev"
+		"EMAIL_REPLY_TO": "kevin@sweetangelbakery.com",
+		"NEXT_PUBLIC_SITE_URL": "https://sweetangelbakery.com"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
@@ -66,21 +69,23 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["DOQueueHandler"]
+			"new_sqlite_classes": [
+				"DOQueueHandler"
+			]
 		}
 	],
 	"d1_databases": [
 		{
 			"binding": "NEXT_TAG_CACHE_D1",
 			"database_name": "sweet-angel-bakery",
-			"database_id": "b186ae4b-08fb-4c07-996c-0965ba56e3bd",
+			"database_id": "d133f4bd-e76e-45d6-8207-374ec40f4a90",
 			"migrations_dir": "src/db/migrations"
 		}
 	],
 	"kv_namespaces": [
 		{
 			"binding": "NEXT_INC_CACHE_KV",
-			"id": "874ced7a82f7447787180d9584f7ce19"
+			"id": "adbe94d95528440490d2be7ec8687729"
 		}
 	],
 	"r2_buckets": [
