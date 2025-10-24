@@ -478,11 +478,8 @@ export async function calculateDeliveryFee({
   }
 
   // Start with zone-based fee
-  let feeAmount = matchedZone.feeAmount;
+  const feeAmount = matchedZone.feeAmount;
   const adjustments: Array<{ reason: string; amount: number }> = [];
-
-  // Calculate cart subtotal
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // Check for free delivery thresholds (would be implemented with delivery fee rules)
   // For now, just return zone-based fee
@@ -525,11 +522,6 @@ export async function validateDeliveryCutoff({
     };
   }
 
-  const beforeCutoff = isBeforeMountainCutoff({
-    cutoffDay: schedule.cutoffDay,
-    cutoffTime: schedule.cutoffTime,
-  });
-
   const leadTimeDays = getDaysBetween(orderDate, deliveryDate);
   if (leadTimeDays < schedule.leadTimeDays) {
     return {
@@ -548,20 +540,14 @@ export async function validateDeliveryCutoff({
 /**
  * Get all orders grouped by delivery date and pickup location
  */
-export async function getOrdersByFulfillment({
-  startDate,
-  endDate,
-}: {
-  startDate?: Date;
-  endDate?: Date;
-} = {}): Promise<{
+export async function getOrdersByFulfillment(): Promise<{
   deliveries: Map<string, Order[]>;
   pickups: Map<string, Map<string, Order[]>>;
 }> {
   const db = await getDB();
 
   // Get all orders
-  let query = db.select().from(orderTable);
+  const query = db.select().from(orderTable);
 
   // Apply date filters if provided
   // Note: Would need to add proper date filtering logic

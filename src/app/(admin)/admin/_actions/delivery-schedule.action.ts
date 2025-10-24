@@ -2,7 +2,7 @@
 
 import { getDB } from "@/db";
 import { deliveryScheduleTable, ROLES_ENUM } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createServerAction } from "zsa";
 import { getSessionFromCookie } from "@/utils/auth";

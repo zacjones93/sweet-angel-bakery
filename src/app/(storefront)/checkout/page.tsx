@@ -21,6 +21,8 @@ import Link from "next/link";
 import { calculateOrderTotals, formatCents } from "@/utils/tax";
 import { getCurrentLoyaltyCustomerAction } from "../_actions/get-current-loyalty-customer.action";
 import { toast } from "sonner";
+import { SquarePaymentForm } from "@/components/square-payment-form";
+import { FulfillmentMethodSelector, type FulfillmentSelection } from "@/components/fulfillment-method-selector";
 
 export default function CheckoutPage() {
   const { items, totalAmount, clearCart } = useCart();
@@ -49,6 +51,8 @@ export default function CheckoutPage() {
   } | null>(null);
   const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [fulfillmentSelection, setFulfillmentSelection] = useState<FulfillmentSelection | null>(null);
+  const useWebPayments = true; // Always use Square Web Payments SDK
 
   const { execute: getLoyaltyCustomer } = useServerAction(
     getCurrentLoyaltyCustomerAction
@@ -85,10 +89,15 @@ export default function CheckoutPage() {
     createCheckoutSessionAction
   );
 
-  // Calculate tax and totals
+  // Calculate tax and totals (including delivery fee)
   const orderTotals = useMemo(() => {
-    return calculateOrderTotals(totalAmount);
-  }, [totalAmount]);
+    const deliveryFee = fulfillmentSelection?.deliveryFee || 0;
+    const subtotalWithDelivery = totalAmount + deliveryFee;
+    return {
+      ...calculateOrderTotals(subtotalWithDelivery),
+      deliveryFee,
+    };
+  }, [totalAmount, fulfillmentSelection]);
 
   function formatPrice(cents: number) {
     return `$${(cents / 100).toFixed(2)}`;
@@ -98,6 +107,11 @@ export default function CheckoutPage() {
     e.preventDefault();
 
     if (items.length === 0) {
+      return;
+    }
+
+    // Don't submit form if using Web Payments (handled by SquarePaymentForm component)
+    if (useWebPayments) {
       return;
     }
 
@@ -459,25 +473,75 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={isPending || items.length === 0}
-                  >
-                    {isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Continue to Payment"
-                    )}
-                  </Button>
+                  {/* Show Square Web Payments form or redirect button */}
+                  {useWebPayments ? (
+                    <div className="space-y-4">
+                      <div className="border-t pt-4">
+                        <h3 className="text-sm font-semibold mb-3">
+                          Payment Information
+                        </h3>
+                        <SquarePaymentForm
+                          items={items.map((item) => ({
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            customizations: item.customizations || undefined,
+                            name: item.name,
+                            price: item.price,
+                          }))}
+                          customerEmail={customerEmail}
+                          customerName={customerName}
+                          customerPhone={customerPhone || undefined}
+                          joinLoyalty={joinLoyalty}
+                          smsOptIn={smsOptIn}
+                          userId={currentUser?.id}
+                          streetAddress1={streetAddress1 || undefined}
+                          streetAddress2={streetAddress2 || undefined}
+                          city={city || undefined}
+                          state={state || undefined}
+                          zipCode={zipCode || undefined}
+                          fulfillmentMethod={fulfillmentSelection?.method}
+                          deliveryFee={fulfillmentSelection?.deliveryFee}
+                          deliveryDate={fulfillmentSelection?.deliveryDate}
+                          pickupLocationId={fulfillmentSelection?.pickupLocationId}
+                          pickupDate={fulfillmentSelection?.pickupDate}
+                          onSuccess={() => {
+                            clearCart();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      size="lg"
+                      disabled={isPending || items.length === 0}
+                    >
+                      {isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Continue to Payment"
+                      )}
+                    </Button>
+                  )}
                 </form>
               )}
             </CardContent>
           </Card>
+
+          {/* Fulfillment Method Selection */}
+          <FulfillmentMethodSelector
+            cartItems={items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+            }))}
+            initialZipCode={zipCode}
+            onSelectionChange={setFulfillmentSelection}
+          />
         </div>
 
         <div className="lg:col-span-1">
@@ -508,8 +572,20 @@ export default function CheckoutPage() {
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>{formatCents(orderTotals.subtotal)}</span>
+                <span>{formatCents(totalAmount)}</span>
               </div>
+              {orderTotals.deliveryFee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Delivery Fee</span>
+                  <span>{formatCents(orderTotals.deliveryFee)}</span>
+                </div>
+              )}
+              {fulfillmentSelection?.method === "pickup" && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Delivery Fee</span>
+                  <span className="font-semibold">FREE</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Tax (6%)</span>
                 <span>{formatCents(orderTotals.tax)}</span>

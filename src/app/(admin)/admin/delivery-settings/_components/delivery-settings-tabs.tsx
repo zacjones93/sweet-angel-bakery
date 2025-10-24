@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeliverySchedulesTable } from "./delivery-schedules-table";
 import { PickupLocationsTable } from "./pickup-locations-table";
 import { DeliveryZonesTable } from "./delivery-zones-table";
 import type { DeliverySchedule, PickupLocation, DeliveryZone } from "@/db/schema";
 
+interface LocationWithParsedData extends Omit<PickupLocation, 'address' | 'pickupDays'> {
+  address: { street: string; city: string; state: string; zip: string };
+  pickupDays: number[];
+}
+
+interface ZoneWithParsedData extends Omit<DeliveryZone, 'zipCodes'> {
+  zipCodes: string[];
+}
+
 interface DeliverySettingsTabsProps {
   initialSchedules: DeliverySchedule[];
-  initialLocations: any[]; // With parsed JSON
-  initialZones: any[]; // With parsed JSON
+  initialLocations: LocationWithParsedData[];
+  initialZones: ZoneWithParsedData[];
 }
 
 export function DeliverySettingsTabs({

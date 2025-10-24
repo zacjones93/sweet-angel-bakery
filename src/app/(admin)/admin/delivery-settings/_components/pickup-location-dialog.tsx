@@ -291,12 +291,12 @@ export function PickupLocationDialog({
             <div>
               <FormLabel>Pickup Days</FormLabel>
               <div className="grid grid-cols-4 gap-2 mt-2">
-                {["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].map(
+                {(["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const).map(
                   (day) => (
                     <FormField
                       key={day}
                       control={form.control}
-                      name={`pickupDays.${day}` as any}
+                      name={`pickupDays.${day}` as const}
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
