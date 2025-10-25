@@ -96,23 +96,31 @@ export const getOrdersByFulfillmentAction = createServerAction()
     }
 
     // Get orders with their items
-    const baseQuery = db
-      .select({
-        order: orderTable,
-        item: orderItemTable,
-        product: productTable,
-        pickupLocation: pickupLocationTable,
-        deliveryZone: deliveryZoneTable,
-      })
-      .from(orderTable)
-      .leftJoin(orderItemTable, eq(orderTable.id, orderItemTable.orderId))
-      .leftJoin(productTable, eq(orderItemTable.productId, productTable.id))
-      .leftJoin(pickupLocationTable, eq(orderTable.pickupLocationId, pickupLocationTable.id))
-      .leftJoin(deliveryZoneTable, eq(orderTable.deliveryZoneId, deliveryZoneTable.id));
+    let orders;
+    try {
+      const baseQuery = db
+        .select({
+          order: orderTable,
+          item: orderItemTable,
+          product: productTable,
+          pickupLocation: pickupLocationTable,
+          deliveryZone: deliveryZoneTable,
+        })
+        .from(orderTable)
+        .leftJoin(orderItemTable, eq(orderTable.id, orderItemTable.orderId))
+        .leftJoin(productTable, eq(orderItemTable.productId, productTable.id))
+        .leftJoin(pickupLocationTable, eq(orderTable.pickupLocationId, pickupLocationTable.id))
+        .leftJoin(deliveryZoneTable, eq(orderTable.deliveryZoneId, deliveryZoneTable.id));
 
-    const orders = conditions.length > 0
-      ? await baseQuery.where(and(...conditions)).orderBy(desc(orderTable.createdAt))
-      : await baseQuery.orderBy(desc(orderTable.createdAt));
+      orders = conditions.length > 0
+        ? await baseQuery.where(and(...conditions)).orderBy(desc(orderTable.createdAt))
+        : await baseQuery.orderBy(desc(orderTable.createdAt));
+    } catch (error) {
+      console.error("Database query error:", error);
+      throw new Error(
+        `Database query failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
 
     // Group orders by fulfillment date and location
     const deliveriesByDate = new Map<string, typeof orders>();

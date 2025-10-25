@@ -14,7 +14,24 @@ export function parseWranglerConfig() {
   const wranglerContent = fs.readFileSync(wranglerPath, 'utf8');
 
   // Remove comments from the JSONC content
-  const jsonContent = wranglerContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+  // Replace block comments with space
+  let jsonContent = wranglerContent.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  // Remove single-line comments (// ...) but not URLs (https://)
+  // Match // only when it's at the start of a line (after whitespace) or after whitespace
+  jsonContent = jsonContent.split('\n').map(line => {
+    // Find // that's not part of a URL (not preceded by :)
+    const match = line.match(/^([^:]*?)(\s*\/\/)(.*)$/);
+    if (match && !match[1].includes('"')) {
+      // If there's no opening quote before //, it's a comment
+      return match[1];
+    }
+    // Check if // is after a closing quote (actual comment)
+    const commentMatch = line.match(/^(.*?"[^"]*")\s*\/\/.*$/);
+    if (commentMatch) {
+      return commentMatch[1];
+    }
+    return line;
+  }).join('\n');
 
   // Fix trailing commas in objects and arrays (which are valid in JSONC but not in JSON)
   const fixedJsonContent = jsonContent

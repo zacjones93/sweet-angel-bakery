@@ -42,7 +42,30 @@ export default async function OrdersByFulfillmentPage({ searchParams }: PageProp
   });
 
   if (err) {
-    throw new Error(err.message);
+    console.error("Orders by fulfillment error:", err);
+    // Show empty state instead of crashing
+    return (
+      <>
+        <PageHeader
+          items={[
+            { href: "/admin", label: "Admin" },
+            { href: "/admin/orders", label: "Orders" },
+            { href: "/admin/orders/fulfillment", label: "By Fulfillment" },
+          ]}
+        />
+        <div className="container mx-auto py-6">
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center space-y-4">
+                <p className="text-lg font-semibold text-destructive">Error Loading Orders</p>
+                <p className="text-sm text-muted-foreground">{err.message}</p>
+                <p className="text-xs text-muted-foreground">Check console for details</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
   }
 
   const { deliveries, pickups, summary } = result;
