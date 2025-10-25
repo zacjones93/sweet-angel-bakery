@@ -32,7 +32,10 @@
       "Bash(npx shadcn@latest add:*)",
       "Bash(pnpm build:*)",
       "Bash(node scripts/get-db-name.mjs)",
-      "Bash(wrangler d1 migrations apply sweet-angel-bakery --local)"
+      "Bash(wrangler d1 migrations apply sweet-angel-bakery --local)",
+      "WebFetch(domain:developer.squareup.com)",
+      "Bash(awk:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

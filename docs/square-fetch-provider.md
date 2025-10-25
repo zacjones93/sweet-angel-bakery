@@ -51,7 +51,7 @@ MERCHANT_PROVIDER=square
 
 # Square credentials
 SQUARE_ACCESS_TOKEN=EAAAl...          # From Square Developer Dashboard
-SQUARE_LOCATION_ID=L...               # Your Square location ID
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...               # Your Square location ID
 SQUARE_ENVIRONMENT=sandbox            # or 'production'
 SQUARE_WEBHOOK_SIGNATURE_KEY=...     # For webhook verification
 ```
@@ -69,10 +69,11 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...     # For webhook verification
 **Purpose**: Validates environment variables
 
 **Implementation**:
+
 ```typescript
 async initialize(): Promise<void> {
   if (!this.accessToken) throw new Error("SQUARE_ACCESS_TOKEN not configured");
-  if (!this.locationId) throw new Error("SQUARE_LOCATION_ID not configured");
+  if (!this.locationId) throw new Error("NEXT_PUBLIC_SQUARE_LOCATION_ID not configured");
 }
 ```
 
@@ -89,6 +90,7 @@ async initialize(): Promise<void> {
 **Square API**: `POST /v2/online-checkout/payment-links`
 
 **Input**:
+
 ```typescript
 interface CheckoutOptions {
   lineItems: CheckoutLineItem[];
@@ -102,10 +104,11 @@ interface CheckoutOptions {
 ```
 
 **Output**:
+
 ```typescript
 interface CheckoutResult {
-  sessionId: string;  // Payment link ID
-  url: string;        // Redirect URL for customer
+  sessionId: string; // Payment link ID
+  url: string; // Redirect URL for customer
 }
 ```
 
@@ -118,6 +121,7 @@ interface CheckoutResult {
 5. **Redirect**: Configures success URL for post-payment redirect
 
 **Square Request Format**:
+
 ```json
 {
   "idempotency_key": "uuid-here",
@@ -141,7 +145,9 @@ interface CheckoutResult {
         }
       }
     ],
-    "metadata": { /* custom data */ }
+    "metadata": {
+      /* custom data */
+    }
   },
   "checkout_options": {
     "redirect_url": "https://yourdomain.com/purchase/thanks?session_id={CHECKOUT_SESSION_ID}",
@@ -155,6 +161,7 @@ interface CheckoutResult {
 ```
 
 **Response Example**:
+
 ```json
 {
   "payment_link": {
@@ -174,10 +181,12 @@ interface CheckoutResult {
 **Implementation**: Uses Web Crypto API (Edge runtime compatible)
 
 **Input**:
+
 - `body`: Raw webhook body string
 - `signature`: `x-square-hmacsha256-signature` header value
 
 **Output**:
+
 ```typescript
 interface WebhookEvent {
   id: string;
@@ -190,6 +199,7 @@ interface WebhookEvent {
 **Signature Verification Process**:
 
 1. **Import Key**: Convert webhook secret to CryptoKey
+
    ```typescript
    const key = await crypto.subtle.importKey(
      "raw",
@@ -201,6 +211,7 @@ interface WebhookEvent {
    ```
 
 2. **Generate Signature**: Sign the body
+
    ```typescript
    const signatureBuffer = await crypto.subtle.sign(
      "HMAC",
@@ -210,6 +221,7 @@ interface WebhookEvent {
    ```
 
 3. **Compare**: Base64 encode and compare
+
    ```typescript
    const expectedSignature = btoa(
      String.fromCharCode(...new Uint8Array(signatureBuffer))
@@ -229,12 +241,14 @@ interface WebhookEvent {
 **Purpose**: Process verified webhook events and create orders
 
 **Supported Events**:
+
 - `payment.created` - Payment initiated
 - `payment.updated` - Payment status changed (most important)
 - `order.created` - Order created in Square
 - `order.updated` - Order updated
 
 **Payment Status Mapping**:
+
 ```typescript
 Square Status    →  Our Status
 -----------         ----------
@@ -247,11 +261,13 @@ CANCELED        →   failed
 **Processing Flow**:
 
 1. **Extract Payment Data**:
+
    ```typescript
    const payment = event.data.object.payment;
    ```
 
 2. **Check Status**: Only process `COMPLETED` payments
+
    ```typescript
    if (payment.status !== "COMPLETED") {
      return { processed: true, paymentStatus };
@@ -259,25 +275,30 @@ CANCELED        →   failed
    ```
 
 3. **Fetch Order Details**: Call Square API to get order line items
+
    ```typescript
-   GET /v2/orders/{order_id}
+   GET / v2 / orders / { order_id };
    ```
 
 4. **Match Products**: Map Square line items to database products by name
+
    ```typescript
-   const product = allProducts.find(p => p.name === lineItem.name);
+   const product = allProducts.find((p) => p.name === lineItem.name);
    ```
 
 5. **Calculate Totals**: Compute subtotal, tax, and total
+
    ```typescript
-   const subtotal = items.reduce((sum, item) =>
-     sum + item.price * item.quantity, 0
+   const subtotal = items.reduce(
+     (sum, item) => sum + item.price * item.quantity,
+     0
    );
    const tax = calculateTax(subtotal);
    const totalAmount = subtotal + tax;
    ```
 
 6. **Create Order Record**:
+
    ```typescript
    await db.insert(orderTable).values({
      customerEmail,
@@ -293,6 +314,7 @@ CANCELED        →   failed
    ```
 
 7. **Record Merchant Fee**:
+
    ```typescript
    const feeCalculation = calculateMerchantFee({
      orderAmount: order.totalAmount,
@@ -310,6 +332,7 @@ CANCELED        →   failed
    ```
 
 8. **Create Order Items**: Insert each line item
+
    ```typescript
    await db.insert(orderItemTable).values({
      orderId: order.id,
@@ -320,8 +343,10 @@ CANCELED        →   failed
    ```
 
 9. **Reduce Inventory**: Decrement product quantities
+
    ```typescript
-   await db.update(productTable)
+   await db
+     .update(productTable)
      .set({
        quantityAvailable: sql`${productTable.quantityAvailable} - ${item.quantity}`,
      })
@@ -340,6 +365,7 @@ CANCELED        →   failed
     ```
 
 **Return Value**:
+
 ```typescript
 {
   processed: true,
@@ -364,33 +390,36 @@ CANCELED        →   failed
 **Square API**: `POST /v2/catalog/batch-upsert`
 
 **Input**:
+
 ```typescript
 interface ProductCreateOptions {
   name: string;
   description?: string;
-  price: number;           // cents
+  price: number; // cents
   imageUrl?: string;
   variants?: Array<{
     id: string;
     name: string;
-    price: number;         // cents
+    price: number; // cents
   }>;
   metadata?: Record<string, string>;
 }
 ```
 
 **Output**:
+
 ```typescript
 interface ProductCreateResult {
-  productId: string;                    // Square catalog object ID
-  priceId?: string;                     // Default variation ID
-  variantIds?: Record<string, string>;  // Map of variant IDs
+  productId: string; // Square catalog object ID
+  priceId?: string; // Default variation ID
+  variantIds?: Record<string, string>; // Map of variant IDs
 }
 ```
 
 **Implementation**:
 
 1. **Build Variations**: Create default "Regular" variation + custom variants
+
    ```typescript
    const variations = [
      {
@@ -399,14 +428,15 @@ interface ProductCreateResult {
        item_variation_data: {
          name: "Regular",
          pricing_type: "FIXED_PRICING",
-         price_money: { amount: 2500, currency: "USD" }
-       }
+         price_money: { amount: 2500, currency: "USD" },
+       },
      },
      // ... custom variants
    ];
    ```
 
 2. **Create Catalog Item**:
+
    ```typescript
    POST /v2/catalog/batch-upsert
    {
@@ -426,10 +456,11 @@ interface ProductCreateResult {
    ```
 
 3. **Extract IDs**: Map temporary IDs to Square-generated IDs
+
    ```typescript
-   const createdItem = result.objects[0];  // Product ID
+   const createdItem = result.objects[0]; // Product ID
    const defaultVariation = result.objects.find(
-     obj => obj.item_variation_data?.name === "Regular"
+     (obj) => obj.item_variation_data?.name === "Regular"
    );
    ```
 
@@ -438,7 +469,7 @@ interface ProductCreateResult {
    return {
      productId: createdItem.id,
      priceId: defaultVariation?.id,
-     variantIds: { "variant-1": "abc123", "variant-2": "def456" }
+     variantIds: { "variant-1": "abc123", "variant-2": "def456" },
    };
    ```
 
@@ -453,24 +484,27 @@ interface ProductCreateResult {
 **Square API**: `POST /v2/refunds`
 
 **Input**:
+
 ```typescript
 interface RefundOptions {
   paymentId: string;
-  amount?: number;  // cents, full refund if omitted
+  amount?: number; // cents, full refund if omitted
   reason?: string;
 }
 ```
 
 **Output**:
+
 ```typescript
 interface RefundResult {
   refundId: string;
   status: "succeeded" | "pending" | "failed";
-  amount: number;  // cents
+  amount: number; // cents
 }
 ```
 
 **Implementation**:
+
 ```typescript
 const result = await this.request("/v2/refunds", {
   method: "POST",
@@ -478,7 +512,7 @@ const result = await this.request("/v2/refunds", {
     idempotency_key: crypto.randomUUID(),
     amount_money: options.amount
       ? { amount: options.amount, currency: "USD" }
-      : undefined,  // Full refund if omitted
+      : undefined, // Full refund if omitted
     payment_id: options.paymentId,
     reason: options.reason,
   }),
@@ -496,17 +530,19 @@ const result = await this.request("/v2/refunds", {
 **Input**: `paymentId: string`
 
 **Output**:
+
 ```typescript
 interface PaymentDetails {
   id: string;
   status: "pending" | "paid" | "failed" | "refunded";
-  amount: number;     // cents
-  currency: string;   // "USD"
+  amount: number; // cents
+  currency: string; // "USD"
   createdAt: Date;
 }
 ```
 
 **Implementation**:
+
 ```typescript
 const result = await this.request(`/v2/payments/${paymentId}`);
 const payment = result.payment;
@@ -529,6 +565,7 @@ return {
 **Purpose**: Generic HTTP request wrapper for Square API
 
 **Signature**:
+
 ```typescript
 private async request<T = unknown>(
   endpoint: string,
@@ -537,6 +574,7 @@ private async request<T = unknown>(
 ```
 
 **Features**:
+
 - Automatic base URL selection (sandbox vs production)
 - Bearer token authentication
 - Square API version header
@@ -544,11 +582,12 @@ private async request<T = unknown>(
 - Type-safe response
 
 **Implementation**:
+
 ```typescript
 const response = await fetch(`${this.baseUrl}${endpoint}`, {
   ...options,
   headers: {
-    "Authorization": `Bearer ${this.accessToken}`,
+    Authorization: `Bearer ${this.accessToken}`,
     "Content-Type": "application/json",
     "Square-Version": "2024-10-17",
     ...options.headers,
@@ -568,6 +607,7 @@ return data as T;
 
 **Error Format**:
 Square API errors follow this structure:
+
 ```json
 {
   "errors": [
@@ -588,6 +628,7 @@ Square API errors follow this structure:
 **Purpose**: Convert Square payment status to our standard format
 
 **Mapping**:
+
 ```typescript
 private mapPaymentStatus(status: string):
   "pending" | "paid" | "failed" | "refunded"
@@ -611,22 +652,26 @@ private mapPaymentStatus(status: string):
 All APIs are available in Cloudflare Workers Edge runtime:
 
 1. **fetch()** - HTTP requests
+
    ```typescript
    const response = await fetch(url, options);
    ```
 
 2. **crypto.subtle** - HMAC signature verification
+
    ```typescript
    const key = await crypto.subtle.importKey(...);
    const signature = await crypto.subtle.sign(...);
    ```
 
 3. **crypto.randomUUID()** - Generate idempotency keys
+
    ```typescript
    const idempotencyKey = crypto.randomUUID();
    ```
 
 4. **TextEncoder/TextDecoder** - String encoding
+
    ```typescript
    const encoder = new TextEncoder();
    const bytes = encoder.encode(body);
@@ -654,32 +699,41 @@ These are NOT used to ensure Edge compatibility:
 ### Common Errors
 
 **1. Missing Credentials**
+
 ```
 Error: SQUARE_ACCESS_TOKEN not configured
 ```
+
 **Fix**: Add `SQUARE_ACCESS_TOKEN` to `.dev.vars`
 
 **2. Invalid Location ID**
+
 ```
 Square API error: Location not found
 ```
-**Fix**: Verify `SQUARE_LOCATION_ID` matches your Square account
+
+**Fix**: Verify `NEXT_PUBLIC_SQUARE_LOCATION_ID` matches your Square account
 
 **3. Webhook Signature Mismatch**
+
 ```
 Error: Invalid webhook signature
 ```
+
 **Fix**: Ensure `SQUARE_WEBHOOK_SIGNATURE_KEY` matches Square dashboard
 
 **4. Product Not Found**
+
 ```
 Error: No valid products found
 ```
+
 **Fix**: Product names in Square must match database exactly
 
 ### Error Logging
 
 All errors are logged with context:
+
 ```typescript
 console.error("[Square] API Error:", data);
 console.error("[Square] Error sending confirmation email:", error);
@@ -692,12 +746,14 @@ console.error("[Square] Error sending confirmation email:", error);
 ### Sandbox Testing
 
 1. **Set Environment**:
+
    ```bash
    SQUARE_ENVIRONMENT=sandbox
    SQUARE_ACCESS_TOKEN=EAAAl...  # Sandbox token
    ```
 
 2. **Test Cards**:
+
    - Success: `4111 1111 1111 1111`
    - Decline: `4000 0000 0000 0002`
    - CVV: Any 3 digits
@@ -711,6 +767,7 @@ console.error("[Square] Error sending confirmation email:", error);
 ### Production
 
 1. **Switch Environment**:
+
    ```bash
    SQUARE_ENVIRONMENT=production
    SQUARE_ACCESS_TOKEN=EAAAl...  # Production token
@@ -742,6 +799,7 @@ console.error("[Square] Error sending confirmation email:", error);
 ### Caching
 
 Provider instance is cached:
+
 ```typescript
 let providerInstance: IMerchantProvider | null = null;
 
@@ -757,6 +815,7 @@ Subsequent calls reuse the same instance.
 ### Best Practices
 
 1. **Never Expose Credentials**:
+
    ```typescript
    // ✅ Good
    const token = process.env.SQUARE_ACCESS_TOKEN;
@@ -766,6 +825,7 @@ Subsequent calls reuse the same instance.
    ```
 
 2. **Always Verify Webhooks**:
+
    ```typescript
    const event = await provider.verifyWebhook(body, signature);
    ```
@@ -779,6 +839,7 @@ Subsequent calls reuse the same instance.
 ### Permissions
 
 Access token needs these Square permissions:
+
 - ✅ `ORDERS_READ`
 - ✅ `ORDERS_WRITE`
 - ✅ `PAYMENTS_READ`
@@ -794,6 +855,7 @@ Access token needs these Square permissions:
 Currently using: `2024-10-17`
 
 To update:
+
 1. Check Square API changelog
 2. Update version in `request()` method
 3. Test all operations
@@ -802,6 +864,7 @@ To update:
 ### Future Enhancements
 
 **Not Yet Implemented**:
+
 - [ ] Image upload via Images API
 - [ ] Customer profiles sync
 - [ ] Inventory sync from Square

@@ -4,7 +4,7 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
 import { orderTable, orderItemTable, productTable, pickupLocationTable, deliveryZoneTable } from "@/db/schema";
-import { eq, and, or, gte, lte, isNotNull, desc } from "drizzle-orm";
+import { eq, and, or, gte, lte, isNotNull, desc, sql } from "drizzle-orm";
 
 /**
  * Get orders grouped by delivery date and pickup location
@@ -25,23 +25,25 @@ export const getOrdersByFulfillmentAction = createServerAction()
     const conditions = [];
 
     // Date filtering based on fulfillment method
+    // Note: deliveryDate and pickupDate are stored as ISO strings with timestamps,
+    // but we need to compare just the date portion (YYYY-MM-DD)
     if (input.fulfillmentMethod === "delivery") {
       conditions.push(eq(orderTable.fulfillmentMethod, "delivery"));
       conditions.push(isNotNull(orderTable.deliveryDate));
       if (input.startDate) {
-        conditions.push(gte(orderTable.deliveryDate, input.startDate));
+        conditions.push(sql`substr(${orderTable.deliveryDate}, 1, 10) >= ${input.startDate}`);
       }
       if (input.endDate) {
-        conditions.push(lte(orderTable.deliveryDate, input.endDate));
+        conditions.push(sql`substr(${orderTable.deliveryDate}, 1, 10) <= ${input.endDate}`);
       }
     } else if (input.fulfillmentMethod === "pickup") {
       conditions.push(eq(orderTable.fulfillmentMethod, "pickup"));
       conditions.push(isNotNull(orderTable.pickupDate));
       if (input.startDate) {
-        conditions.push(gte(orderTable.pickupDate, input.startDate));
+        conditions.push(sql`substr(${orderTable.pickupDate}, 1, 10) >= ${input.startDate}`);
       }
       if (input.endDate) {
-        conditions.push(lte(orderTable.pickupDate, input.endDate));
+        conditions.push(sql`substr(${orderTable.pickupDate}, 1, 10) <= ${input.endDate}`);
       }
     } else {
       // For "all", we need to check both delivery and pickup dates
@@ -51,14 +53,14 @@ export const getOrdersByFulfillmentAction = createServerAction()
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
               isNotNull(orderTable.deliveryDate),
-              gte(orderTable.deliveryDate, input.startDate),
-              lte(orderTable.deliveryDate, input.endDate)
+              sql`substr(${orderTable.deliveryDate}, 1, 10) >= ${input.startDate}`,
+              sql`substr(${orderTable.deliveryDate}, 1, 10) <= ${input.endDate}`
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
               isNotNull(orderTable.pickupDate),
-              gte(orderTable.pickupDate, input.startDate),
-              lte(orderTable.pickupDate, input.endDate)
+              sql`substr(${orderTable.pickupDate}, 1, 10) >= ${input.startDate}`,
+              sql`substr(${orderTable.pickupDate}, 1, 10) <= ${input.endDate}`
             )
           )
         );
@@ -68,12 +70,12 @@ export const getOrdersByFulfillmentAction = createServerAction()
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
               isNotNull(orderTable.deliveryDate),
-              gte(orderTable.deliveryDate, input.startDate)
+              sql`substr(${orderTable.deliveryDate}, 1, 10) >= ${input.startDate}`
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
               isNotNull(orderTable.pickupDate),
-              gte(orderTable.pickupDate, input.startDate)
+              sql`substr(${orderTable.pickupDate}, 1, 10) >= ${input.startDate}`
             )
           )
         );
@@ -83,12 +85,12 @@ export const getOrdersByFulfillmentAction = createServerAction()
             and(
               eq(orderTable.fulfillmentMethod, "delivery"),
               isNotNull(orderTable.deliveryDate),
-              lte(orderTable.deliveryDate, input.endDate)
+              sql`substr(${orderTable.deliveryDate}, 1, 10) <= ${input.endDate}`
             ),
             and(
               eq(orderTable.fulfillmentMethod, "pickup"),
               isNotNull(orderTable.pickupDate),
-              lte(orderTable.pickupDate, input.endDate)
+              sql`substr(${orderTable.pickupDate}, 1, 10) <= ${input.endDate}`
             )
           )
         );
@@ -123,18 +125,21 @@ export const getOrdersByFulfillmentAction = createServerAction()
     }
 
     // Group orders by fulfillment date and location
+    // Extract just the date portion (YYYY-MM-DD) from ISO timestamps for grouping
     const deliveriesByDate = new Map<string, typeof orders>();
     const pickupsByDateAndLocation = new Map<string, Map<string, typeof orders>>();
 
     for (const row of orders) {
       if (row.order.fulfillmentMethod === "delivery" && row.order.deliveryDate) {
-        const date = row.order.deliveryDate;
+        // Extract date portion only (first 10 chars: YYYY-MM-DD)
+        const date = row.order.deliveryDate.substring(0, 10);
         if (!deliveriesByDate.has(date)) {
           deliveriesByDate.set(date, []);
         }
         deliveriesByDate.get(date)!.push(row);
       } else if (row.order.fulfillmentMethod === "pickup" && row.order.pickupDate) {
-        const date = row.order.pickupDate;
+        // Extract date portion only (first 10 chars: YYYY-MM-DD)
+        const date = row.order.pickupDate.substring(0, 10);
         const locationId = row.order.pickupLocationId || "unknown";
 
         if (!pickupsByDateAndLocation.has(date)) {

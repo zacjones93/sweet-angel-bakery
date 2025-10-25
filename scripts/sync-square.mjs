@@ -8,7 +8,7 @@
  *
  * Environment variables required:
  *   - SQUARE_ACCESS_TOKEN
- *   - SQUARE_LOCATION_ID
+ *   - NEXT_PUBLIC_SQUARE_LOCATION_ID
  *   - SQUARE_ENVIRONMENT (sandbox or production)
  */
 
@@ -20,7 +20,7 @@ import crypto from 'crypto';
 
 // Get Square credentials from environment
 const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-const locationId = process.env.SQUARE_LOCATION_ID;
+const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID;
 const environment = process.env.SQUARE_ENVIRONMENT === 'production'
   ? 'production'
   : 'sandbox';
@@ -32,7 +32,7 @@ if (!accessToken) {
 }
 
 if (!locationId) {
-  console.error('❌ Missing SQUARE_LOCATION_ID environment variable');
+  console.error('❌ Missing NEXT_PUBLIC_SQUARE_LOCATION_ID environment variable');
   console.error('   Get it from Square Dashboard > Locations');
   process.exit(1);
 }

@@ -13,6 +13,7 @@ This guide walks you through setting up Square as a payment provider, including 
 ## Step 1: Create Square Account
 
 ### Production Account
+
 1. Go to [squareup.com/signup](https://squareup.com/signup)
 2. Choose "Get Started" for selling online
 3. Fill in business information:
@@ -23,6 +24,7 @@ This guide walks you through setting up Square as a payment provider, including 
 5. Add bank account for payouts
 
 ### Sandbox Account (For Testing)
+
 1. Go to [developer.squareup.com/apps](https://developer.squareup.com/apps)
 2. Sign in (or create developer account)
 3. Sandbox is automatically created with your account
@@ -53,12 +55,14 @@ This guide walks you through setting up Square as a payment provider, including 
    - **Production** - For live payments
 
 #### Sandbox Credentials (Development)
+
 1. Under "Sandbox" section:
 2. Copy **"Sandbox Access Token"**
    - Format: `EAAAl...` (starts with EAAA)
    - This is your `SQUARE_ACCESS_TOKEN` for testing
 
 #### Production Credentials (When Ready)
+
 1. Under "Production" section:
 2. Copy **"Production Access Token"**
    - Format: `EAAAl...`
@@ -72,7 +76,7 @@ This guide walks you through setting up Square as a payment provider, including 
 2. You'll see your business location(s)
 3. Copy the **Location ID**
    - Format: `L...` or `LK...`
-   - This is your `SQUARE_LOCATION_ID`
+   - This is your `NEXT_PUBLIC_SQUARE_LOCATION_ID`
 
 **Note**: If you don't see locations, you may need to set one up in your main Square account first.
 
@@ -151,15 +155,18 @@ export async function POST(req: NextRequest) {
 3. Click **"Add Subscription"** or **"Add Endpoint"**
 
 #### For Sandbox (Testing)
+
 - **URL**: `https://your-dev-domain.workers.dev/api/webhooks/square`
   - Or use ngrok: `https://abc123.ngrok.io/api/webhooks/square`
 - **API Version**: Latest (e.g., `2024-10-17`)
 
 #### For Production
+
 - **URL**: `https://yourdomain.com/api/webhooks/square`
 - **API Version**: Latest
 
 4. Select events to subscribe to:
+
    - ✅ **payment.created**
    - ✅ **payment.updated**
    - ✅ **order.created**
@@ -188,7 +195,7 @@ MERCHANT_PROVIDER=square
 
 # Square Sandbox Credentials
 SQUARE_ACCESS_TOKEN=EAAAl... # Your sandbox access token
-SQUARE_LOCATION_ID=LK... # Your sandbox location ID
+NEXT_PUBLIC_SQUARE_LOCATION_ID=LK... # Your sandbox location ID
 SQUARE_ENVIRONMENT=sandbox
 SQUARE_WEBHOOK_SIGNATURE_KEY=... # Your webhook signature key
 ```
@@ -198,7 +205,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=... # Your webhook signature key
 ```bash
 # Set via Cloudflare dashboard or wrangler CLI:
 npx wrangler secret put SQUARE_ACCESS_TOKEN
-npx wrangler secret put SQUARE_LOCATION_ID
+npx wrangler secret put NEXT_PUBLIC_SQUARE_LOCATION_ID
 npx wrangler secret put SQUARE_WEBHOOK_SIGNATURE_KEY
 
 # Update wrangler.jsonc vars:
@@ -240,17 +247,20 @@ npx wrangler secret put SQUARE_WEBHOOK_SIGNATURE_KEY
 Square provides test card numbers for sandbox testing:
 
 **Successful Payment:**
+
 - Card: `4111 1111 1111 1111` (Visa)
 - CVV: Any 3 digits (e.g., `123`)
 - Expiry: Any future date (e.g., `12/25`)
 - ZIP: Any 5 digits (e.g., `12345`)
 
 **Other Test Cards:**
+
 - `5105 1051 0510 5100` - Mastercard
 - `3782 822463 10005` - American Express
 - `6011 1111 1111 1117` - Discover
 
 **Failed Payment (for testing):**
+
 - Card: `4000 0000 0000 0002`
 
 ### Test Flow
@@ -296,19 +306,22 @@ LIMIT 10;
 **File**: `scripts/sync-square.mjs`
 
 ```javascript
-import { Client, Environment } from 'square';
-import { getDB } from '../src/db/index.js';
-import { productTable } from '../src/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { Client, Environment } from "square";
+import { getDB } from "../src/db/index.js";
+import { productTable } from "../src/db/schema.js";
+import { eq } from "drizzle-orm";
 
 const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-const locationId = process.env.SQUARE_LOCATION_ID;
-const environment = process.env.SQUARE_ENVIRONMENT === 'production'
-  ? Environment.Production
-  : Environment.Sandbox;
+const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID;
+const environment =
+  process.env.SQUARE_ENVIRONMENT === "production"
+    ? Environment.Production
+    : Environment.Sandbox;
 
 if (!accessToken || !locationId) {
-  console.error('Missing SQUARE_ACCESS_TOKEN or SQUARE_LOCATION_ID');
+  console.error(
+    "Missing SQUARE_ACCESS_TOKEN or NEXT_PUBLIC_SQUARE_LOCATION_ID"
+  );
   process.exit(1);
 }
 
@@ -318,7 +331,7 @@ const db = getDB();
 async function syncProducts() {
   // Get products without Square IDs
   const products = await db.select().from(productTable);
-  const productsToSync = products.filter(p => !p.merchantProductId);
+  const productsToSync = products.filter((p) => !p.merchantProductId);
 
   console.log(`Found ${productsToSync.length} products to sync`);
 
@@ -328,39 +341,46 @@ async function syncProducts() {
 
       const { result } = await client.catalogApi.batchUpsertCatalogObjects({
         idempotencyKey: crypto.randomUUID(),
-        batches: [{
-          objects: [{
-            type: 'ITEM',
-            id: '#product',
-            itemData: {
-              name: product.name,
-              description: product.description || undefined,
-              variations: [{
-                type: 'ITEM_VARIATION',
-                id: '#default-variation',
-                itemVariationData: {
-                  name: 'Regular',
-                  pricingType: 'FIXED_PRICING',
-                  priceMoney: {
-                    amount: BigInt(product.price),
-                    currency: 'USD',
-                  },
+        batches: [
+          {
+            objects: [
+              {
+                type: "ITEM",
+                id: "#product",
+                itemData: {
+                  name: product.name,
+                  description: product.description || undefined,
+                  variations: [
+                    {
+                      type: "ITEM_VARIATION",
+                      id: "#default-variation",
+                      itemVariationData: {
+                        name: "Regular",
+                        pricingType: "FIXED_PRICING",
+                        priceMoney: {
+                          amount: BigInt(product.price),
+                          currency: "USD",
+                        },
+                      },
+                    },
+                  ],
                 },
-              }],
-            },
-          }],
-        }],
+              },
+            ],
+          },
+        ],
       });
 
       const createdItem = result.objects[0];
-      const defaultVariation = result.objects.find(obj =>
-        obj.itemVariationData?.name === 'Regular'
+      const defaultVariation = result.objects.find(
+        (obj) => obj.itemVariationData?.name === "Regular"
       );
 
       // Update product with Square IDs
-      await db.update(productTable)
+      await db
+        .update(productTable)
         .set({
-          merchantProvider: 'square',
+          merchantProvider: "square",
           merchantProductId: createdItem.id,
           merchantPriceId: defaultVariation?.id,
         })
@@ -372,7 +392,7 @@ async function syncProducts() {
     }
   }
 
-  console.log('Sync complete!');
+  console.log("Sync complete!");
 }
 
 syncProducts().catch(console.error);
@@ -405,7 +425,7 @@ When ready to go live:
 npx wrangler secret put SQUARE_ACCESS_TOKEN
 # Enter production access token
 
-npx wrangler secret put SQUARE_LOCATION_ID
+npx wrangler secret put NEXT_PUBLIC_SQUARE_LOCATION_ID
 # Enter production location ID
 
 npx wrangler secret put SQUARE_WEBHOOK_SIGNATURE_KEY
@@ -496,7 +516,7 @@ pnpm deploy
 ```bash
 MERCHANT_PROVIDER=square
 SQUARE_ACCESS_TOKEN=EAAAl...
-SQUARE_LOCATION_ID=LK...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=LK...
 SQUARE_ENVIRONMENT=sandbox  # or production
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ```

@@ -1,15 +1,7 @@
 import "server-only";
+import type { OrderItemCustomizations } from "@/types/customizations";
 
-export type MerchantProviderType = "stripe" | "square";
-
-export interface OrderItemCustomizations {
-	selectedVariant?: {
-		id: string;
-		name: string;
-		price: number;
-	};
-	customizations?: Record<string, unknown>;
-}
+export type MerchantProviderType = "square";
 
 export interface CheckoutLineItem {
 	productId: string;
@@ -20,6 +12,9 @@ export interface CheckoutLineItem {
 	imageUrl?: string;
 	customizations?: OrderItemCustomizations;
 }
+
+// Re-export for convenience
+export type { OrderItemCustomizations };
 
 export interface CheckoutOptions {
 	lineItems: CheckoutLineItem[];
@@ -115,7 +110,7 @@ export interface IMerchantProvider {
 	/**
 	 * Verify and process webhook events
 	 */
-	verifyWebhook(body: string, signature: string): Promise<WebhookEvent>;
+	verifyWebhook(body: string, signature: string, webhookUrl?: string): Promise<WebhookEvent>;
 
 	/**
 	 * Handle webhook event and create order

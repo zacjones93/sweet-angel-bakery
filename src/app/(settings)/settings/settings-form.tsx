@@ -51,6 +51,11 @@ export function SettingsForm() {
     form.reset({
       firstName: session?.user.firstName ?? '',
       lastName: session?.user.lastName ?? '',
+      streetAddress1: session?.user.streetAddress1 ?? '',
+      streetAddress2: session?.user.streetAddress2 ?? '',
+      city: session?.user.city ?? '',
+      state: session?.user.state ?? '',
+      zipCode: session?.user.zipCode ?? '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
@@ -136,6 +141,76 @@ export function SettingsForm() {
               />
             </div>
 
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Delivery Address</h3>
+              <FormField
+                control={form.control}
+                name="streetAddress1"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Street Address</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="123 Main St" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="streetAddress2"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apartment, suite, etc. (optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Apt 4B" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid gap-6 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="zipCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ZIP Code</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <FormItem>
               <FormLabel>Email</FormLabel>

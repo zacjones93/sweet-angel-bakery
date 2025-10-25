@@ -22,7 +22,10 @@ import { calculateOrderTotals, formatCents } from "@/utils/tax";
 import { getCurrentLoyaltyCustomerAction } from "../_actions/get-current-loyalty-customer.action";
 import { toast } from "sonner";
 import { SquarePaymentForm } from "@/components/square-payment-form";
-import { FulfillmentMethodSelector, type FulfillmentSelection } from "@/components/fulfillment-method-selector";
+import {
+  FulfillmentMethodSelector,
+  type FulfillmentSelection,
+} from "@/components/fulfillment-method-selector";
 
 export default function CheckoutPage() {
   const { items, totalAmount, clearCart } = useCart();
@@ -51,7 +54,8 @@ export default function CheckoutPage() {
   } | null>(null);
   const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [fulfillmentSelection, setFulfillmentSelection] = useState<FulfillmentSelection | null>(null);
+  const [fulfillmentSelection, setFulfillmentSelection] =
+    useState<FulfillmentSelection | null>(null);
   const useWebPayments = true; // Always use Square Web Payments SDK
 
   const { execute: getLoyaltyCustomer } = useServerAction(
@@ -198,7 +202,8 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-display font-bold mb-8">Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Customer Information Card */}
           <Card>
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>
@@ -472,76 +477,94 @@ export default function CheckoutPage() {
                       {error.message}
                     </div>
                   )}
-
-                  {/* Show Square Web Payments form or redirect button */}
-                  {useWebPayments ? (
-                    <div className="space-y-4">
-                      <div className="border-t pt-4">
-                        <h3 className="text-sm font-semibold mb-3">
-                          Payment Information
-                        </h3>
-                        <SquarePaymentForm
-                          items={items.map((item) => ({
-                            productId: item.productId,
-                            quantity: item.quantity,
-                            customizations: item.customizations || undefined,
-                            name: item.name,
-                            price: item.price,
-                          }))}
-                          customerEmail={customerEmail}
-                          customerName={customerName}
-                          customerPhone={customerPhone || undefined}
-                          joinLoyalty={joinLoyalty}
-                          smsOptIn={smsOptIn}
-                          userId={currentUser?.id}
-                          streetAddress1={streetAddress1 || undefined}
-                          streetAddress2={streetAddress2 || undefined}
-                          city={city || undefined}
-                          state={state || undefined}
-                          zipCode={zipCode || undefined}
-                          fulfillmentMethod={fulfillmentSelection?.method}
-                          deliveryFee={fulfillmentSelection?.deliveryFee}
-                          deliveryDate={fulfillmentSelection?.deliveryDate}
-                          pickupLocationId={fulfillmentSelection?.pickupLocationId}
-                          pickupDate={fulfillmentSelection?.pickupDate}
-                          onSuccess={() => {
-                            clearCart();
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      size="lg"
-                      disabled={isPending || items.length === 0}
-                    >
-                      {isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        "Continue to Payment"
-                      )}
-                    </Button>
-                  )}
                 </form>
               )}
             </CardContent>
           </Card>
 
-          {/* Fulfillment Method Selection */}
+          {/* Fulfillment Method Selection - Moved above payment */}
           <FulfillmentMethodSelector
             cartItems={items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
               price: item.price,
             }))}
-            initialZipCode={zipCode}
+            deliveryZipCode={zipCode}
+            isPreviewMode={!currentUser || !zipCode}
             onSelectionChange={setFulfillmentSelection}
           />
+
+          {/* Payment Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Information</CardTitle>
+              <CardDescription>Complete your order securely</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingLoyalty ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {/* Show Square Web Payments form or redirect button */}
+                  {useWebPayments ? (
+                    <SquarePaymentForm
+                      items={items.map((item) => ({
+                        productId: item.productId,
+                        quantity: item.quantity,
+                        customizations: item.customizations || undefined,
+                        name: item.name,
+                        price: item.price,
+                      }))}
+                      customerEmail={customerEmail}
+                      customerName={customerName}
+                      customerPhone={customerPhone || undefined}
+                      joinLoyalty={joinLoyalty}
+                      smsOptIn={smsOptIn}
+                      userId={currentUser?.id}
+                      streetAddress1={streetAddress1 || undefined}
+                      streetAddress2={streetAddress2 || undefined}
+                      city={city || undefined}
+                      state={state || undefined}
+                      zipCode={zipCode || undefined}
+                      fulfillmentMethod={fulfillmentSelection?.method}
+                      deliveryFee={fulfillmentSelection?.deliveryFee}
+                      deliveryDate={fulfillmentSelection?.deliveryDate}
+                      deliveryZoneId={fulfillmentSelection?.deliveryZoneId}
+                      deliveryTimeWindow={
+                        fulfillmentSelection?.deliveryTimeWindow
+                      }
+                      pickupLocationId={fulfillmentSelection?.pickupLocationId}
+                      pickupDate={fulfillmentSelection?.pickupDate}
+                      pickupTimeWindow={fulfillmentSelection?.pickupTimeWindow}
+                      onSuccess={() => {
+                        clearCart();
+                      }}
+                    />
+                  ) : (
+                    <form onSubmit={handleCheckout}>
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={isPending || items.length === 0}
+                      >
+                        {isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          "Continue to Payment"
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="lg:col-span-1">

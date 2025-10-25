@@ -211,6 +211,103 @@ export async function getNextDeliveryDate({
 }
 
 /**
+ * Get all available delivery date options for a product
+ * Returns multiple delivery dates (e.g., both Thursday and Saturday) when available
+ * Useful for letting customers choose their preferred delivery date
+ */
+export async function getAvailableDeliveryDates({
+  productId,
+  orderDate = new Date(),
+}: {
+  productId?: string;
+  orderDate?: Date;
+}): Promise<DeliveryDateResult[]> {
+  const db = await getDB();
+  const now = getCurrentMountainTime();
+
+  // Get active delivery schedules
+  const schedules = await getActiveDeliverySchedules();
+  if (schedules.length === 0) {
+    return []; // No delivery schedules configured
+  }
+
+  // Get closure dates
+  const closureDates = await getActiveClosureDates();
+
+  // Get product-specific delivery rules if productId provided
+  let productRules: ProductDeliveryRules | undefined;
+  if (productId) {
+    productRules = await db
+      .select()
+      .from(productDeliveryRulesTable)
+      .where(eq(productDeliveryRulesTable.productId, productId))
+      .get();
+  }
+
+  // Filter schedules based on product rules
+  let validSchedules = schedules;
+  if (productRules?.allowedDeliveryDays) {
+    const allowedDays = JSON.parse(productRules.allowedDeliveryDays) as number[];
+    validSchedules = schedules.filter((s) => allowedDays.includes(s.dayOfWeek));
+  }
+
+  if (validSchedules.length === 0) {
+    return []; // No valid delivery days for this product
+  }
+
+  // Get all available delivery dates from all schedules
+  const deliveryOptions: DeliveryDateResult[] = [];
+
+  for (const schedule of validSchedules) {
+    // Check if we're before the cutoff for this schedule
+    const beforeCutoff = isBeforeMountainCutoff({
+      cutoffDay: schedule.cutoffDay,
+      cutoffTime: schedule.cutoffTime,
+    });
+
+    // Get next occurrence of this delivery day
+    let nextDeliveryDate: Date;
+    if (beforeCutoff) {
+      // This week's delivery
+      nextDeliveryDate = getNextDayOfWeek(schedule.dayOfWeek, now);
+    } else {
+      // Following week's delivery
+      nextDeliveryDate = getWeekAfterNextDayOfWeek(schedule.dayOfWeek, now);
+    }
+
+    // Apply lead time requirement
+    const leadTime = productRules?.minimumLeadTimeDays ?? schedule.leadTimeDays;
+    const minDeliveryDate = addDaysMountainTime(now, leadTime);
+
+    // If next delivery date is too soon, move to following week
+    if (nextDeliveryDate < minDeliveryDate) {
+      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
+    }
+
+    // Skip closure dates
+    while (isClosureDate(nextDeliveryDate, closureDates)) {
+      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
+    }
+
+    // Calculate cutoff date for this delivery
+    const cutoffDate = new Date(nextDeliveryDate);
+    cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), nextDeliveryDate) + schedule.cutoffDay);
+    const [cutoffHour, cutoffMinute] = schedule.cutoffTime.split(':').map(Number);
+    cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
+
+    deliveryOptions.push({
+      deliveryDate: nextDeliveryDate,
+      cutoffDate,
+      timeWindow: schedule.deliveryTimeWindow || '',
+      schedule,
+    });
+  }
+
+  // Sort by delivery date
+  return deliveryOptions.sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime());
+}
+
+/**
  * Get all active pickup locations
  */
 async function getActivePickupLocations(): Promise<PickupLocation[]> {

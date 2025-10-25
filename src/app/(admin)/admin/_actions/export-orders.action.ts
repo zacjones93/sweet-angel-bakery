@@ -4,7 +4,7 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
 import { orderTable, orderItemTable, productTable, pickupLocationTable, deliveryZoneTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 /**
  * Export delivery orders for a specific date as CSV for route planning
@@ -19,6 +19,7 @@ export const exportDeliveryRoutesAction = createServerAction()
     const db = getDB();
 
     // Get all delivery orders for this date
+    // Extract just the date portion (YYYY-MM-DD) from ISO timestamps for comparison
     const orders = await db
       .select({
         order: orderTable,
@@ -33,7 +34,7 @@ export const exportDeliveryRoutesAction = createServerAction()
       .where(
         and(
           eq(orderTable.fulfillmentMethod, "delivery"),
-          eq(orderTable.deliveryDate, input.deliveryDate)
+          sql`substr(${orderTable.deliveryDate}, 1, 10) = ${input.deliveryDate}`
         )
       );
 
@@ -132,6 +133,7 @@ export const exportPickupListAction = createServerAction()
     const db = getDB();
 
     // Get all pickup orders for this date and location
+    // Extract just the date portion (YYYY-MM-DD) from ISO timestamps for comparison
     const orders = await db
       .select({
         order: orderTable,
@@ -146,7 +148,7 @@ export const exportPickupListAction = createServerAction()
       .where(
         and(
           eq(orderTable.fulfillmentMethod, "pickup"),
-          eq(orderTable.pickupDate, input.pickupDate),
+          sql`substr(${orderTable.pickupDate}, 1, 10) = ${input.pickupDate}`,
           eq(orderTable.pickupLocationId, input.pickupLocationId)
         )
       );

@@ -42,6 +42,7 @@ This document outlines a comprehensive strategy for migrating from Stripe to Squ
 ### Architecture Overview
 
 The current implementation uses Stripe for:
+
 - Checkout session creation
 - Payment processing
 - Webhook handling (payment events)
@@ -60,7 +61,7 @@ export async function getStripe() {
   stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2025-02-24.acacia",
     typescript: true,
-    httpClient: Stripe.createFetchHttpClient()
+    httpClient: Stripe.createFetchHttpClient(),
   });
 
   return stripeInstance;
@@ -72,6 +73,7 @@ export async function getStripe() {
 #### 2. Checkout Session Creation (`src/app/(storefront)/_actions/create-checkout-session.action.ts`)
 
 **Flow**:
+
 1. Validate cart items and inventory
 2. Build line items for Stripe (use Stripe Price IDs or create ad-hoc prices)
 3. Calculate subtotal and tax
@@ -79,6 +81,7 @@ export async function getStripe() {
 5. Return session URL for redirect
 
 **Key Features**:
+
 - Product variant support (size_variants)
 - Ad-hoc pricing for products without Stripe Price IDs
 - Tax calculation (6% Idaho sales tax)
@@ -88,11 +91,13 @@ export async function getStripe() {
 #### 3. Webhook Handler (`src/app/api/webhooks/stripe/route.ts`)
 
 **Handled Events**:
+
 - `checkout.session.completed`: Creates order, reduces inventory, sends confirmations
 - `payment_intent.succeeded`: Updates payment status to PAID
 - `payment_intent.payment_failed`: Updates payment status to FAILED
 
 **Key Operations**:
+
 1. Verify webhook signature
 2. Retrieve line items from session
 3. Map Stripe prices back to products (handles variants)
@@ -104,12 +109,14 @@ export async function getStripe() {
 #### 4. Product Synchronization (`scripts/sync-stripe.mjs`)
 
 **Flow**:
+
 1. Query products without Stripe IDs
 2. Create Stripe Product for each
 3. Create default Stripe Price
 4. Update database with Stripe IDs
 
 **Features**:
+
 - Batch product creation
 - Smart skip logic (avoids duplicates)
 - Image URL conversion
@@ -188,7 +195,7 @@ CREATE TABLE order_item (
 #### 1. Square SDK Setup
 
 ```typescript
-import { Client, Environment } from 'square';
+import { Client, Environment } from "square";
 
 const client = new Client({
   environment: Environment.Production, // or Environment.Sandbox
@@ -197,6 +204,7 @@ const client = new Client({
 ```
 
 **Key Differences from Stripe**:
+
 - Uses `accessToken` instead of `secretKey`
 - Environment enum for sandbox/production
 - Version: 43.1.0 (latest as of research)
@@ -208,20 +216,20 @@ Square uses **Payment Links** (via Checkout API) instead of Checkout Sessions:
 ```typescript
 const { result } = await client.checkoutApi.createPaymentLink({
   order: {
-    locationId: process.env.SQUARE_LOCATION_ID,
+    locationId: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
     lineItems: [
       {
-        name: 'Product Name',
-        quantity: '1',
+        name: "Product Name",
+        quantity: "1",
         basePriceMoney: {
           amount: 2500n, // BigInt in cents
-          currency: 'USD',
+          currency: "USD",
         },
       },
     ],
   },
   checkoutOptions: {
-    redirectUrl: 'https://example.com/thanks',
+    redirectUrl: "https://example.com/thanks",
     askForShippingAddress: false,
   },
 });
@@ -230,6 +238,7 @@ const paymentUrl = result.paymentLink.url; // https://square.link/u/...
 ```
 
 **Key Differences**:
+
 - `CreatePaymentLink` instead of `createCheckoutSession`
 - Orders are created inline with payment link
 - Uses BigInt for monetary amounts
@@ -246,21 +255,21 @@ const { result } = await client.catalogApi.batchUpsertCatalogObjects({
     {
       objects: [
         {
-          type: 'ITEM',
-          id: '#product-1',
+          type: "ITEM",
+          id: "#product-1",
           itemData: {
-            name: 'Chocolate Cake',
-            description: 'Rich chocolate cake',
+            name: "Chocolate Cake",
+            description: "Rich chocolate cake",
             variations: [
               {
-                type: 'ITEM_VARIATION',
-                id: '#variation-1',
+                type: "ITEM_VARIATION",
+                id: "#variation-1",
                 itemVariationData: {
-                  name: 'Regular',
-                  pricingType: 'FIXED_PRICING',
+                  name: "Regular",
+                  pricingType: "FIXED_PRICING",
                   priceMoney: {
                     amount: 2500n,
-                    currency: 'USD',
+                    currency: "USD",
                   },
                 },
               },
@@ -274,6 +283,7 @@ const { result } = await client.catalogApi.batchUpsertCatalogObjects({
 ```
 
 **Key Differences**:
+
 - Items have nested variations (not separate Price objects)
 - Requires location ID for visibility
 - Uses temporary IDs (#-prefixed) that map to real IDs
@@ -286,11 +296,11 @@ Square has a dedicated Orders API for creating and managing orders:
 ```typescript
 const { result } = await client.ordersApi.createOrder({
   order: {
-    locationId: process.env.SQUARE_LOCATION_ID,
+    locationId: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
     lineItems: [
       {
-        catalogObjectId: 'catalog-item-id',
-        quantity: '1',
+        catalogObjectId: "catalog-item-id",
+        quantity: "1",
       },
     ],
   },
@@ -299,6 +309,7 @@ const { result } = await client.ordersApi.createOrder({
 ```
 
 **Key Features**:
+
 - Can reference catalog items or use ad-hoc items
 - Automatic tax/discount calculation with catalog items
 - Fulfillment tracking built-in
@@ -310,17 +321,18 @@ Square webhooks use event subscriptions:
 
 ```typescript
 // Webhook signature verification
-import { validateWebhookEventSignature } from 'square';
+import { validateWebhookEventSignature } from "square";
 
 const isValid = validateWebhookEventSignature({
   body: req.body,
-  signatureHeader: req.headers['x-square-hmacsha256-signature'],
+  signatureHeader: req.headers["x-square-hmacsha256-signature"],
   signatureKey: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY,
-  url: 'https://example.com/api/webhooks/square',
+  url: "https://example.com/api/webhooks/square",
 });
 ```
 
 **Payment Events**:
+
 - `payment.created`: When payment is created
 - `payment.updated`: When payment status changes
 - `order.created`: When order is created
@@ -328,6 +340,7 @@ const isValid = validateWebhookEventSignature({
 - `order.fulfillment.updated`: When fulfillment status changes
 
 **Key Differences**:
+
 - Different event names (`payment.created` vs `checkout.session.completed`)
 - Uses HMAC-SHA256 signature verification
 - Includes `event_id` for idempotency
@@ -336,6 +349,7 @@ const isValid = validateWebhookEventSignature({
 ### Square API Capabilities
 
 #### Supported Payment Methods
+
 - Credit/debit cards
 - Apple Pay
 - Google Pay
@@ -344,6 +358,7 @@ const isValid = validateWebhookEventSignature({
 - ACH bank transfers
 
 #### Advanced Features
+
 - Tipping on checkout pages
 - Custom form fields (up to 2)
 - Subscription billing
@@ -357,37 +372,39 @@ const isValid = validateWebhookEventSignature({
 
 ### Feature Parity Matrix
 
-| Feature | Stripe | Square | Notes |
-|---------|--------|--------|-------|
-| **Checkout Flow** | Checkout Sessions | Payment Links | Similar hosted pages |
-| **Webhooks** | ✅ Full support | ✅ Full support | Different event names |
-| **Product Catalog** | Products + Prices | Catalog Items + Variations | Square more complex |
-| **Ad-hoc Pricing** | ✅ price_data | ✅ Ad-hoc items | Both supported |
-| **Metadata** | ✅ Up to 500 chars | ✅ Custom fields | Similar capabilities |
-| **Tax Calculation** | Manual or Tax Rate objects | Manual or automatic with catalog | Square has built-in tax |
-| **Inventory** | Via metadata/external | Built-in with Catalog | Square more integrated |
-| **Order Management** | Via metadata | Dedicated Orders API | Square more robust |
-| **Refunds** | ✅ Refunds API | ✅ Refunds API | Both supported |
-| **Subscriptions** | ✅ Native | ✅ Native | Both supported |
-| **Node.js SDK** | ✅ Official | ✅ Official | Both well-documented |
+| Feature              | Stripe                     | Square                           | Notes                   |
+| -------------------- | -------------------------- | -------------------------------- | ----------------------- |
+| **Checkout Flow**    | Checkout Sessions          | Payment Links                    | Similar hosted pages    |
+| **Webhooks**         | ✅ Full support            | ✅ Full support                  | Different event names   |
+| **Product Catalog**  | Products + Prices          | Catalog Items + Variations       | Square more complex     |
+| **Ad-hoc Pricing**   | ✅ price_data              | ✅ Ad-hoc items                  | Both supported          |
+| **Metadata**         | ✅ Up to 500 chars         | ✅ Custom fields                 | Similar capabilities    |
+| **Tax Calculation**  | Manual or Tax Rate objects | Manual or automatic with catalog | Square has built-in tax |
+| **Inventory**        | Via metadata/external      | Built-in with Catalog            | Square more integrated  |
+| **Order Management** | Via metadata               | Dedicated Orders API             | Square more robust      |
+| **Refunds**          | ✅ Refunds API             | ✅ Refunds API                   | Both supported          |
+| **Subscriptions**    | ✅ Native                  | ✅ Native                        | Both supported          |
+| **Node.js SDK**      | ✅ Official                | ✅ Official                      | Both well-documented    |
 
 ### Key Architectural Differences
 
 #### 1. Checkout Flow
 
 **Stripe**:
+
 ```typescript
 // Create session
 const session = await stripe.checkout.sessions.create({
-  line_items: [{ price: 'price_xxx', quantity: 1 }],
-  mode: 'payment',
-  success_url: '...',
-  cancel_url: '...',
+  line_items: [{ price: "price_xxx", quantity: 1 }],
+  mode: "payment",
+  success_url: "...",
+  cancel_url: "...",
 });
 // Redirect to session.url
 ```
 
 **Square**:
+
 ```typescript
 // Create payment link
 const { result } = await client.checkoutApi.createPaymentLink({
@@ -400,45 +417,55 @@ const { result } = await client.checkoutApi.createPaymentLink({
 #### 2. Product Management
 
 **Stripe**:
+
 ```typescript
 // Separate Product and Price
-const product = await stripe.products.create({ name: '...' });
+const product = await stripe.products.create({ name: "..." });
 const price = await stripe.prices.create({
   product: product.id,
   unit_amount: 2500,
-  currency: 'usd',
+  currency: "usd",
 });
 ```
 
 **Square**:
+
 ```typescript
 // Nested Item and Variation
 await client.catalogApi.batchUpsertCatalogObjects({
-  batches: [{
-    objects: [{
-      type: 'ITEM',
-      itemData: {
-        name: '...',
-        variations: [{
-          type: 'ITEM_VARIATION',
-          itemVariationData: {
-            priceMoney: { amount: 2500n, currency: 'USD' },
+  batches: [
+    {
+      objects: [
+        {
+          type: "ITEM",
+          itemData: {
+            name: "...",
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 2500n, currency: "USD" },
+                },
+              },
+            ],
           },
-        }],
-      },
-    }],
-  }],
+        },
+      ],
+    },
+  ],
 });
 ```
 
 #### 3. Webhook Events
 
 **Stripe**:
+
 - `checkout.session.completed` → Order creation trigger
 - `payment_intent.succeeded` → Payment confirmed
 - `payment_intent.payment_failed` → Payment failed
 
 **Square**:
+
 - `payment.created` → Payment initiated
 - `payment.updated` → Payment status changed
 - `order.created` → Order created
@@ -451,10 +478,10 @@ await client.catalogApi.batchUpsertCatalogObjects({
 
 ```typescript
 // Stripe
-amount: 2500 // $25.00
+amount: 2500; // $25.00
 
 // Square
-amount: 2500n // $25.00 (BigInt)
+amount: 2500n; // $25.00 (BigInt)
 ```
 
 ---
@@ -501,7 +528,7 @@ amount: 2500n // $25.00 (BigInt)
 ```typescript
 // src/lib/merchant-provider/types.ts
 
-export type MerchantProviderType = 'stripe' | 'square';
+export type MerchantProviderType = "stripe" | "square";
 
 export interface CheckoutLineItem {
   productId: string;
@@ -539,7 +566,7 @@ export interface WebhookEvent {
 export interface WebhookResult {
   processed: boolean;
   orderId?: string;
-  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus?: "pending" | "paid" | "failed" | "refunded";
   error?: string;
 }
 
@@ -570,7 +597,7 @@ export interface RefundOptions {
 
 export interface RefundResult {
   refundId: string;
-  status: 'succeeded' | 'pending' | 'failed';
+  status: "succeeded" | "pending" | "failed";
   amount: number; // cents
 }
 
@@ -612,7 +639,7 @@ export interface IMerchantProvider {
    */
   getPayment(paymentId: string): Promise<{
     id: string;
-    status: 'pending' | 'paid' | 'failed' | 'refunded';
+    status: "pending" | "paid" | "failed" | "refunded";
     amount: number;
     currency: string;
     createdAt: Date;
@@ -625,22 +652,23 @@ export interface IMerchantProvider {
 ```typescript
 // src/lib/merchant-provider/factory.ts
 
-import { IMerchantProvider, MerchantProviderType } from './types';
-import { StripeProvider } from './providers/stripe';
-import { SquareProvider } from './providers/square';
+import { IMerchantProvider, MerchantProviderType } from "./types";
+import { StripeProvider } from "./providers/stripe";
+import { SquareProvider } from "./providers/square";
 
 let providerInstance: IMerchantProvider | null = null;
 
 export async function getMerchantProvider(): Promise<IMerchantProvider> {
   if (providerInstance) return providerInstance;
 
-  const providerType = (process.env.MERCHANT_PROVIDER || 'stripe') as MerchantProviderType;
+  const providerType = (process.env.MERCHANT_PROVIDER ||
+    "stripe") as MerchantProviderType;
 
   switch (providerType) {
-    case 'stripe':
+    case "stripe":
       providerInstance = new StripeProvider();
       break;
-    case 'square':
+    case "square":
       providerInstance = new SquareProvider();
       break;
     default:
@@ -653,7 +681,7 @@ export async function getMerchantProvider(): Promise<IMerchantProvider> {
 
 // Helper to get current provider type without initializing
 export function getCurrentProviderType(): MerchantProviderType {
-  return (process.env.MERCHANT_PROVIDER || 'stripe') as MerchantProviderType;
+  return (process.env.MERCHANT_PROVIDER || "stripe") as MerchantProviderType;
 }
 ```
 
@@ -662,7 +690,7 @@ export function getCurrentProviderType(): MerchantProviderType {
 ```typescript
 // src/lib/merchant-provider/providers/stripe.ts
 
-import Stripe from 'stripe';
+import Stripe from "stripe";
 import type {
   IMerchantProvider,
   CheckoutOptions,
@@ -673,27 +701,27 @@ import type {
   ProductCreateResult,
   RefundOptions,
   RefundResult,
-} from '../types';
+} from "../types";
 
 export class StripeProvider implements IMerchantProvider {
-  readonly name = 'stripe' as const;
+  readonly name = "stripe" as const;
   private client: Stripe | null = null;
 
   async initialize(): Promise<void> {
     if (this.client) return;
 
     const apiKey = process.env.STRIPE_SECRET_KEY;
-    if (!apiKey) throw new Error('STRIPE_SECRET_KEY not configured');
+    if (!apiKey) throw new Error("STRIPE_SECRET_KEY not configured");
 
     this.client = new Stripe(apiKey, {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: "2025-02-24.acacia",
       typescript: true,
       httpClient: Stripe.createFetchHttpClient(),
     });
   }
 
   private getClient(): Stripe {
-    if (!this.client) throw new Error('Stripe not initialized');
+    if (!this.client) throw new Error("Stripe not initialized");
     return this.client;
   }
 
@@ -701,9 +729,9 @@ export class StripeProvider implements IMerchantProvider {
     const stripe = this.getClient();
 
     // Build line items
-    const lineItems = options.lineItems.map(item => ({
+    const lineItems = options.lineItems.map((item) => ({
       price_data: {
-        currency: 'usd',
+        currency: "usd",
         product_data: {
           name: item.name,
           description: item.description,
@@ -718,30 +746,36 @@ export class StripeProvider implements IMerchantProvider {
     }));
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       line_items: lineItems,
-      mode: 'payment',
+      mode: "payment",
       success_url: options.successUrl,
       cancel_url: options.cancelUrl,
       customer_email: options.customerEmail,
       metadata: options.metadata,
     });
 
-    if (!session.url) throw new Error('Failed to create checkout session');
+    if (!session.url) throw new Error("Failed to create checkout session");
 
     return {
       sessionId: session.id,
       url: session.url,
-      expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : undefined,
+      expiresAt: session.expires_at
+        ? new Date(session.expires_at * 1000)
+        : undefined,
     };
   }
 
   async verifyWebhook(body: string, signature: string): Promise<WebhookEvent> {
     const stripe = this.getClient();
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET not configured');
+    if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET not configured");
 
-    const event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+    const event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      secret
+    );
 
     return {
       id: event.id,
@@ -753,36 +787,42 @@ export class StripeProvider implements IMerchantProvider {
 
   async handleWebhook(event: WebhookEvent): Promise<WebhookResult> {
     switch (event.type) {
-      case 'checkout.session.completed':
+      case "checkout.session.completed":
         // Implementation moved from webhook route
         // Returns { processed: true, orderId: 'ord_xxx', paymentStatus: 'paid' }
-        return await this.handleCheckoutCompleted(event.data as Stripe.Checkout.Session);
+        return await this.handleCheckoutCompleted(
+          event.data as Stripe.Checkout.Session
+        );
 
-      case 'payment_intent.succeeded':
+      case "payment_intent.succeeded":
         // Update payment status
-        return { processed: true, paymentStatus: 'paid' };
+        return { processed: true, paymentStatus: "paid" };
 
-      case 'payment_intent.payment_failed':
+      case "payment_intent.payment_failed":
         // Update payment status
-        return { processed: true, paymentStatus: 'failed' };
+        return { processed: true, paymentStatus: "failed" };
 
       default:
         return { processed: false };
     }
   }
 
-  private async handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<WebhookResult> {
+  private async handleCheckoutCompleted(
+    session: Stripe.Checkout.Session
+  ): Promise<WebhookResult> {
     // Move logic from src/app/api/webhooks/stripe/route.ts
     // Return order ID and status
     // Implementation details omitted for brevity
     return {
       processed: true,
-      orderId: 'ord_xxx',
-      paymentStatus: 'paid',
+      orderId: "ord_xxx",
+      paymentStatus: "paid",
     };
   }
 
-  async createProduct(options: ProductCreateOptions): Promise<ProductCreateResult> {
+  async createProduct(
+    options: ProductCreateOptions
+  ): Promise<ProductCreateResult> {
     const stripe = this.getClient();
 
     // Create Stripe product
@@ -797,7 +837,7 @@ export class StripeProvider implements IMerchantProvider {
     const price = await stripe.prices.create({
       product: product.id,
       unit_amount: options.price,
-      currency: 'usd',
+      currency: "usd",
     });
 
     // Create variant prices
@@ -807,7 +847,7 @@ export class StripeProvider implements IMerchantProvider {
         const variantPrice = await stripe.prices.create({
           product: product.id,
           unit_amount: variant.price,
-          currency: 'usd',
+          currency: "usd",
           metadata: { variantId: variant.id },
         });
         variantIds[variant.id] = variantPrice.id;
@@ -832,7 +872,7 @@ export class StripeProvider implements IMerchantProvider {
 
     return {
       refundId: refund.id,
-      status: refund.status === 'succeeded' ? 'succeeded' : 'pending',
+      status: refund.status === "succeeded" ? "succeeded" : "pending",
       amount: refund.amount,
     };
   }
@@ -850,12 +890,18 @@ export class StripeProvider implements IMerchantProvider {
     };
   }
 
-  private mapPaymentStatus(status: string): 'pending' | 'paid' | 'failed' | 'refunded' {
+  private mapPaymentStatus(
+    status: string
+  ): "pending" | "paid" | "failed" | "refunded" {
     switch (status) {
-      case 'succeeded': return 'paid';
-      case 'processing': return 'pending';
-      case 'canceled': return 'failed';
-      default: return 'pending';
+      case "succeeded":
+        return "paid";
+      case "processing":
+        return "pending";
+      case "canceled":
+        return "failed";
+      default:
+        return "pending";
     }
   }
 }
@@ -866,7 +912,7 @@ export class StripeProvider implements IMerchantProvider {
 ```typescript
 // src/lib/merchant-provider/providers/square.ts
 
-import { Client, Environment } from 'square';
+import { Client, Environment } from "square";
 import type {
   IMerchantProvider,
   CheckoutOptions,
@@ -877,10 +923,10 @@ import type {
   ProductCreateResult,
   RefundOptions,
   RefundResult,
-} from '../types';
+} from "../types";
 
 export class SquareProvider implements IMerchantProvider {
-  readonly name = 'square' as const;
+  readonly name = "square" as const;
   private client: Client | null = null;
   private locationId: string | null = null;
 
@@ -888,26 +934,28 @@ export class SquareProvider implements IMerchantProvider {
     if (this.client) return;
 
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-    const locationId = process.env.SQUARE_LOCATION_ID;
+    const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID;
 
-    if (!accessToken) throw new Error('SQUARE_ACCESS_TOKEN not configured');
-    if (!locationId) throw new Error('SQUARE_LOCATION_ID not configured');
+    if (!accessToken) throw new Error("SQUARE_ACCESS_TOKEN not configured");
+    if (!locationId)
+      throw new Error("NEXT_PUBLIC_SQUARE_LOCATION_ID not configured");
 
-    const environment = process.env.SQUARE_ENVIRONMENT === 'production'
-      ? Environment.Production
-      : Environment.Sandbox;
+    const environment =
+      process.env.SQUARE_ENVIRONMENT === "production"
+        ? Environment.Production
+        : Environment.Sandbox;
 
     this.client = new Client({ accessToken, environment });
     this.locationId = locationId;
   }
 
   private getClient(): Client {
-    if (!this.client) throw new Error('Square not initialized');
+    if (!this.client) throw new Error("Square not initialized");
     return this.client;
   }
 
   private getLocationId(): string {
-    if (!this.locationId) throw new Error('Square location ID not configured');
+    if (!this.locationId) throw new Error("Square location ID not configured");
     return this.locationId;
   }
 
@@ -916,15 +964,15 @@ export class SquareProvider implements IMerchantProvider {
     const locationId = this.getLocationId();
 
     // Build line items
-    const lineItems = options.lineItems.map(item => ({
+    const lineItems = options.lineItems.map((item) => ({
       name: item.name,
       note: item.description,
       quantity: String(item.quantity),
       basePriceMoney: {
         amount: BigInt(item.price),
-        currency: 'USD',
+        currency: "USD",
       },
-      itemType: 'ITEM' as const,
+      itemType: "ITEM" as const,
       metadata: {
         productId: item.productId,
       },
@@ -956,16 +1004,17 @@ export class SquareProvider implements IMerchantProvider {
   async verifyWebhook(body: string, signature: string): Promise<WebhookEvent> {
     // Square uses HMAC-SHA256 signature
     const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
-    if (!signatureKey) throw new Error('SQUARE_WEBHOOK_SIGNATURE_KEY not configured');
+    if (!signatureKey)
+      throw new Error("SQUARE_WEBHOOK_SIGNATURE_KEY not configured");
 
     // Verify signature
-    const crypto = await import('crypto');
-    const hmac = crypto.createHmac('sha256', signatureKey);
+    const crypto = await import("crypto");
+    const hmac = crypto.createHmac("sha256", signatureKey);
     hmac.update(body);
-    const expectedSignature = hmac.digest('base64');
+    const expectedSignature = hmac.digest("base64");
 
     if (signature !== expectedSignature) {
-      throw new Error('Invalid webhook signature');
+      throw new Error("Invalid webhook signature");
     }
 
     const event = JSON.parse(body);
@@ -980,12 +1029,12 @@ export class SquareProvider implements IMerchantProvider {
 
   async handleWebhook(event: WebhookEvent): Promise<WebhookResult> {
     switch (event.type) {
-      case 'payment.created':
-      case 'payment.updated':
+      case "payment.created":
+      case "payment.updated":
         return await this.handlePaymentEvent(event);
 
-      case 'order.created':
-      case 'order.updated':
+      case "order.created":
+      case "order.updated":
         return await this.handleOrderEvent(event);
 
       default:
@@ -993,24 +1042,26 @@ export class SquareProvider implements IMerchantProvider {
     }
   }
 
-  private async handlePaymentEvent(event: WebhookEvent): Promise<WebhookResult> {
+  private async handlePaymentEvent(
+    event: WebhookEvent
+  ): Promise<WebhookResult> {
     const payment = (event.data as any).object.payment;
 
     // Map Square payment status to our statuses
-    let paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+    let paymentStatus: "pending" | "paid" | "failed" | "refunded";
     switch (payment.status) {
-      case 'COMPLETED':
-        paymentStatus = 'paid';
+      case "COMPLETED":
+        paymentStatus = "paid";
         break;
-      case 'APPROVED':
-        paymentStatus = 'pending';
+      case "APPROVED":
+        paymentStatus = "pending";
         break;
-      case 'FAILED':
-      case 'CANCELED':
-        paymentStatus = 'failed';
+      case "FAILED":
+      case "CANCELED":
+        paymentStatus = "failed";
         break;
       default:
-        paymentStatus = 'pending';
+        paymentStatus = "pending";
     }
 
     // Create order from payment (similar to Stripe checkout.session.completed)
@@ -1027,20 +1078,22 @@ export class SquareProvider implements IMerchantProvider {
     return { processed: true };
   }
 
-  async createProduct(options: ProductCreateOptions): Promise<ProductCreateResult> {
+  async createProduct(
+    options: ProductCreateOptions
+  ): Promise<ProductCreateResult> {
     const client = this.getClient();
 
     // Build variations
     const variations = [
       {
-        type: 'ITEM_VARIATION' as const,
-        id: '#default-variation',
+        type: "ITEM_VARIATION" as const,
+        id: "#default-variation",
         itemVariationData: {
-          name: 'Regular',
-          pricingType: 'FIXED_PRICING' as const,
+          name: "Regular",
+          pricingType: "FIXED_PRICING" as const,
           priceMoney: {
             amount: BigInt(options.price),
-            currency: 'USD',
+            currency: "USD",
           },
         },
       },
@@ -1050,14 +1103,14 @@ export class SquareProvider implements IMerchantProvider {
     if (options.variants) {
       for (const variant of options.variants) {
         variations.push({
-          type: 'ITEM_VARIATION' as const,
+          type: "ITEM_VARIATION" as const,
           id: `#variant-${variant.id}`,
           itemVariationData: {
             name: variant.name,
-            pricingType: 'FIXED_PRICING' as const,
+            pricingType: "FIXED_PRICING" as const,
             priceMoney: {
               amount: BigInt(variant.price),
-              currency: 'USD',
+              currency: "USD",
             },
           },
         });
@@ -1070,8 +1123,8 @@ export class SquareProvider implements IMerchantProvider {
         {
           objects: [
             {
-              type: 'ITEM',
-              id: '#product',
+              type: "ITEM",
+              id: "#product",
               itemData: {
                 name: options.name,
                 description: options.description,
@@ -1084,16 +1137,16 @@ export class SquareProvider implements IMerchantProvider {
     });
 
     const createdItem = result.objects![0];
-    const defaultVariation = result.objects!.find(obj =>
-      obj.id === result.idMappings![0].objectId
+    const defaultVariation = result.objects!.find(
+      (obj) => obj.id === result.idMappings![0].objectId
     );
 
     // Map variant IDs
     const variantIds: Record<string, string> = {};
     if (options.variants) {
       for (const variant of options.variants) {
-        const createdVariation = result.objects!.find(obj =>
-          obj.itemVariationData?.name === variant.name
+        const createdVariation = result.objects!.find(
+          (obj) => obj.itemVariationData?.name === variant.name
         );
         if (createdVariation) {
           variantIds[variant.id] = createdVariation.id!;
@@ -1114,7 +1167,7 @@ export class SquareProvider implements IMerchantProvider {
     const { result } = await client.refundsApi.refundPayment({
       idempotencyKey: crypto.randomUUID(),
       amountMoney: options.amount
-        ? { amount: BigInt(options.amount), currency: 'USD' }
+        ? { amount: BigInt(options.amount), currency: "USD" }
         : undefined, // Full refund if amount not specified
       paymentId: options.paymentId,
       reason: options.reason,
@@ -1122,7 +1175,7 @@ export class SquareProvider implements IMerchantProvider {
 
     return {
       refundId: result.refund!.id!,
-      status: result.refund!.status === 'COMPLETED' ? 'succeeded' : 'pending',
+      status: result.refund!.status === "COMPLETED" ? "succeeded" : "pending",
       amount: Number(result.refund!.amountMoney!.amount!),
     };
   }
@@ -1141,13 +1194,19 @@ export class SquareProvider implements IMerchantProvider {
     };
   }
 
-  private mapPaymentStatus(status: string): 'pending' | 'paid' | 'failed' | 'refunded' {
+  private mapPaymentStatus(
+    status: string
+  ): "pending" | "paid" | "failed" | "refunded" {
     switch (status) {
-      case 'COMPLETED': return 'paid';
-      case 'APPROVED': return 'pending';
-      case 'FAILED':
-      case 'CANCELED': return 'failed';
-      default: return 'pending';
+      case "COMPLETED":
+        return "paid";
+      case "APPROVED":
+        return "pending";
+      case "FAILED":
+      case "CANCELED":
+        return "failed";
+      default:
+        return "pending";
     }
   }
 }
@@ -1167,7 +1226,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Square Configuration
 SQUARE_ACCESS_TOKEN=sq0atp-...
-SQUARE_LOCATION_ID=L...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...
 SQUARE_ENVIRONMENT=sandbox  # or 'production'
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ```
@@ -1179,6 +1238,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 1: Setup & Abstraction Layer (Week 1)
 
 **Tasks**:
+
 1. ✅ Research Square API
 2. ✅ Design abstraction layer
 3. Create base types and interfaces
@@ -1188,6 +1248,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 7. Set up Square sandbox account
 
 **Deliverables**:
+
 - `src/lib/merchant-provider/types.ts`
 - `src/lib/merchant-provider/factory.ts`
 - `src/lib/merchant-provider/fee-calculator.ts`
@@ -1196,6 +1257,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 2: Stripe Provider Implementation (Week 2)
 
 **Tasks**:
+
 1. Create `StripeProvider` class
 2. Refactor existing Stripe code into provider
 3. Move webhook logic to provider (include fee calculation)
@@ -1204,6 +1266,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 6. Write unit tests for Stripe provider (including fee calculations)
 
 **Deliverables**:
+
 - `src/lib/merchant-provider/providers/stripe.ts`
 - Updated webhook route to use provider and create fee records
 - Updated checkout action to use provider
@@ -1212,6 +1275,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 3: Square Provider Implementation (Week 3)
 
 **Tasks**:
+
 1. Create `SquareProvider` class
 2. Implement checkout creation
 3. Implement webhook handling
@@ -1221,6 +1285,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 7. Test in Square sandbox
 
 **Deliverables**:
+
 - `src/lib/merchant-provider/providers/square.ts`
 - Test suite for Square provider
 - Square sandbox testing results
@@ -1228,6 +1293,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 4: Database Schema Updates (Week 3-4)
 
 **Tasks**:
+
 1. Add `merchantProvider` column to orders table
 2. Rename `stripePaymentIntentId` to `paymentIntentId`
 3. Rename `stripeProductId` to `merchantProductId`
@@ -1238,6 +1304,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 8. Update all queries
 
 **Deliverables**:
+
 - Database migration file (includes merchant_fee table)
 - Updated schema types (merchantFeeTable, MerchantFee type)
 - Data migration script (for existing orders and fees)
@@ -1246,6 +1313,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 5: Integration & Testing (Week 4)
 
 **Tasks**:
+
 1. Update all server actions to use abstraction
 2. Create admin revenue stats page with fee tracking
 3. Create revenue stats server action with fee queries
@@ -1256,6 +1324,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 8. Performance testing
 
 **Deliverables**:
+
 - Updated server actions
 - `src/app/(admin)/admin/stats/page.tsx`
 - `src/app/(admin)/admin/stats/_actions/revenue.action.ts`
@@ -1265,6 +1334,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 6: Migration Execution (Week 5)
 
 **Tasks**:
+
 1. Create production Square account
 2. Sync products to Square
 3. Configure webhooks
@@ -1273,6 +1343,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 6. User acceptance testing
 
 **Deliverables**:
+
 - Migration checklist
 - Rollout plan
 - Monitoring dashboard
@@ -1280,6 +1351,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Phase 7: Cleanup & Documentation (Week 6)
 
 **Tasks**:
+
 1. Remove Stripe-specific code (if fully migrated)
 2. Update documentation
 3. Create runbooks
@@ -1287,6 +1359,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 5. Archive old code
 
 **Deliverables**:
+
 - Final documentation
 - Runbooks
 - Training materials
@@ -1309,34 +1382,41 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Migration Approaches
 
 #### Option 1: Big Bang (Not Recommended)
+
 Switch all traffic to Square at once. **High risk.**
 
 #### Option 2: Gradual Rollout (Recommended)
+
 Progressively move traffic from Stripe to Square.
 
 **Stages**:
+
 1. **10% Traffic**: Monitor for 2-3 days
 2. **25% Traffic**: Monitor for 2-3 days
 3. **50% Traffic**: Monitor for 1 week
 4. **100% Traffic**: Full migration
 
 **Implementation**:
+
 ```typescript
 // src/lib/merchant-provider/factory.ts
 export async function getMerchantProvider(): Promise<IMerchantProvider> {
   // Gradual rollout logic
-  const rolloutPercentage = parseInt(process.env.SQUARE_ROLLOUT_PERCENTAGE || '0');
+  const rolloutPercentage = parseInt(
+    process.env.SQUARE_ROLLOUT_PERCENTAGE || "0"
+  );
 
   // Use hash of user session or random for consistent experience
   const shouldUseSquare = Math.random() * 100 < rolloutPercentage;
 
-  const providerType = shouldUseSquare ? 'square' : 'stripe';
+  const providerType = shouldUseSquare ? "square" : "stripe";
 
   // ... rest of factory logic
 }
 ```
 
 #### Option 3: Feature Flag (Most Flexible)
+
 Use feature flags for controlled rollout.
 
 **Tools**: LaunchDarkly, Split.io, or custom flags
@@ -1344,6 +1424,7 @@ Use feature flags for controlled rollout.
 ### Post-Migration Monitoring
 
 **Key Metrics**:
+
 - Payment success rate
 - Checkout completion rate
 - Average transaction time
@@ -1352,6 +1433,7 @@ Use feature flags for controlled rollout.
 - Revenue reconciliation
 
 **Dashboards**:
+
 - Real-time payment monitoring
 - Provider comparison metrics
 - Error tracking (Sentry, Datadog, etc.)
@@ -1359,11 +1441,13 @@ Use feature flags for controlled rollout.
 ### Data Migration
 
 **Existing Orders**:
+
 - Keep Stripe Payment Intent IDs for historical orders
 - Add `merchantProvider` column to identify source
 - Maintain backward compatibility for refunds
 
 **Migration Script**:
+
 ```sql
 -- Add merchantProvider column
 ALTER TABLE "order" ADD COLUMN merchantProvider TEXT DEFAULT 'stripe';
@@ -1387,6 +1471,7 @@ ALTER TABLE product ADD COLUMN merchantProvider TEXT DEFAULT 'stripe';
 ### Order Table Updates
 
 **Before**:
+
 ```sql
 CREATE TABLE "order" (
   id TEXT PRIMARY KEY,
@@ -1397,6 +1482,7 @@ CREATE TABLE "order" (
 ```
 
 **After**:
+
 ```sql
 CREATE TABLE "order" (
   id TEXT PRIMARY KEY,
@@ -1410,6 +1496,7 @@ CREATE TABLE "order" (
 ### Product Table Updates
 
 **Before**:
+
 ```sql
 CREATE TABLE product (
   id TEXT PRIMARY KEY,
@@ -1420,6 +1507,7 @@ CREATE TABLE product (
 ```
 
 **After**:
+
 ```sql
 CREATE TABLE product (
   id TEXT PRIMARY KEY,
@@ -1436,6 +1524,7 @@ CREATE TABLE product (
 **Purpose**: Track processing fees charged by payment providers for revenue analytics.
 
 **Schema**:
+
 ```sql
 CREATE TABLE merchant_fee (
   id TEXT PRIMARY KEY DEFAULT ('mfee_' || generate_cuid()),
@@ -1473,32 +1562,42 @@ CREATE INDEX merchant_fee_created_at_idx ON merchant_fee(createdAt);
 ```
 
 **TypeScript Type**:
+
 ```typescript
 // src/db/schema.ts
-export const merchantFeeTable = sqliteTable("merchant_fee", {
-  ...commonColumns,
-  id: text().primaryKey().$defaultFn(() => `mfee_${createId()}`).notNull(),
-  orderId: text().notNull().references(() => orderTable.id, { onDelete: 'cascade' }),
-  merchantProvider: text({ length: 50 }).notNull(),
+export const merchantFeeTable = sqliteTable(
+  "merchant_fee",
+  {
+    ...commonColumns,
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => `mfee_${createId()}`)
+      .notNull(),
+    orderId: text()
+      .notNull()
+      .references(() => orderTable.id, { onDelete: "cascade" }),
+    merchantProvider: text({ length: 50 }).notNull(),
 
-  // Fee breakdown
-  orderAmount: integer().notNull(), // cents
-  percentageFee: integer().notNull(), // basis points
-  fixedFee: integer().notNull(), // cents
-  totalFee: integer().notNull(), // cents
+    // Fee breakdown
+    orderAmount: integer().notNull(), // cents
+    percentageFee: integer().notNull(), // basis points
+    fixedFee: integer().notNull(), // cents
+    totalFee: integer().notNull(), // cents
 
-  // Net revenue
-  netAmount: integer().notNull(), // cents
+    // Net revenue
+    netAmount: integer().notNull(), // cents
 
-  // Metadata
-  paymentIntentId: text({ length: 255 }),
-  calculatedAt: integer({ mode: "timestamp" }).notNull(),
-}, (table) => ([
-  index('merchant_fee_order_id_idx').on(table.orderId),
-  index('merchant_fee_merchant_provider_idx').on(table.merchantProvider),
-  index('merchant_fee_calculated_at_idx').on(table.calculatedAt),
-  index('merchant_fee_created_at_idx').on(table.createdAt),
-]));
+    // Metadata
+    paymentIntentId: text({ length: 255 }),
+    calculatedAt: integer({ mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("merchant_fee_order_id_idx").on(table.orderId),
+    index("merchant_fee_merchant_provider_idx").on(table.merchantProvider),
+    index("merchant_fee_calculated_at_idx").on(table.calculatedAt),
+    index("merchant_fee_created_at_idx").on(table.createdAt),
+  ]
+);
 
 export const merchantFeeRelations = relations(merchantFeeTable, ({ one }) => ({
   order: one(orderTable, {
@@ -1517,26 +1616,26 @@ export type MerchantFee = InferSelectModel<typeof merchantFeeTable>;
 
 export interface FeeConfig {
   percentageFee: number; // Basis points (e.g., 290 = 2.9%)
-  fixedFee: number;      // Cents (e.g., 30 = $0.30)
+  fixedFee: number; // Cents (e.g., 30 = $0.30)
 }
 
 export const PROVIDER_FEE_CONFIG: Record<MerchantProviderType, FeeConfig> = {
   stripe: {
     percentageFee: 290, // 2.9%
-    fixedFee: 30,       // $0.30
+    fixedFee: 30, // $0.30
   },
   square: {
     percentageFee: 290, // 2.9%
-    fixedFee: 30,       // $0.30
+    fixedFee: 30, // $0.30
   },
 };
 
 export interface FeeCalculationResult {
-  orderAmount: number;      // cents
-  percentageFee: number;    // basis points
-  fixedFee: number;         // cents
-  totalFee: number;         // cents
-  netAmount: number;        // cents
+  orderAmount: number; // cents
+  percentageFee: number; // basis points
+  fixedFee: number; // cents
+  totalFee: number; // cents
+  netAmount: number; // cents
 }
 
 /**
@@ -1553,7 +1652,9 @@ export function calculateMerchantFee({
   const config = PROVIDER_FEE_CONFIG[merchantProvider];
 
   // Calculate percentage fee (basis points to decimal)
-  const percentageFeeAmount = Math.round((orderAmount * config.percentageFee) / 10000);
+  const percentageFeeAmount = Math.round(
+    (orderAmount * config.percentageFee) / 10000
+  );
 
   // Total fee
   const totalFee = percentageFeeAmount + config.fixedFee;
@@ -1594,7 +1695,7 @@ Update the `WebhookResult` type to include fee information:
 export interface WebhookResult {
   processed: boolean;
   orderId?: string;
-  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus?: "pending" | "paid" | "failed" | "refunded";
 
   // NEW: Fee information
   feeInfo?: {
@@ -1616,9 +1717,11 @@ When an order is created via webhook, also create a merchant fee record:
 ```typescript
 // In StripeProvider.handleCheckoutCompleted or SquareProvider.handlePaymentEvent
 
-import { calculateMerchantFee } from '../fee-calculator';
+import { calculateMerchantFee } from "../fee-calculator";
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<WebhookResult> {
+async function handleCheckoutCompleted(
+  session: Stripe.Checkout.Session
+): Promise<WebhookResult> {
   const db = getDB();
 
   // ... existing order creation logic ...
@@ -1634,12 +1737,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   // Calculate and record merchant fee
   const feeCalculation = calculateMerchantFee({
     orderAmount: order.totalAmount,
-    merchantProvider: 'stripe',
+    merchantProvider: "stripe",
   });
 
   await db.insert(merchantFeeTable).values({
     orderId: order.id,
-    merchantProvider: 'stripe',
+    merchantProvider: "stripe",
     orderAmount: feeCalculation.orderAmount,
     percentageFee: feeCalculation.percentageFee,
     fixedFee: feeCalculation.fixedFee,
@@ -1652,7 +1755,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   return {
     processed: true,
     orderId: order.id,
-    paymentStatus: 'paid',
+    paymentStatus: "paid",
     feeInfo: feeCalculation,
   };
 }
@@ -1666,7 +1769,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
-import { orderTable, merchantFeeTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
+import {
+  orderTable,
+  merchantFeeTable,
+  ORDER_STATUS,
+  PAYMENT_STATUS,
+} from "@/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 
 const getRevenueStatsInputSchema = z.object({
@@ -1707,7 +1815,7 @@ export const getRevenueStatsAction = createServerAction()
           lte(orderTable.createdAt, input.endDate)
         )
       )
-      .then(rows => rows[0]);
+      .then((rows) => rows[0]);
 
     // Get provider breakdown
     const providerBreakdown = await db
@@ -1733,9 +1841,9 @@ export const getRevenueStatsAction = createServerAction()
     return {
       overview: {
         totalOrders: stats.totalOrders || 0,
-        grossRevenue: stats.grossRevenue || 0,      // Total charged to customers
-        totalFees: stats.totalFees || 0,            // Total fees paid to providers
-        netRevenue: stats.netRevenue || 0,          // Actual revenue after fees
+        grossRevenue: stats.grossRevenue || 0, // Total charged to customers
+        totalFees: stats.totalFees || 0, // Total fees paid to providers
+        netRevenue: stats.netRevenue || 0, // Actual revenue after fees
         avgOrderValue: stats.avgOrderValue || 0,
         avgFee: stats.avgFee || 0,
 
@@ -1743,14 +1851,16 @@ export const getRevenueStatsAction = createServerAction()
         stripeFees: stats.stripeFees || 0,
         squareFees: stats.squareFees || 0,
       },
-      byProvider: providerBreakdown.map(row => ({
+      byProvider: providerBreakdown.map((row) => ({
         provider: row.provider,
         orderCount: row.orderCount || 0,
         grossRevenue: row.grossRevenue || 0,
         totalFees: row.totalFees || 0,
         netRevenue: row.netRevenue || 0,
         avgFee: row.avgFee || 0,
-        feePercentage: row.grossRevenue ? ((row.totalFees / row.grossRevenue) * 100) : 0,
+        feePercentage: row.grossRevenue
+          ? (row.totalFees / row.grossRevenue) * 100
+          : 0,
       })),
     };
   });
@@ -1798,7 +1908,8 @@ export default async function StatsPage() {
               -{formatCurrency(stats.overview.totalFees)}
             </p>
             <p className="text-sm text-muted-foreground">
-              Stripe: {formatCurrency(stats.overview.stripeFees)}<br />
+              Stripe: {formatCurrency(stats.overview.stripeFees)}
+              <br />
               Square: {formatCurrency(stats.overview.squareFees)}
             </p>
           </CardContent>
@@ -1819,9 +1930,7 @@ export default async function StatsPage() {
         <Card>
           <CardHeader>Total Orders</CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {stats.overview.totalOrders}
-            </p>
+            <p className="text-3xl font-bold">{stats.overview.totalOrders}</p>
             <p className="text-sm text-muted-foreground">
               Avg: {formatCurrency(stats.overview.avgOrderValue)}
             </p>
@@ -1845,7 +1954,7 @@ export default async function StatsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {stats.byProvider.map(provider => (
+              {stats.byProvider.map((provider) => (
                 <TableRow key={provider.provider}>
                   <TableCell className="font-medium capitalize">
                     {provider.provider}
@@ -1973,10 +2082,11 @@ WHERE paymentStatus = 'paid'
 ### Unit Tests
 
 **Stripe Provider**:
+
 ```typescript
 // src/lib/merchant-provider/providers/__tests__/stripe.test.ts
 
-describe('StripeProvider', () => {
+describe("StripeProvider", () => {
   let provider: StripeProvider;
 
   beforeEach(async () => {
@@ -1984,30 +2094,30 @@ describe('StripeProvider', () => {
     await provider.initialize();
   });
 
-  describe('createCheckout', () => {
-    it('should create checkout session with correct line items', async () => {
+  describe("createCheckout", () => {
+    it("should create checkout session with correct line items", async () => {
       const result = await provider.createCheckout({
         lineItems: [
-          { productId: 'prod_123', name: 'Test', price: 2500, quantity: 1 },
+          { productId: "prod_123", name: "Test", price: 2500, quantity: 1 },
         ],
-        successUrl: 'https://example.com/success',
-        cancelUrl: 'https://example.com/cancel',
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel",
       });
 
       expect(result.sessionId).toBeDefined();
-      expect(result.url).toContain('checkout.stripe.com');
+      expect(result.url).toContain("checkout.stripe.com");
     });
   });
 
-  describe('verifyWebhook', () => {
-    it('should verify valid webhook signature', async () => {
+  describe("verifyWebhook", () => {
+    it("should verify valid webhook signature", async () => {
       const event = await provider.verifyWebhook(mockBody, mockSignature);
       expect(event.id).toBeDefined();
     });
 
-    it('should throw on invalid signature', async () => {
+    it("should throw on invalid signature", async () => {
       await expect(
-        provider.verifyWebhook(mockBody, 'invalid')
+        provider.verifyWebhook(mockBody, "invalid")
       ).rejects.toThrow();
     });
   });
@@ -2015,10 +2125,11 @@ describe('StripeProvider', () => {
 ```
 
 **Square Provider**:
+
 ```typescript
 // src/lib/merchant-provider/providers/__tests__/square.test.ts
 
-describe('SquareProvider', () => {
+describe("SquareProvider", () => {
   let provider: SquareProvider;
 
   beforeEach(async () => {
@@ -2026,25 +2137,25 @@ describe('SquareProvider', () => {
     await provider.initialize();
   });
 
-  describe('createCheckout', () => {
-    it('should create payment link with correct items', async () => {
+  describe("createCheckout", () => {
+    it("should create payment link with correct items", async () => {
       const result = await provider.createCheckout({
         lineItems: [
-          { productId: 'prod_123', name: 'Test', price: 2500, quantity: 1 },
+          { productId: "prod_123", name: "Test", price: 2500, quantity: 1 },
         ],
-        successUrl: 'https://example.com/success',
-        cancelUrl: 'https://example.com/cancel',
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel",
       });
 
       expect(result.sessionId).toBeDefined();
-      expect(result.url).toContain('square.link');
+      expect(result.url).toContain("square.link");
     });
   });
 
-  describe('createProduct', () => {
-    it('should handle BigInt amounts correctly', async () => {
+  describe("createProduct", () => {
+    it("should handle BigInt amounts correctly", async () => {
       const result = await provider.createProduct({
-        name: 'Test Product',
+        name: "Test Product",
         price: 2500,
       });
 
@@ -2057,17 +2168,18 @@ describe('SquareProvider', () => {
 ### Integration Tests
 
 **End-to-End Checkout Flow**:
+
 ```typescript
 // tests/integration/checkout.test.ts
 
-describe('Checkout Flow', () => {
-  it('should complete purchase with Stripe', async () => {
-    process.env.MERCHANT_PROVIDER = 'stripe';
+describe("Checkout Flow", () => {
+  it("should complete purchase with Stripe", async () => {
+    process.env.MERCHANT_PROVIDER = "stripe";
     // Test full checkout flow
   });
 
-  it('should complete purchase with Square', async () => {
-    process.env.MERCHANT_PROVIDER = 'square';
+  it("should complete purchase with Square", async () => {
+    process.env.MERCHANT_PROVIDER = "square";
     // Test full checkout flow
   });
 });
@@ -2076,6 +2188,7 @@ describe('Checkout Flow', () => {
 ### Manual Testing Checklist
 
 #### Stripe
+
 - [ ] Create checkout session
 - [ ] Complete payment
 - [ ] Receive webhook
@@ -2086,6 +2199,7 @@ describe('Checkout Flow', () => {
 - [ ] Refund payment
 
 #### Square
+
 - [ ] Create payment link
 - [ ] Complete payment
 - [ ] Receive webhook
@@ -2104,12 +2218,14 @@ describe('Checkout Flow', () => {
 **Trigger**: Critical failure, payment processing broken
 
 **Steps**:
+
 1. Set `MERCHANT_PROVIDER=stripe` in environment
 2. Restart application (or use feature flag)
 3. Verify Stripe payments working
 4. Investigate Square issue
 
 **Command**:
+
 ```bash
 # Update environment variable
 echo "MERCHANT_PROVIDER=stripe" >> .dev.vars
@@ -2123,6 +2239,7 @@ pnpm deploy
 **Trigger**: High error rate with Square
 
 **Steps**:
+
 1. Reduce `SQUARE_ROLLOUT_PERCENTAGE` to 0
 2. Monitor for 24 hours
 3. Fix issues
@@ -2133,6 +2250,7 @@ pnpm deploy
 **Trigger**: Data inconsistency
 
 **Steps**:
+
 1. Stop all payment processing
 2. Run data reconciliation script
 3. Fix inconsistencies
@@ -2142,11 +2260,13 @@ pnpm deploy
 ### Communication Plan
 
 **Internal**:
+
 - Slack alert: "#engineering-alerts"
 - Email: engineering@company.com
 - Incident ticket created
 
 **External** (if customer-facing):
+
 - Status page update
 - Support team notified
 - Email to affected customers (if necessary)
@@ -2158,34 +2278,38 @@ pnpm deploy
 ### Key Metrics
 
 **Payment Processing**:
+
 - Payment success rate (target: >98%)
 - Average transaction time (target: <3s)
 - Webhook processing time (target: <1s)
 - Checkout completion rate (target: >80%)
 
 **Errors**:
+
 - Payment failures by provider
 - Webhook verification failures
 - Timeout errors
 - Invalid signature errors
 
 **Business Metrics**:
+
 - Revenue by provider
 - Average order value by provider
 - Refund rate by provider
 
 ### Alert Thresholds
 
-| Metric | Warning | Critical |
-|--------|---------|----------|
-| Payment Success Rate | <95% | <90% |
-| Webhook Failures | >5/hour | >20/hour |
-| Transaction Time | >5s | >10s |
-| Error Rate | >1% | >5% |
+| Metric               | Warning | Critical |
+| -------------------- | ------- | -------- |
+| Payment Success Rate | <95%    | <90%     |
+| Webhook Failures     | >5/hour | >20/hour |
+| Transaction Time     | >5s     | >10s     |
+| Error Rate           | >1%     | >5%      |
 
 ### Monitoring Tools
 
 **Recommended**:
+
 - **Application**: Sentry, Datadog, New Relic
 - **Infrastructure**: Cloudflare Analytics
 - **Payments**: Stripe Dashboard, Square Dashboard
@@ -2196,16 +2320,19 @@ pnpm deploy
 ## Cost Analysis
 
 ### Stripe Pricing
+
 - **Card Payments**: 2.9% + $0.30 per transaction
 - **No monthly fees** (standard plan)
 
 ### Square Pricing
+
 - **Card Payments**: 2.9% + $0.30 per transaction (online)
 - **No monthly fees** (standard plan)
 
 ### Cost Comparison
 
 For **$10,000/month** revenue:
+
 - **Stripe**: ~$320 in fees
 - **Square**: ~$320 in fees
 
@@ -2214,11 +2341,13 @@ For **$10,000/month** revenue:
 ### Hidden Costs
 
 **Migration Costs**:
+
 - Development time: ~6 weeks
 - Testing: 1-2 weeks
 - Risk mitigation: Ongoing
 
 **Ongoing Costs**:
+
 - Maintenance of abstraction layer
 - Support for two providers (temporarily)
 
@@ -2245,6 +2374,7 @@ For **$10,000/month** revenue:
 ### Q: How to test both providers locally?
 
 **A**: Use environment variables:
+
 ```bash
 # Test Stripe
 MERCHANT_PROVIDER=stripe pnpm dev
@@ -2300,7 +2430,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Square
 SQUARE_ACCESS_TOKEN=sq0atp-...
-SQUARE_LOCATION_ID=L...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...
 SQUARE_ENVIRONMENT=sandbox|production
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 
@@ -2349,6 +2479,6 @@ echo $MERCHANT_PROVIDER
 
 **Document End**
 
-*Last Updated: 2025-10-22*
-*Authors: Engineering Team*
-*Status: Ready for Implementation*
+_Last Updated: 2025-10-22_
+_Authors: Engineering Team_
+_Status: Ready for Implementation_

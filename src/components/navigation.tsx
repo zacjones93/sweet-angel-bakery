@@ -5,28 +5,30 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { ComponentIcon, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { useSessionStore } from "@/state/session";
 import { cn } from "@/lib/utils";
 import { useNavStore } from "@/state/nav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME } from "@/constants";
 import { ROLES_ENUM } from "@/db/schema";
+import type { SessionValidationResult } from "@/types";
+import { useEffect } from "react";
 
 type NavItem = {
   name: string;
   href: Route;
 };
 
-const ActionButtons = () => {
-  const { session, isLoading } = useSessionStore();
+const ActionButtons = ({ currentSession, loading }: { currentSession: SessionValidationResult | null | undefined; loading: boolean }) => {
   const { setIsOpen } = useNavStore();
 
-  if (isLoading) {
+  if (loading) {
     return <Skeleton className="h-10 w-[80px] bg-primary" />;
   }
 
-  if (session) {
+  if (currentSession) {
     return null;
   }
 
@@ -37,17 +39,28 @@ const ActionButtons = () => {
   );
 };
 
-export function Navigation() {
-  const { session, isLoading } = useSessionStore();
+export function Navigation({ initialSession }: { initialSession?: SessionValidationResult }) {
+  const { session, isLoading, setSession } = useSessionStore();
   const { isOpen, setIsOpen } = useNavStore();
   const pathname = usePathname();
 
+  // Hydrate store with server-provided session on mount
+  useEffect(() => {
+    if (initialSession && !session && !isLoading) {
+      setSession(initialSession);
+    }
+  }, [initialSession, session, isLoading, setSession]);
+
+  // Use server session as fallback during initial load
+  const currentSession = session ?? initialSession;
+  const loading = isLoading && !initialSession;
+
   const navItems: NavItem[] = [
     { name: "Home", href: "/" },
-    ...(session
+    ...(currentSession
       ? ([
           { name: "Settings", href: "/settings" },
-          ...(session.user.role === ROLES_ENUM.ADMIN
+          ...(currentSession.user.role === ROLES_ENUM.ADMIN
             ? ([{ name: "Admin", href: "/admin" }] as NavItem[])
             : []),
         ] as NavItem[])
@@ -76,7 +89,7 @@ export function Navigation() {
           </div>
           <div className="hidden md:flex md:items-center md:space-x-6">
             <div className="flex items-baseline space-x-4">
-              {isLoading ? (
+              {loading ? (
                 <>
                   <Skeleton className="h-8 w-16" />
                   <Skeleton className="h-8 w-16" />
@@ -98,24 +111,27 @@ export function Navigation() {
                 ))
               )}
             </div>
-            <ActionButtons />
+            <ActionButtons currentSession={currentSession} loading={loading} />
           </div>
           <div className="md:hidden flex items-center">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="p-6">
-                  <Menu className="w-9 h-9" />
+                <Button variant="ghost" size="icon">
+                  <Menu className="w-6 h-6" />
                   <span className="sr-only">Open menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[240px] sm:w-[300px]">
-                <div className="mt-6 flow-root">
-                  <div className="space-y-2">
-                    {isLoading ? (
+              <SheetContent side="right" className="w-[280px] sm:w-[320px] px-6">
+                <VisuallyHidden>
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                </VisuallyHidden>
+                <div className="mt-8 flow-root">
+                  <div className="space-y-1">
+                    {loading ? (
                       <>
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-11 w-full" />
+                        <Skeleton className="h-11 w-full" />
+                        <Skeleton className="h-11 w-full" />
                       </>
                     ) : (
                       <>
@@ -124,16 +140,16 @@ export function Navigation() {
                             key={item.name}
                             href={item.href}
                             className={cn(
-                              "block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 no-underline transition-colors relative",
-                              isActiveLink(item.href) && "text-foreground"
+                              "block px-4 py-3 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 no-underline transition-colors rounded-md",
+                              isActiveLink(item.href) && "text-foreground bg-muted/50"
                             )}
                             onClick={() => setIsOpen(false)}
                           >
                             {item.name}
                           </Link>
                         ))}
-                        <div className="px-3 pt-4">
-                          <ActionButtons />
+                        <div className="pt-6">
+                          <ActionButtons currentSession={currentSession} loading={loading} />
                         </div>
                       </>
                     )}

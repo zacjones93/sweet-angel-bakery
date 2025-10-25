@@ -21,6 +21,17 @@ const commonColumns = {
   updateCounter: integer().default(0).$onUpdate(() => sql`updateCounter + 1`),
 }
 
+// For tables created with snake_case columns in migrations (e.g., 0019)
+const snakeCommonColumns = {
+  createdAt: integer('created_at', {
+    mode: "timestamp",
+  }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', {
+    mode: "timestamp",
+  }).$onUpdateFn(() => new Date()).notNull(),
+  updateCounter: integer('update_counter').default(0).$onUpdate(() => sql`update_counter + 1`),
+}
+
 export const userTable = sqliteTable("user", {
   ...commonColumns,
   id: text().primaryKey().$defaultFn(() => `usr_${createId()}`).notNull(),
@@ -242,15 +253,15 @@ export const ORDER_STATUS_COLORS: Record<keyof typeof ORDER_STATUS, string> = {
 
 // Delivery Schedule table - defines weekly delivery days, cutoffs, and lead times
 export const deliveryScheduleTable = sqliteTable("delivery_schedule", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `delsch_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(), // e.g., "Thursday Delivery", "Saturday Delivery"
-  dayOfWeek: integer().notNull(), // 0-6 (0=Sunday, 4=Thursday, 6=Saturday)
-  cutoffDay: integer().notNull(), // Day when orders stop being accepted (2=Tuesday)
-  cutoffTime: text({ length: 10 }).notNull(), // "23:59" format
-  leadTimeDays: integer().default(2).notNull(), // Minimum days before delivery (default 2 per requirements)
-  deliveryTimeWindow: text({ length: 100 }), // "9:00 AM - 5:00 PM"
-  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  dayOfWeek: integer('day_of_week').notNull(), // 0-6 (0=Sunday, 4=Thursday, 6=Saturday)
+  cutoffDay: integer('cutoff_day').notNull(), // Day when orders stop being accepted (2=Tuesday)
+  cutoffTime: text('cutoff_time', { length: 10 }).notNull(), // "23:59" format
+  leadTimeDays: integer('lead_time_days').default(2).notNull(), // Minimum days before delivery (default 2 per requirements)
+  deliveryTimeWindow: text('delivery_time_window', { length: 100 }), // "9:00 AM - 5:00 PM"
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
 }, (table) => ([
   index('delivery_schedule_day_of_week_idx').on(table.dayOfWeek),
   index('delivery_schedule_is_active_idx').on(table.isActive),
@@ -258,24 +269,24 @@ export const deliveryScheduleTable = sqliteTable("delivery_schedule", {
 
 // Delivery Calendar Closures - mark specific dates as unavailable for delivery/pickup
 export const deliveryCalendarClosureTable = sqliteTable("delivery_calendar_closure", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `delcl_${createId()}`).notNull(),
-  closureDate: text({ length: 20 }).notNull(), // ISO date "2024-12-25"
+  closureDate: text('closure_date', { length: 20 }).notNull(), // ISO date "2024-12-25"
   reason: text({ length: 500 }).notNull(), // "Christmas", "Vacation", "Emergency closure"
-  affectsDelivery: integer().default(1).notNull(), // If 1, no deliveries on this date
-  affectsPickup: integer().default(1).notNull(), // If 1, no pickups on this date
+  affectsDelivery: integer('affects_delivery').default(1).notNull(), // If 1, no deliveries on this date
+  affectsPickup: integer('affects_pickup').default(1).notNull(), // If 1, no pickups on this date
 }, (table) => ([
   index('delivery_closure_date_idx').on(table.closureDate),
 ]));
 
 // Delivery Zones - admin-configurable zones with ZIP codes and pricing
 export const deliveryZoneTable = sqliteTable("delivery_zone", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `delz_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(), // "Local Boise", "Extended Treasure Valley"
-  zipCodes: text({ length: 5000 }).notNull(), // JSON array ["83702", "83703", "83704"]
-  feeAmount: integer().notNull(), // In cents (500 = $5.00, 1000 = $10.00)
-  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  zipCodes: text('zip_codes', { length: 5000 }).notNull(), // JSON array ["83702", "83703", "83704"]
+  feeAmount: integer('fee_amount').notNull(), // In cents (500 = $5.00, 1000 = $10.00)
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
   priority: integer().default(0).notNull(), // Higher priority zones override lower (for overlapping ZIPs)
 }, (table) => ([
   index('delivery_zone_is_active_idx').on(table.isActive),
@@ -284,37 +295,37 @@ export const deliveryZoneTable = sqliteTable("delivery_zone", {
 
 // Pickup Locations - physical locations where customers can pick up orders (ALWAYS FREE)
 export const pickupLocationTable = sqliteTable("pickup_location", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `ploc_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(), // "Sweet Angel Bakery - Main Store"
   address: text({ length: 1000 }).notNull(), // JSON: { street, city, state, zip }
-  pickupDays: text({ length: 100 }).notNull(), // JSON array [4, 6] = Thursday/Saturday
-  pickupTimeWindows: text({ length: 255 }).notNull(), // "10:00 AM - 6:00 PM"
+  pickupDays: text('pickup_days', { length: 100 }).notNull(), // JSON array [4, 6] = Thursday/Saturday
+  pickupTimeWindows: text('pickup_time_windows', { length: 255 }).notNull(), // "10:00 AM - 6:00 PM"
   instructions: text({ length: 1000 }), // "Ring bell at entrance"
-  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
-  requiresPreorder: integer().default(0).notNull(), // Must order by cutoff
-  cutoffDay: integer(), // Day when orders stop (2=Tuesday)
-  cutoffTime: text({ length: 10 }), // "23:59"
-  leadTimeDays: integer().default(0).notNull(), // Minimum days before pickup
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
+  requiresPreorder: integer('requires_preorder').default(0).notNull(), // Must order by cutoff
+  cutoffDay: integer('cutoff_day'), // Day when orders stop (2=Tuesday)
+  cutoffTime: text('cutoff_time', { length: 10 }), // "23:59"
+  leadTimeDays: integer('lead_time_days').default(0).notNull(), // Minimum days before pickup
 }, (table) => ([
   index('pickup_location_is_active_idx').on(table.isActive),
 ]));
 
 // Delivery Fee Rules - configurable fee rules (order amount, product category, custom)
 export const deliveryFeeRuleTable = sqliteTable("delivery_fee_rule", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `dfeer_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(), // "Free Delivery Over $75"
-  ruleType: text({ length: 50 }).notNull(), // 'base' | 'zone' | 'order_amount' | 'product_category' | 'custom'
-  feeAmount: integer().notNull(), // In cents
-  isActive: integer().default(1).notNull(), // 1=active, 0=inactive
+  ruleType: text('rule_type', { length: 50 }).notNull(), // 'base' | 'zone' | 'order_amount' | 'product_category' | 'custom'
+  feeAmount: integer('fee_amount').notNull(), // In cents
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
   priority: integer().default(0).notNull(), // Higher priority rules override lower
 
   // Conditional fields
-  minimumOrderAmount: integer(), // cents - for order_amount type
-  freeDeliveryThreshold: integer(), // cents - free if order > this amount
-  deliveryZoneId: text().references(() => deliveryZoneTable.id), // For zone type
-  productCategoryIds: text({ length: 1000 }), // JSON array - for product_category type
+  minimumOrderAmount: integer('minimum_order_amount'), // cents - for order_amount type
+  freeDeliveryThreshold: integer('free_delivery_threshold'), // cents - free if order > this amount
+  deliveryZoneId: text('delivery_zone_id').references(() => deliveryZoneTable.id), // For zone type
+  productCategoryIds: text('product_category_ids', { length: 1000 }), // JSON array - for product_category type
 }, (table) => ([
   index('delivery_fee_rule_is_active_idx').on(table.isActive),
   index('delivery_fee_rule_priority_idx').on(table.priority),
@@ -323,15 +334,15 @@ export const deliveryFeeRuleTable = sqliteTable("delivery_fee_rule", {
 
 // Product Delivery Rules - per-product restrictions and requirements
 export const productDeliveryRulesTable = sqliteTable("product_delivery_rules", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `pdelr_${createId()}`).notNull(),
-  productId: text().notNull().references(() => productTable.id),
-  allowedDeliveryDays: text({ length: 100 }), // JSON array [4, 6] = Thursday/Saturday only
-  minimumLeadTimeDays: integer(), // Override global lead time
-  requiresSpecialHandling: integer().default(0).notNull(), // 1=requires special handling
-  deliveryNotes: text({ length: 1000 }), // Display to customer
-  allowPickup: integer().default(1).notNull(), // 1=allow pickup, 0=delivery only
-  allowDelivery: integer().default(1).notNull(), // 1=allow delivery, 0=pickup only
+  productId: text('product_id').notNull().references(() => productTable.id),
+  allowedDeliveryDays: text('allowed_delivery_days', { length: 100 }), // JSON array [4, 6] = Thursday/Saturday only
+  minimumLeadTimeDays: integer('minimum_lead_time_days'), // Override global lead time
+  requiresSpecialHandling: integer('requires_special_handling').default(0).notNull(), // 1=requires special handling
+  deliveryNotes: text('delivery_notes', { length: 1000 }), // Display to customer
+  allowPickup: integer('allow_pickup').default(1).notNull(), // 1=allow pickup, 0=delivery only
+  allowDelivery: integer('allow_delivery').default(1).notNull(), // 1=allow delivery, 0=pickup only
 }, (table) => ([
   index('product_delivery_rules_product_id_idx').on(table.productId),
 ]));
@@ -366,23 +377,23 @@ export const orderTable = sqliteTable("order", {
   notes: text({ length: 2000 }),
 
   // New fulfillment fields (as per delivery system PRD)
-  fulfillmentMethod: text({ length: 50 }), // 'delivery' | 'pickup'
+  fulfillmentMethod: text('fulfillment_method', { length: 50 }), // 'delivery' | 'pickup'
 
   // Delivery fields (if fulfillmentMethod === 'delivery')
-  deliveryDate: text({ length: 20 }), // ISO date string "2024-10-26"
-  deliveryTimeWindow: text({ length: 100 }), // "9:00 AM - 2:00 PM"
-  deliveryAddressJson: text({ length: 1000 }), // JSON: { street, city, state, zip }
-  deliveryInstructions: text({ length: 1000 }), // Customer instructions
-  deliveryFee: integer(), // In cents
-  deliveryZoneId: text().references(() => deliveryZoneTable.id), // Zone used for delivery
-  deliveryStatus: text({ length: 50 }), // pending, confirmed, preparing, out_for_delivery, delivered
+  deliveryDate: text('delivery_date', { length: 20 }), // ISO date string "2024-10-26"
+  deliveryTimeWindow: text('delivery_time_window', { length: 100 }), // "9:00 AM - 2:00 PM"
+  deliveryAddressJson: text('delivery_address_json', { length: 1000 }), // JSON: { street, city, state, zip }
+  deliveryInstructions: text('delivery_instructions', { length: 1000 }), // Customer instructions
+  deliveryFee: integer('delivery_fee'), // In cents
+  deliveryZoneId: text('delivery_zone_id').references(() => deliveryZoneTable.id), // Zone used for delivery
+  deliveryStatus: text('delivery_status', { length: 50 }), // pending, confirmed, preparing, out_for_delivery, delivered
 
   // Pickup fields (if fulfillmentMethod === 'pickup')
-  pickupLocationId: text().references(() => pickupLocationTable.id),
-  pickupDate: text({ length: 20 }), // ISO date string "2024-10-26"
-  pickupTimeWindow: text({ length: 100 }), // "9:00 AM - 6:00 PM"
-  pickupStatus: text({ length: 50 }), // pending, confirmed, preparing, ready_for_pickup, picked_up
-  pickupInstructions: text({ length: 1000 }), // Customer instructions
+  pickupLocationId: text('pickup_location_id').references(() => pickupLocationTable.id),
+  pickupDate: text('pickup_date', { length: 20 }), // ISO date string "2024-10-26"
+  pickupTimeWindow: text('pickup_time_window', { length: 100 }), // "9:00 AM - 6:00 PM"
+  pickupStatus: text('pickup_status', { length: 50 }), // pending, confirmed, preparing, ready_for_pickup, picked_up
+  pickupInstructions: text('pickup_instructions', { length: 1000 }), // Customer instructions
 }, (table) => ([
   index('order_user_id_idx').on(table.userId),
   index('order_payment_status_idx').on(table.paymentStatus),

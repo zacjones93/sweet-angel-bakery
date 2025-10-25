@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createServerAction } from "zsa";
 import { getDB } from "@/db";
-import { userTable } from "@/db/schema";
+import { userTable, orderTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createMagicLinkToken } from "@/utils/auth";
 import { sendMagicLinkEmail } from "@/utils/email";
@@ -14,6 +14,7 @@ const createUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
+  orderId: z.string().optional(), // Order ID to link after signup
   notificationPreferences: z.object({
     emailNewFlavors: z.boolean().default(true),
     emailDrops: z.boolean().default(true),
@@ -65,10 +66,32 @@ export const createUserAction = createServerAction()
       throw new Error("KV namespace not available");
     }
 
+    // If orderId is provided, link the order to the new user
+    if (input.orderId) {
+      // Verify the order exists and matches the email
+      const [order] = await db
+        .select()
+        .from(orderTable)
+        .where(eq(orderTable.id, input.orderId))
+        .limit(1);
+
+      if (order && order.customerEmail.toLowerCase() === user.email!.toLowerCase()) {
+        // Link the order to the user
+        await db
+          .update(orderTable)
+          .set({ userId: user.id })
+          .where(eq(orderTable.id, input.orderId));
+      }
+    }
+
     // Generate magic link token to log them in
+    // If orderId is provided, include it in the callback to redirect to order page
+    const callback = input.orderId ? `/profile/orders/${input.orderId}` : undefined;
+
     const token = await createMagicLinkToken({
       email: user.email!,
       kv: env.NEXT_INC_CACHE_KV,
+      callback,
     });
 
     // Send welcome email with login link

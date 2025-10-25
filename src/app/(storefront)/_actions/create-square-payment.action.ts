@@ -38,8 +38,11 @@ const createSquarePaymentInputSchema = z.object({
   fulfillmentMethod: z.enum(["delivery", "pickup"]).optional(),
   deliveryFee: z.number().int().nonnegative().optional(),
   deliveryDate: z.string().optional(),
+  deliveryZoneId: z.string().optional(),
+  deliveryTimeWindow: z.string().optional(),
   pickupLocationId: z.string().optional(),
   pickupDate: z.string().optional(),
+  pickupTimeWindow: z.string().optional(),
 });
 
 export const createSquarePaymentAction = createServerAction()
@@ -129,7 +132,7 @@ export const createSquarePaymentAction = createServerAction()
       throw new Error("Payment failed or incomplete");
     }
 
-    // Build delivery address
+    // Build delivery address (both legacy string and new JSON formats)
     const deliveryAddress = input.streetAddress1
       ? [
         input.streetAddress1,
@@ -138,6 +141,16 @@ export const createSquarePaymentAction = createServerAction()
       ]
         .filter(Boolean)
         .join(", ")
+      : null;
+
+    const deliveryAddressJson = input.streetAddress1
+      ? JSON.stringify({
+        street: input.streetAddress1,
+        street2: input.streetAddress2 || null,
+        city: input.city || null,
+        state: input.state || null,
+        zip: input.zipCode || null,
+      })
       : null;
 
     // Create order in database
@@ -157,17 +170,18 @@ export const createSquarePaymentAction = createServerAction()
         stripePaymentIntentId: payment.id,
         userId: input.userId || null,
         deliveryAddress,
-        fulfillmentType: input.fulfillmentMethod || (deliveryAddress ? "delivery" : null),
+        deliveryAddressJson,
+        // Fulfillment method
+        fulfillmentMethod: input.fulfillmentMethod || null,
         // Delivery fields
-        ...(input.fulfillmentMethod === "delivery" ? {
-          deliveryDate: input.deliveryDate,
-          deliveryFee: deliveryFee,
-        } : {}),
+        deliveryDate: input.deliveryDate || null,
+        deliveryFee: deliveryFee || null,
+        deliveryZoneId: input.deliveryZoneId || null,
+        deliveryTimeWindow: input.deliveryTimeWindow || null,
         // Pickup fields
-        ...(input.fulfillmentMethod === "pickup" ? {
-          pickupLocationId: input.pickupLocationId,
-          pickupDate: input.pickupDate,
-        } : {}),
+        pickupLocationId: input.pickupLocationId || null,
+        pickupDate: input.pickupDate || null,
+        pickupTimeWindow: input.pickupTimeWindow || null,
       })
       .returning();
 

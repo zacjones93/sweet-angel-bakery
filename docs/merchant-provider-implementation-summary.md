@@ -13,6 +13,7 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 ### 1. Merchant Provider Abstraction Layer
 
 **Files Created:**
+
 - `src/lib/merchant-provider/types.ts` - Core interfaces and types
 - `src/lib/merchant-provider/factory.ts` - Provider factory with dynamic loading
 - `src/lib/merchant-provider/fee-calculator.ts` - Fee calculation utilities
@@ -20,6 +21,7 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 - `src/lib/merchant-provider/providers/square.ts` - Square implementation
 
 **Key Features:**
+
 - Single `IMerchantProvider` interface for all payment operations
 - Environment-based provider selection via `MERCHANT_PROVIDER` env var
 - Full implementation of checkout, webhooks, products, refunds, and payments
@@ -30,6 +32,7 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 **Migration**: `0018_add_merchant_provider_abstraction.sql`
 
 **Changes:**
+
 - Added `merchantProvider` field to `product` table
 - Added `merchantProductId` and `merchantPriceId` fields (provider-agnostic)
 - Added `merchantProvider` and `paymentIntentId` fields to `order` table
@@ -40,6 +43,7 @@ Successfully implemented a merchant provider abstraction layer that enables swit
   - Automatic backfill of historical fees
 
 **Indexes Created:**
+
 - `order_payment_intent_id_idx`
 - `order_merchant_provider_idx`
 - `merchant_fee_order_id_idx`
@@ -50,16 +54,19 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 ### 3. Updated Application Code
 
 **Checkout Action** (`src/app/(storefront)/_actions/create-checkout-session.action.ts`):
+
 - Migrated from direct Stripe calls to `getMerchantProvider()`
 - Simplified line item building using `CheckoutLineItem` interface
 - Provider-agnostic metadata handling
 
 **Webhook Handler** (`src/app/api/webhooks/stripe/route.ts`):
+
 - Reduced from ~374 lines to ~58 lines (84% reduction)
 - All webhook logic moved to provider implementations
 - Cleaner, more maintainable code
 
 **Provider Implementations:**
+
 - Stripe provider handles all existing Stripe functionality
 - Square provider ready for testing (requires credentials)
 - Both providers create merchant fee records automatically
@@ -67,10 +74,12 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 ### 4. Revenue Analytics
 
 **Files Created:**
+
 - `src/app/(admin)/admin/revenue/_actions/revenue-stats.action.ts`
 - `src/app/(admin)/admin/revenue/page.tsx`
 
 **Features:**
+
 - Gross revenue tracking (total charged to customers)
 - Processing fee tracking by provider
 - Net revenue calculation (gross - fees)
@@ -79,6 +88,7 @@ Successfully implemented a merchant provider abstraction layer that enables swit
 - Average order value and fee metrics
 
 **UI Components:**
+
 - Overview cards showing key metrics
 - Provider breakdown table
 - Currency formatting
@@ -107,7 +117,7 @@ MERCHANT_PROVIDER=square  # or 'stripe'
 
 # Square credentials
 SQUARE_ACCESS_TOKEN=sq0atp-...
-SQUARE_LOCATION_ID=L...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...
 SQUARE_ENVIRONMENT=sandbox  # or 'production'
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ```
@@ -121,10 +131,12 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ## Code Quality Improvements
 
 1. **Reduced Complexity**:
+
    - Webhook handler: 374 → 58 lines (84% reduction)
    - Separation of concerns (provider logic isolated)
 
 2. **Type Safety**:
+
    - Full TypeScript interfaces for all operations
    - Type-safe fee calculations
    - Proper error handling
@@ -137,11 +149,13 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ## Testing Notes
 
 ### Stripe Provider
+
 - ✅ Existing Stripe integration continues to work
 - ✅ Fee tracking automated in webhook handler
 - ✅ Backward compatible with existing orders
 
 ### Square Provider
+
 - ⚠️ Requires Square credentials for testing
 - ⚠️ Webhook endpoint needs configuration
 - ⚠️ Product sync script not yet implemented
@@ -151,6 +165,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 The following items from the original plan were not implemented but are documented for future work:
 
 ### Phase 6: Migration Execution (Week 5)
+
 - [ ] Create production Square account
 - [ ] Sync products to Square
 - [ ] Configure Square webhooks
@@ -158,6 +173,7 @@ The following items from the original plan were not implemented but are document
 - [ ] Monitor error rates
 
 ### Additional Enhancements
+
 - [ ] Square product sync script (`scripts/sync-square.mjs`)
 - [ ] Square webhook route (`src/app/api/webhooks/square/route.ts`)
 - [ ] Unit tests for providers
@@ -170,6 +186,7 @@ The following items from the original plan were not implemented but are document
 ## Environment Variables Reference
 
 ### Required (Current Setup - Stripe)
+
 ```bash
 MERCHANT_PROVIDER=stripe
 STRIPE_SECRET_KEY=sk_...
@@ -177,10 +194,11 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 ### For Square Migration
+
 ```bash
 MERCHANT_PROVIDER=square
 SQUARE_ACCESS_TOKEN=sq0atp-...
-SQUARE_LOCATION_ID=L...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...
 SQUARE_ENVIRONMENT=sandbox
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ```
@@ -190,6 +208,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Accessing Revenue Stats
 
 Navigate to `/admin/revenue` to view:
+
 - Current month's gross revenue
 - Processing fees broken down by provider
 - Net revenue after fees
@@ -218,12 +237,12 @@ Fees are automatically calculated and stored when orders are created via webhook
 // Happens automatically in provider.handleWebhook()
 const feeCalculation = calculateMerchantFee({
   orderAmount: order.totalAmount,
-  merchantProvider: 'stripe', // or 'square'
+  merchantProvider: "stripe", // or 'square'
 });
 
 await db.insert(merchantFeeTable).values({
   orderId: order.id,
-  merchantProvider: 'stripe',
+  merchantProvider: "stripe",
   orderAmount: feeCalculation.orderAmount,
   totalFee: feeCalculation.totalFee,
   netAmount: feeCalculation.netAmount,
@@ -234,6 +253,7 @@ await db.insert(merchantFeeTable).values({
 ## Files Modified
 
 ### New Files (10)
+
 1. `src/lib/merchant-provider/types.ts`
 2. `src/lib/merchant-provider/factory.ts`
 3. `src/lib/merchant-provider/fee-calculator.ts`
@@ -246,11 +266,13 @@ await db.insert(merchantFeeTable).values({
 10. `docs/merchant-provider-migration.md` (updated)
 
 ### Modified Files (3)
+
 1. `src/db/schema.ts` - Added merchant provider fields and merchant_fee table
 2. `src/app/(storefront)/_actions/create-checkout-session.action.ts` - Use abstraction
 3. `src/app/api/webhooks/stripe/route.ts` - Simplified to use provider
 
 ### Dependencies Added (1)
+
 - `square@43.1.1` - Square SDK for future Square integration
 
 ## Benefits Achieved
@@ -273,6 +295,7 @@ await db.insert(merchantFeeTable).values({
 ## Conclusion
 
 Successfully implemented a production-ready merchant provider abstraction layer that:
+
 - Maintains current Stripe functionality
 - Enables future Square migration
 - Tracks processing fees for accurate revenue reporting

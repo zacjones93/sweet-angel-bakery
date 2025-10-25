@@ -13,7 +13,7 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import {
   Card,
@@ -24,165 +24,47 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { getStripe } from "@/lib/stripe";
 import Link from "next/link";
-import { LoyaltySignupCTA } from "./_components/loyalty-signup-cta";
+import { OrderTrackingCTA } from "./_components/order-tracking-cta";
+import { getSessionFromCookie } from "@/utils/auth";
 
 // Disable caching - always fetch fresh order data
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type Props = {
-  searchParams: Promise<{ session_id?: string; provider?: string }>;
+  searchParams: Promise<{
+    session_id?: string;
+    provider?: string;
+    order?: string; // Square direct payment order number
+  }>;
 };
 
-async function getOrderFromSession(sessionId: string, provider?: string) {
-  // For Square, we don't have a session ID - show generic success message
-  if (provider === "square" || sessionId === "{CHECKOUT_SESSION_ID}") {
-    return {
-      session: null,
-      order: null,
-      items: [],
-      totalAmount: 0,
-      isLoyaltyMember: false,
-      isSquare: true,
-    };
-  }
+async function getOrderFromSession(
+  sessionId: string,
+  provider?: string,
+  orderNumber?: string
+) {
+  const db = getDB();
 
-  const stripe = await getStripe();
-
-  try {
-    // Get session from Stripe - this is the authoritative source for payment status
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    if (!session.payment_intent) {
-      return null;
-    }
-
-    // Find order by payment intent - may not exist yet if webhook hasn't processed
-    const db = getDB();
+  // For Square direct payment with order number
+  if (orderNumber) {
+    // Find order by order number (last 8 chars of order ID)
     const [order] = await db
       .select()
       .from(orderTable)
       .where(
-        eq(orderTable.stripePaymentIntentId, session.payment_intent as string)
+        sql`UPPER(SUBSTR(${
+          orderTable.id
+        }, 5, 8)) = ${orderNumber.toUpperCase()}`
       )
       .limit(1);
 
-    // Check if customer is already a user
-    const customerEmail =
-      order?.customerEmail ||
-      session.customer_details?.email ||
-      session.customer_email;
-    let isLoyaltyMember = false;
-
-    if (customerEmail) {
-      const [existingUser] = await db
-        .select()
-        .from(userTable)
-        .where(eq(userTable.email, customerEmail.toLowerCase()))
-        .limit(1);
-
-      isLoyaltyMember = !!existingUser;
-    }
-
     if (!order) {
-      // Order not created yet by webhook, retrieve line items from Stripe
-      const lineItems = await stripe.checkout.sessions.listLineItems(
-        sessionId,
-        {
-          expand: ["data.price.product"],
-        }
-      );
-
-      // Get all products from DB to match against
-      const db = getDB();
-      const allProducts = await db.select().from(productTable);
-
-      // Build a map of Stripe price IDs to products
-      const stripePriceMap = new Map<
-        string,
-        { product: (typeof allProducts)[0]; variantLabel?: string }
-      >();
-
-      for (const product of allProducts) {
-        // Add main product price
-        if (product.stripePriceId) {
-          stripePriceMap.set(product.stripePriceId, { product });
-        }
-
-        // Add variant prices
-        if (product.customizations) {
-          try {
-            const customizations = JSON.parse(product.customizations);
-            if (customizations?.type === "size_variants") {
-              for (const variant of customizations.variants) {
-                if (variant.stripePriceId) {
-                  stripePriceMap.set(variant.stripePriceId, {
-                    product,
-                    variantLabel: variant.label,
-                  });
-                }
-              }
-            }
-          } catch (e) {
-            console.error("Error parsing customizations:", e);
-          }
-        }
-      }
-
-      // Process line items
-      const items = [];
-      for (const lineItem of lineItems.data) {
-        let productInfo = lineItem.price?.id
-          ? stripePriceMap.get(lineItem.price.id)
-          : undefined;
-
-        // If not found by price ID, check for product metadata (ad-hoc prices)
-        if (!productInfo && lineItem.price?.product) {
-          const stripeProduct = lineItem.price.product;
-          if (
-            typeof stripeProduct === "object" &&
-            "metadata" in stripeProduct &&
-            stripeProduct.metadata?.productId
-          ) {
-            const productId = stripeProduct.metadata.productId;
-            const product = allProducts.find((p) => p.id === productId);
-            if (product) {
-              productInfo = { product };
-            }
-          }
-        }
-
-        if (!productInfo) {
-          // Skip non-product items (like tax)
-          continue;
-        }
-
-        const { product, variantLabel } = productInfo;
-        const productName = variantLabel
-          ? `${product.name} - ${variantLabel}`
-          : product.name;
-
-        items.push({
-          id: `temp-${product.id}-${lineItem.price?.id || Math.random()}`,
-          quantity: lineItem.quantity || 1,
-          priceAtPurchase: lineItem.price?.unit_amount || product.price,
-          productName,
-          productImage: product.imageUrl,
-        });
-      }
-
-      return {
-        session,
-        order: null,
-        items,
-        totalAmount: session.amount_total || 0,
-        isLoyaltyMember,
-      };
+      return null;
     }
 
-    // Get order items with product details
+    // Get order items
     const items = await db
       .select({
         id: orderItemTable.id,
@@ -195,30 +77,115 @@ async function getOrderFromSession(sessionId: string, provider?: string) {
       .innerJoin(productTable, eq(orderItemTable.productId, productTable.id))
       .where(eq(orderItemTable.orderId, order.id));
 
+    // Check if customer is a loyalty member
+    let isLoyaltyMember = false;
+    if (order.customerEmail) {
+      const [existingUser] = await db
+        .select()
+        .from(userTable)
+        .where(eq(userTable.email, order.customerEmail.toLowerCase()))
+        .limit(1);
+      isLoyaltyMember = !!existingUser;
+    }
+
     return {
-      session,
       order,
       items,
       totalAmount: order.totalAmount,
       isLoyaltyMember,
     };
-  } catch (error) {
-    console.error("Error fetching order:", error);
-    return null;
   }
+
+  // For Square webhook-based flow, fetch the most recent order
+  // Try to find order by looking for recent Square orders
+  // Since Square webhooks are async, we might need to wait a bit
+  const [order] = await db
+    .select()
+    .from(orderTable)
+    .where(eq(orderTable.merchantProvider, "square"))
+    .orderBy(sql`${orderTable.createdAt} DESC`)
+    .limit(1);
+
+  if (!order) {
+    // Order hasn't been created by webhook yet
+    return {
+      order: null,
+      items: [],
+      totalAmount: 0,
+      isLoyaltyMember: false,
+    };
+  }
+
+  // Get order items
+  const items = await db
+    .select({
+      id: orderItemTable.id,
+      quantity: orderItemTable.quantity,
+      priceAtPurchase: orderItemTable.priceAtPurchase,
+      productName: productTable.name,
+      productImage: productTable.imageUrl,
+    })
+    .from(orderItemTable)
+    .innerJoin(productTable, eq(orderItemTable.productId, productTable.id))
+    .where(eq(orderItemTable.orderId, order.id));
+
+  // Check if customer is a loyalty member
+  let isLoyaltyMember = false;
+  if (order.customerEmail) {
+    const [existingUser] = await db
+      .select()
+      .from(userTable)
+      .where(eq(userTable.email, order.customerEmail.toLowerCase()))
+      .limit(1);
+    isLoyaltyMember = !!existingUser;
+  }
+
+  return {
+    order,
+    items,
+    totalAmount: order.totalAmount,
+    isLoyaltyMember,
+  };
 }
 
-async function OrderDetails({ sessionId, provider }: { sessionId: string; provider?: string }) {
-  const data = await getOrderFromSession(sessionId, provider);
+async function OrderDetails({
+  sessionId,
+  provider,
+  orderNumber,
+}: {
+  sessionId: string;
+  provider?: string;
+  orderNumber?: string;
+}) {
+  const data = await getOrderFromSession(sessionId, provider, orderNumber);
 
   if (!data) {
     notFound();
   }
 
-  const { session, order, items, totalAmount, isLoyaltyMember, isSquare } = data as typeof data & { isSquare?: boolean };
+  const { order, items, totalAmount, isLoyaltyMember } = data;
 
-  // For Square payments, show simplified success page
-  if (isSquare) {
+  // Check if user is currently logged in
+  const currentSession = await getSessionFromCookie();
+  const isLoggedIn = !!currentSession;
+
+  // If user is logged in and order exists and order has no userId, link it automatically
+  if (
+    isLoggedIn &&
+    order &&
+    !order.userId &&
+    currentSession.user.email?.toLowerCase() ===
+      order.customerEmail.toLowerCase()
+  ) {
+    const db = getDB();
+    await db
+      .update(orderTable)
+      .set({ userId: currentSession.user.id })
+      .where(eq(orderTable.id, order.id));
+  }
+
+  // If order not created yet, show loading/generic message
+  if (!order) {
     return (
       <div className="container mx-auto max-w-2xl py-12 px-4">
         <div className="text-center mb-8">
@@ -227,32 +194,33 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
           </div>
           <h1 className="text-3xl font-bold mb-2">Thank You for Your Order!</h1>
           <p className="text-muted-foreground">
-            Your payment was successful. We&apos;ll send a confirmation email shortly.
+            Your payment was successful. We&apos;re processing your order now.
           </p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Order Confirmation</CardTitle>
-            <CardDescription>
-              Your order is being processed
-            </CardDescription>
+            <CardDescription>Your order is being processed</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center py-8 text-muted-foreground">
-              <p className="text-lg mb-2">🎉 Payment Complete!</p>
-              <p>You should receive a confirmation email shortly.</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+              <p className="text-lg mb-2">Processing your order...</p>
+              <p>This usually takes just a few seconds.</p>
               <p className="mt-4 text-sm">
-                Check your email for order details and pickup information.
+                The page will automatically refresh to show your order details.
               </p>
             </div>
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `setTimeout(() => window.location.reload(), 3000);`,
+              }}
+            />
           </CardContent>
         </Card>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            Your order will be ready for pickup soon. We&apos;ll notify you when it&apos;s ready.
-          </p>
           <Link
             href="/"
             className="text-sm font-medium text-primary hover:underline"
@@ -264,7 +232,7 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
     );
   }
 
-  // Get payment status from DB order if available, otherwise fall back to Stripe session
+  // Get payment status from DB order
   // Find status key by comparing against raw status values (not labels)
   const paymentStatusKey = order
     ? (Object.entries(PAYMENT_STATUS_LABELS).find(
@@ -272,11 +240,9 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
           PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] ===
           order.paymentStatus
       )?.[0] as keyof typeof PAYMENT_STATUS_LABELS | undefined)
-    : session.payment_status === "paid"
-    ? "PAID"
     : "PENDING";
 
-  // Get order status from DB order if available
+  // Get order status from DB order
   const statusKey = order
     ? (Object.entries(ORDER_STATUS_LABELS).find(
         ([key]) =>
@@ -284,14 +250,9 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
       )?.[0] as keyof typeof ORDER_STATUS_LABELS | undefined)
     : "PENDING";
 
-  // Use session customer details as fallback
-  const customerEmail =
-    order?.customerEmail ||
-    session.customer_details?.email ||
-    session.customer_email ||
-    "";
-  const customerName =
-    order?.customerName || session.customer_details?.name || "Guest";
+  // Get customer details from order
+  const customerEmail = order?.customerEmail || "";
+  const customerName = order?.customerName || "Guest";
   const orderId = order?.id || "Processing...";
 
   return (
@@ -396,9 +357,30 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
 
               <Separator />
 
-              <div className="flex justify-between items-center text-lg font-bold">
-                <span>Total</span>
-                <span>${(totalAmount / 100).toFixed(2)}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${((order?.subtotal || 0) / 100).toFixed(2)}</span>
+                </div>
+                {order?.deliveryFee !== null &&
+                  order?.deliveryFee !== undefined &&
+                  order.deliveryFee > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        Delivery Fee
+                      </span>
+                      <span>${(order.deliveryFee / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Tax (6%)</span>
+                  <span>${((order?.tax || 0) / 100).toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center text-lg font-bold">
+                  <span>Total</span>
+                  <span>${(totalAmount / 100).toFixed(2)}</span>
+                </div>
               </div>
             </>
           )}
@@ -415,12 +397,33 @@ async function OrderDetails({ sessionId, provider }: { sessionId: string; provid
         </CardContent>
       </Card>
 
-      {!isLoyaltyMember && customerEmail && (
+      {!isLoggedIn && customerEmail && order && (
         <div className="mt-6">
-          <LoyaltySignupCTA
+          <OrderTrackingCTA
+            orderId={order.id}
             customerEmail={customerEmail}
-            customerName={customerName}
+            emailExistsInDatabase={isLoyaltyMember}
           />
+        </div>
+      )}
+
+      {isLoggedIn && order && (
+        <div className="mt-6">
+          <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  ✓ This order is now linked to your account
+                </p>
+                <Link
+                  href={`/profile/orders/${order.id}`}
+                  className="text-sm text-green-700 dark:text-green-300 hover:underline mt-2 inline-block"
+                >
+                  View in Order History →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -455,8 +458,22 @@ export default async function PurchaseThanksPage({ searchParams }: Props) {
   const params = await searchParams;
   const sessionId = params.session_id;
   const provider = params.provider;
+  const orderNumber = params.order;
 
-  // For Square, we don't require session ID
+  // For Square direct payment with order number
+  if (orderNumber) {
+    return (
+      <Suspense fallback={<LoadingState />}>
+        <OrderDetails
+          sessionId=""
+          provider="square"
+          orderNumber={orderNumber}
+        />
+      </Suspense>
+    );
+  }
+
+  // For Square webhook-based flow
   if (provider === "square") {
     return (
       <Suspense fallback={<LoadingState />}>

@@ -18,10 +18,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const searchParams = useSearchParams();
+  const emailParam = searchParams.get("email");
   const callback = searchParams.get("callback");
+
+  const [email, setEmail] = useState(emailParam || "");
+  const [submitted, setSubmitted] = useState(false);
 
   const { execute, isPending, error } = useServerAction(requestMagicLinkAction);
 

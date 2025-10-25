@@ -8,6 +8,12 @@ export async function POST(req: NextRequest) {
   const headersList = await headers();
   const signature = headersList.get("x-square-hmacsha256-signature");
 
+  console.log("[Square Webhook] Incoming request:");
+  console.log("  - All headers:", Object.fromEntries(headersList.entries()));
+  console.log("  - Request URL:", req.url);
+  console.log("  - Origin:", req.nextUrl.origin);
+  console.log("  - Pathname:", req.nextUrl.pathname);
+
   if (!signature) {
     return NextResponse.json(
       { error: "Missing x-square-hmacsha256-signature header" },
@@ -44,8 +50,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get the full webhook URL for signature verification
+    // Square calculates signature from: notification_url + request_body
+    // IMPORTANT: Must match exactly what's configured in Square Dashboard
+
+    // Use x-forwarded-host if available (for ngrok/proxies)
+    const forwardedHost = headersList.get("x-forwarded-host");
+    const forwardedProto = headersList.get("x-forwarded-proto") || "https";
+
+    const webhookUrl = forwardedHost
+      ? `${forwardedProto}://${forwardedHost}${req.nextUrl.pathname}`
+      : `${req.nextUrl.origin}${req.nextUrl.pathname}`;
+
+    console.log("[Square Webhook] Constructed webhook URL:", webhookUrl);
+
     // Verify webhook signature and parse event
-    const event = await provider.verifyWebhook(body, signature);
+    const event = await provider.verifyWebhook(body, signature, webhookUrl);
 
     console.log(`[Square Webhook] Handling ${event.type} event (ID: ${event.id})`);
 

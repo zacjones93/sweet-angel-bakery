@@ -9,7 +9,7 @@ export interface SizeVariant {
   name: string; // e.g., "6 inch", "9 inch", "12 inch"
   description?: string; // e.g., "Serves 6-8 people"
   priceInCents: number;
-  stripePriceId?: string; // Stripe price ID for this variant
+  squareVariationId?: string; // Square variation ID for this variant
   isDefault?: boolean; // Mark one variant as default
   quantityAvailable: number; // Inventory for this specific variant
 }

@@ -7,6 +7,7 @@ export const sizeVariantSchema = z.object({
   description: z.string().optional(),
   priceInCents: z.number().int().min(0, "Price must be non-negative"),
   stripePriceId: z.string().optional(),
+  squareVariationId: z.string().optional(),
   isDefault: z.boolean().optional(),
   quantityAvailable: z.number().int().min(0, "Quantity must be non-negative"),
 });

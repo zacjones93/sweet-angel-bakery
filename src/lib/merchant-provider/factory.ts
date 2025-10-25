@@ -7,14 +7,9 @@ export async function getMerchantProvider(): Promise<IMerchantProvider> {
 	if (providerInstance) return providerInstance;
 
 	const providerType = (process.env.MERCHANT_PROVIDER ||
-		"stripe") as MerchantProviderType;
+		"square") as MerchantProviderType;
 
 	switch (providerType) {
-		case "stripe": {
-			const { StripeProvider } = await import("./providers/stripe");
-			providerInstance = new StripeProvider();
-			break;
-		}
 		case "square": {
 			// Use fetch-based provider (Edge runtime compatible)
 			const { SquareFetchProvider } = await import("./providers/square-fetch");
@@ -31,7 +26,7 @@ export async function getMerchantProvider(): Promise<IMerchantProvider> {
 
 // Helper to get current provider type without initializing
 export function getCurrentProviderType(): MerchantProviderType {
-	return (process.env.MERCHANT_PROVIDER || "stripe") as MerchantProviderType;
+	return (process.env.MERCHANT_PROVIDER || "square") as MerchantProviderType;
 }
 
 // Reset provider instance (useful for testing)

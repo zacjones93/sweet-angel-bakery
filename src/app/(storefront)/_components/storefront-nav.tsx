@@ -6,7 +6,8 @@ import { ShoppingCart, Menu, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/state/cart-context";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServerAction } from "zsa-react";
@@ -81,35 +82,39 @@ export function StorefrontNav() {
           </div>
 
           <div className="flex items-center gap-4">
-            {isLoadingUser ? (
-              <Skeleton className="h-10 w-10 rounded-full" />
-            ) : (
-              <>
-                {currentUser?.role === "admin" && (
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href="/admin">
-                      <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
-                      <span className="sr-only">Admin</span>
-                    </Link>
-                  </Button>
-                )}
-                {currentUser ? (
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href="/profile">
-                      <User className="h-5 w-5" />
-                      <span className="sr-only">Profile</span>
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/login">Sign In</Link>
-                  </Button>
-                )}
-              </>
-            )}
+            {/* Desktop only: Sign In, Admin, Profile, Theme */}
+            <div className="hidden md:flex items-center gap-4">
+              {isLoadingUser ? (
+                <Skeleton className="h-10 w-10 rounded-full" />
+              ) : (
+                <>
+                  {currentUser?.role === "admin" && (
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href="/admin">
+                        <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        <span className="sr-only">Admin</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {currentUser ? (
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href="/profile">
+                        <User className="h-5 w-5" />
+                        <span className="sr-only">Profile</span>
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/login">Sign In</Link>
+                    </Button>
+                  )}
+                </>
+              )}
 
-            <ThemeSwitch className="border-none" />
+              <ThemeSwitch className="border-none" />
+            </div>
 
+            {/* Mobile & Desktop: Cart */}
             <Button variant="ghost" asChild className="relative">
               <Link href="/cart">
                 <ShoppingCart className="h-5 w-5" />
@@ -128,35 +133,38 @@ export function StorefrontNav() {
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right">
-                <div className="mt-8 flex flex-col gap-4">
+              <SheetContent side="right" className="w-[280px] sm:w-[320px] px-6">
+                <VisuallyHidden>
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                </VisuallyHidden>
+                <div className="mt-10 flex flex-col gap-1">
                   <Link
                     href={"/products" as Route}
-                    className="text-lg font-medium hover:text-primary transition-colors"
+                    className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
                     onClick={() => setIsOpen(false)}
                   >
                     All Products
                   </Link>
                   <Link
                     href={"/products/cakes" as Route}
-                    className="text-lg font-medium hover:text-primary transition-colors"
+                    className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
                     onClick={() => setIsOpen(false)}
                   >
                     Cakes
                   </Link>
                   <Link
                     href={"/products/cookies" as Route}
-                    className="text-lg font-medium hover:text-primary transition-colors"
+                    className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
                     onClick={() => setIsOpen(false)}
                   >
                     Cookies
                   </Link>
                   {currentUser && (
                     <>
-                      <div className="border-t my-2" />
+                      <div className="border-t my-3" />
                       <Link
                         href="/profile"
-                        className="text-lg font-medium hover:text-primary transition-colors"
+                        className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
                         onClick={() => setIsOpen(false)}
                       >
                         Profile
@@ -164,7 +172,7 @@ export function StorefrontNav() {
                       {currentUser.role === "admin" && (
                         <Link
                           href="/admin"
-                          className="text-lg font-medium hover:text-primary transition-colors text-red-600 dark:text-red-400"
+                          className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors text-red-600 dark:text-red-400 px-4 py-3 rounded-md"
                           onClick={() => setIsOpen(false)}
                         >
                           Admin
@@ -174,18 +182,18 @@ export function StorefrontNav() {
                   )}
                   {!currentUser && (
                     <>
-                      <div className="border-t my-2" />
+                      <div className="border-t my-3" />
                       <Link
                         href="/login"
-                        className="text-lg font-medium hover:text-primary transition-colors"
+                        className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
                         onClick={() => setIsOpen(false)}
                       >
                         Sign In
                       </Link>
                     </>
                   )}
-                  <div className="border-t my-2" />
-                  <ThemeSwitch className="border-none w-full">
+                  <div className="border-t my-3" />
+                  <ThemeSwitch className="border-none w-full px-4 py-3">
                     Theme
                   </ThemeSwitch>
                 </div>

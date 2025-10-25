@@ -3,8 +3,8 @@ import type { Route } from "next"
 export const SITE_NAME = "Sweet Angel Bakery"
 export const SITE_DESCRIPTION = "Handcrafted cakes and cookies made with love, using the finest ingredients. Order online for pickup."
 export const SITE_URL = process.env.NODE_ENV === "development"
-  ? "http://localhost:3000"
-  : (process.env.NEXT_PUBLIC_SITE_URL || "https://nextjs-saas-template.lubomirgeorgiev.com")
+  ? process.env.NEXT_PUBLIC_SITE_URL!
+  : "https://sweetangelbakery.com"
 export const GITHUB_REPO_URL = "https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template"
 
 export const SITE_DOMAIN = new URL(SITE_URL).hostname

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,10 +16,15 @@ import { Mail, CheckCircle, User, Phone } from "lucide-react";
 import { createLoyaltyCustomerAction } from "./_actions/create-loyalty-customer.action";
 import { useServerAction } from "zsa-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function SignupPage() {
+  const searchParams = useSearchParams();
+  const emailParam = searchParams.get("email");
+  const orderIdParam = searchParams.get("orderId");
+
   const [formData, setFormData] = useState({
-    email: "",
+    email: emailParam || "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -29,6 +34,13 @@ export default function SignupPage() {
     smsDrops: false,
   });
   const [submitted, setSubmitted] = useState(false);
+
+  // Update email if it changes in URL
+  useEffect(() => {
+    if (emailParam && !formData.email) {
+      setFormData((prev) => ({ ...prev, email: emailParam }));
+    }
+  }, [emailParam, formData.email]);
 
   const { execute, isPending, error } = useServerAction(
     createLoyaltyCustomerAction
@@ -42,6 +54,7 @@ export default function SignupPage() {
       firstName: formData.firstName,
       lastName: formData.lastName,
       phone: formData.phone || undefined,
+      orderId: orderIdParam || undefined,
       notificationPreferences: {
         emailNewFlavors: formData.emailNewFlavors,
         emailDrops: formData.emailDrops,

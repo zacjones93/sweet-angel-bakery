@@ -32,8 +32,11 @@ interface SquarePaymentFormProps {
   fulfillmentMethod?: "delivery" | "pickup";
   deliveryFee?: number;
   deliveryDate?: string;
+  deliveryZoneId?: string;
+  deliveryTimeWindow?: string;
   pickupLocationId?: string;
   pickupDate?: string;
+  pickupTimeWindow?: string;
   onSuccess: () => void;
 }
 
@@ -53,8 +56,11 @@ export function SquarePaymentForm({
   fulfillmentMethod,
   deliveryFee,
   deliveryDate,
+  deliveryZoneId,
+  deliveryTimeWindow,
   pickupLocationId,
   pickupDate,
+  pickupTimeWindow,
   onSuccess,
 }: SquarePaymentFormProps) {
   const router = useRouter();
@@ -124,8 +130,11 @@ export function SquarePaymentForm({
               fulfillmentMethod,
               deliveryFee,
               deliveryDate,
+              deliveryZoneId,
+              deliveryTimeWindow,
               pickupLocationId,
               pickupDate,
+              pickupTimeWindow,
             });
 
             if (err) {
@@ -148,7 +157,10 @@ export function SquarePaymentForm({
           }
         }}
         createPaymentRequest={() => {
-          const itemsTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+          const itemsTotal = items.reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
+          );
           const totalWithDelivery = itemsTotal + (deliveryFee || 0);
           return {
             countryCode: "US",

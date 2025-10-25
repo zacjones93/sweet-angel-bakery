@@ -12,24 +12,20 @@ Sweet Angel Bakery e-commerce platform - a Next.js application for online bakery
 
 ## Payment Provider
 
-**IMPORTANT**: This application currently uses **Stripe** as the payment provider.
+**IMPORTANT**: This application currently uses **Square** as the payment provider.
 
-**Square SDK Limitation**: The Square Node.js SDK is not compatible with Cloudflare Workers Edge runtime. See `docs/square-edge-runtime-limitation.md` for details and workarounds.
+**Square SDK Limitation**: The Square Node.js SDK is not compatible with Cloudflare Workers Edge runtime. See `docs/square-edge-runtime-limitation.md` for details.
 
 **Current Configuration**:
-- Payment provider: **Stripe** (Edge runtime compatible)
-- Merchant provider abstraction supports both Stripe and Square
-- To use Square, the provider would need to be rewritten using fetch API instead of the SDK
 
-**Switching Providers**:
-Set `MERCHANT_PROVIDER` in `.dev.vars`:
-- `stripe` - Works out of the box (recommended for Edge runtime)
-- `square` - Requires fetch-based implementation (SDK not compatible)
+- Payment provider: **Square** (using fetch-based implementation for Edge runtime compatibility)
+- Merchant provider abstraction layer in `src/lib/merchant-provider/`
+- Square implementation uses fetch API directly instead of SDK
 
 ## Key Capabilities
 
-- **E-commerce**: Product catalog, shopping cart, checkout with Stripe integration
-- **Payment Processing**: Stripe Checkout, webhooks, and fee tracking
+- **E-commerce**: Product catalog, shopping cart, checkout with Square integration
+- **Payment Processing**: Square Checkout, webhooks, and fee tracking
 - **Order Management**: Admin dashboard for order fulfillment and status tracking
 - **Loyalty Program**: Customer accounts with order history and early access to product drops
 - **Product Drops**: Scheduled releases with loyalty member early access
@@ -105,16 +101,17 @@ See `src/actions/` for examples.
 
 ### Merchant Provider Pattern
 
-**CRITICAL**: Always use the merchant provider abstraction, never import Square or Stripe directly.
+**CRITICAL**: Always use the merchant provider abstraction, never import Square SDK directly.
 
 **Files**:
+
 - `src/lib/merchant-provider/factory.ts` - Provider factory (use `getMerchantProvider()`)
 - `src/lib/merchant-provider/types.ts` - Shared interfaces
-- `src/lib/merchant-provider/providers/square.ts` - Square implementation
-- `src/lib/merchant-provider/providers/stripe.ts` - Stripe implementation (reference only)
+- `src/lib/merchant-provider/providers/square-fetch.ts` - Square fetch-based implementation
 - `src/lib/merchant-provider/fee-calculator.ts` - Fee calculation utilities
 
 **Usage**:
+
 ```typescript
 import { getMerchantProvider } from "@/lib/merchant-provider/factory";
 
@@ -127,20 +124,23 @@ const provider = await getMerchantProvider();
 ```
 
 **Environment Variables**:
+
 ```bash
 # Required for Square
 MERCHANT_PROVIDER=square
 SQUARE_ACCESS_TOKEN=EAAAl...
-SQUARE_LOCATION_ID=L...
+NEXT_PUBLIC_SQUARE_LOCATION_ID=L...
 SQUARE_ENVIRONMENT=sandbox  # or production
 SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ```
 
 **Never do**:
-- ❌ `import Stripe from 'stripe'`
+
 - ❌ `import { Client } from 'square'`
+- ❌ Direct Square API calls outside the provider
 
 **Always do**:
+
 - ✅ `import { getMerchantProvider } from "@/lib/merchant-provider/factory"`
 
 ## Development Status
@@ -183,12 +183,11 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 
 #### Billing & Subscriptions
 
-- Credit-based billing system
+- Credit-based billing system (from original template)
 - Credit packages and pricing
 - Credit usage tracking
 - Transaction history
 - Monthly credit refresh
-- Stripe payment processing
 
 ## Code Style and Structure
 
@@ -210,7 +209,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
 ### Import Guidelines
 
 - Add `import "server-only"` at the top of the file (ignore this rule for page.tsx files) if it's only intended to be used on the server.
-  - Use for utilities, database, and API clients (e.g., `src/db/index.ts`, `src/lib/stripe.ts`)
+  - Use for utilities, database, and API clients (e.g., `src/db/index.ts`)
   - **DO NOT use** `"server-only"` for server action files
 - When creating React server actions:
   - Use ZSA (Zod Server Actions) library
@@ -219,7 +218,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=...
   - In client components, use `import { useServerAction } from "zsa-react"`
   - Define input schemas with Zod for type safety
   - `"use server"` allows actions to be called from client components while executing on the server
-  - Server-only imports (like `getDB()` and `getStripe()`) are fine inside action handlers
+  - Server-only imports (like `getDB()` and `getMerchantProvider()`) are fine inside action handlers
 
 ### Package Management
 

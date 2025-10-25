@@ -4,7 +4,16 @@ import { type ComponentType } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Users, Shield, ShoppingBag, Package, Settings2, Truck, MapPin, Calendar } from "lucide-react";
+import {
+  Users,
+  Shield,
+  ShoppingBag,
+  Package,
+  Settings2,
+  Truck,
+  MapPin,
+  Calendar,
+} from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -53,6 +62,12 @@ const adminNavItems: NavMainItem[] = [
         url: "/admin/orders/fulfillment",
       },
     ],
+  },
+  {
+    title: "Delivery Settings",
+    url: "/admin/delivery-settings",
+    icon: Truck,
+    isActive: true,
   },
   {
     title: "Users",

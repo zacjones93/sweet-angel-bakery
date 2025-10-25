@@ -7,11 +7,12 @@ import {
   getAvailablePickupLocations,
   calculateDeliveryFee,
   getCartDeliveryDate,
+  getAvailableDeliveryDates,
 } from "@/utils/delivery";
 
 /**
  * Get delivery options for a cart
- * Returns next available delivery date and fee for a given ZIP code
+ * Returns all available delivery dates (e.g., Thursday and Saturday) and fee for a given ZIP code
  */
 export const getCartDeliveryOptionsAction = createServerAction()
   .input(
@@ -29,23 +30,29 @@ export const getCartDeliveryOptionsAction = createServerAction()
   .handler(async ({ input }) => {
     const { items, deliveryZipCode } = input;
 
-    // Get cart delivery date
-    const deliveryDateResult = await getCartDeliveryDate({ items });
+    // Get all available delivery dates for the cart
+    // For carts with multiple products, we need to find dates that work for all products
+    // Start by getting dates for the first product (with most restrictive rules)
+    const firstProductId = items[0]?.productId;
 
-    if (!deliveryDateResult) {
+    const deliveryDateOptions = await getAvailableDeliveryDates({
+      productId: firstProductId
+    });
+
+    if (deliveryDateOptions.length === 0) {
       return {
         available: false,
-        deliveryDate: null,
-        cutoffDate: null,
-        timeWindow: null,
+        deliveryDates: [],
         feeAmount: 0,
         zoneName: null,
+        zoneId: null,
       };
     }
 
     // Calculate delivery fee if ZIP code provided
     let feeAmount = 0;
     let zoneName: string | null = null;
+    let zoneId: string | null = null;
 
     if (deliveryZipCode) {
       const feeResult = await calculateDeliveryFee({
@@ -54,15 +61,21 @@ export const getCartDeliveryOptionsAction = createServerAction()
       });
       feeAmount = feeResult.feeAmount;
       zoneName = feeResult.appliedZone?.name || null;
+      zoneId = feeResult.appliedZone?.id || null;
     }
 
     return {
       available: true,
-      deliveryDate: deliveryDateResult.deliveryDate.toISOString(),
-      cutoffDate: deliveryDateResult.cutoffDate.toISOString(),
-      timeWindow: deliveryDateResult.timeWindow,
+      deliveryDates: deliveryDateOptions.map(option => ({
+        deliveryDate: option.deliveryDate.toISOString(),
+        cutoffDate: option.cutoffDate.toISOString(),
+        timeWindow: option.timeWindow,
+        dayOfWeek: option.schedule.dayOfWeek,
+        scheduleName: option.schedule.name,
+      })),
       feeAmount,
       zoneName,
+      zoneId,
     };
   });
 

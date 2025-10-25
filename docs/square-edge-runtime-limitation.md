@@ -31,6 +31,7 @@ For now, the application uses **Stripe** as the payment provider because:
 - ✅ Full feature support (checkout, webhooks, refunds, etc.)
 
 **Set in `.dev.vars`:**
+
 ```bash
 MERCHANT_PROVIDER=stripe
 ```
@@ -42,11 +43,13 @@ To use Square with Cloudflare Workers, we need to rewrite the Square provider to
 ### Implementation Plan
 
 1. **Remove Square SDK dependency**
+
    ```bash
    pnpm remove square
    ```
 
 2. **Rewrite Square provider using fetch**
+
    - Use Square REST API endpoints directly
    - Handle authentication with Bearer tokens
    - Implement webhook signature verification manually
@@ -68,14 +71,15 @@ export class SquareFetchProvider implements IMerchantProvider {
   readonly name = "square" as const;
 
   private async request(endpoint: string, options: RequestInit = {}) {
-    const baseUrl = process.env.SQUARE_ENVIRONMENT === "production"
-      ? "https://connect.squareup.com"
-      : "https://connect.squareupsandbox.com";
+    const baseUrl =
+      process.env.SQUARE_ENVIRONMENT === "production"
+        ? "https://connect.squareup.com"
+        : "https://connect.squareupsandbox.com";
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers: {
-        "Authorization": `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
         "Square-Version": "2024-10-17",
         ...options.headers,
@@ -93,8 +97,8 @@ export class SquareFetchProvider implements IMerchantProvider {
   async createCheckout(options: CheckoutOptions): Promise<CheckoutResult> {
     // Build order object
     const order = {
-      location_id: process.env.SQUARE_LOCATION_ID,
-      line_items: options.lineItems.map(item => ({
+      location_id: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
+      line_items: options.lineItems.map((item) => ({
         name: item.name,
         quantity: String(item.quantity),
         base_price_money: {

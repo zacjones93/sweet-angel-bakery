@@ -39,20 +39,20 @@ export function getProductDisplayPrice(
 }
 
 /**
- * Get the Stripe price ID to use for a product with customizations
+ * Get the Square variation ID to use for a product with customizations
  */
-export function getStripePriceId(
+export function getSquareVariationId(
   product: {
-    stripePriceId: string | null;
+    squareVariationId: string | null;
     customizations: ProductCustomizations;
   },
   orderItemCustomizations?: OrderItemCustomizations
 ): string | null {
-  if (!product.stripePriceId) {
+  if (!product.squareVariationId) {
     return null;
   }
 
-  // For size variants, use the variant's Stripe price ID
+  // For size variants, use the variant's Square variation ID
   if (
     product.customizations?.type === 'size_variants' &&
     orderItemCustomizations?.type === 'size_variant'
@@ -60,11 +60,11 @@ export function getStripePriceId(
     const variant = product.customizations.variants.find(
       v => v.id === orderItemCustomizations.selectedVariantId
     );
-    return variant?.stripePriceId || product.stripePriceId;
+    return variant?.squareVariationId || product.squareVariationId;
   }
 
-  // For custom builder and standard products, use the base price
-  return product.stripePriceId;
+  // For custom builder and standard products, use the base variation
+  return product.squareVariationId;
 }
 
 /**
