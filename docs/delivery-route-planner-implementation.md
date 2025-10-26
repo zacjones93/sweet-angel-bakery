@@ -1054,14 +1054,51 @@ export const optimizeDeliveryRoute = createServerAction()
 - `src/app/(admin)/admin/orders/fulfillment/_components/delivery-view-tabs.tsx`
 - `src/app/(admin)/admin/_actions/geocode-delivery-addresses.action.ts`
 
+---
+
+### Phase 2: Drag & Drop Reordering ✅ COMPLETED
+
+**Commit:** `549761a` - feat: implement delivery route planner Phase 2 (drag & drop reordering)
+
+**Implemented:**
+- ✅ Draggable directions with Google Maps DirectionsRenderer
+- ✅ Real-time route recalculation when stops reordered
+- ✅ Automatic segment timing updates (arrival/departure)
+- ✅ Unsaved changes indicator (yellow badge)
+- ✅ Save route to database with sequence and timing
+- ✅ Revert changes to original order
+- ✅ Route controls UI (Save, Revert, Optimize placeholder)
+- ✅ Toast notifications for user feedback
+
+**Database Schema:**
+- Migration: `0020_add_delivery_route_optimization_fields.sql`
+- Added to `order` table:
+  - `deliverySequence` - INTEGER (0, 1, 2, 3...)
+  - `estimatedArrivalTime` - TEXT ("09:15:00")
+  - `routeDurationFromPrevious` - INTEGER (seconds)
+  - `routeDistanceFromPrevious` - INTEGER (meters)
+
+**Server Actions:**
+- `src/app/(admin)/admin/_actions/save-delivery-route.action.ts`
+- `src/app/(admin)/admin/_actions/get-delivery-route.action.ts`
+
+**Features:**
+- Drag waypoints on map to manually reorder delivery stops
+- Route line and markers update instantly
+- Distance/duration recalculates automatically
+- Timeline view updates with new arrival/departure times
+- Save optimized route to database for persistence
+- Revert to original order if unsatisfied with changes
+- Clear visual feedback with unsaved changes badge
+
 **Next Steps:**
-- Phase 2: Drag & Drop Reordering (allow manual route optimization)
 - Phase 3: Automatic Route Optimization (integrate Google Route Optimization API)
+- Phase 4: Advanced features (multi-day planning, driver assignment, print sheets)
 
 ---
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Created:** 2025-10-25
 **Last Updated:** 2025-10-25
 **Author:** Claude Code
-**Status:** Phase 1 Complete - Ready for Phase 2
+**Status:** Phase 2 Complete - Drag & Drop Reordering Fully Functional
