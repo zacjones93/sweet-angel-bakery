@@ -4,11 +4,17 @@ import { GoogleMap, Marker, DirectionsRenderer, InfoWindow, useJsApiLoader } fro
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { addSeconds, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Save, RotateCcw, Zap } from 'lucide-react';
+import { Save, RotateCcw, Zap, ExternalLink, TrendingDown, Info, GripVertical } from 'lucide-react';
 import { useServerAction } from 'zsa-react';
 import { saveDeliveryRoute } from '../../../_actions/save-delivery-route.action';
 import { getDeliveryRoute } from '../../../_actions/get-delivery-route.action';
+import { optimizeDeliveryRoute } from '../../../_actions/optimize-delivery-route.action';
 import { toast } from 'sonner';
+import { generateGoogleMapsRouteUrl } from '@/utils/google-maps';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface DeliveryStop {
   orderId: string;
@@ -45,6 +51,58 @@ interface Props {
   stopDuration?: number; // seconds, default 300 (5 min)
 }
 
+// Sortable Stop Item Component
+function SortableStopItem({ delivery, segment, index, stopDuration, onClick }: {
+  delivery: DeliveryStop;
+  segment: RouteSegment;
+  index: number;
+  stopDuration: number;
+  onClick: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: delivery.orderId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="text-sm p-2 border rounded hover:bg-muted cursor-pointer flex items-center gap-2"
+      onClick={onClick}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1">
+        <div className="flex justify-between">
+          <div>
+            <span className="font-semibold">Stop {index + 1}:</span> {delivery.customerName}
+          </div>
+          <div className="font-mono text-muted-foreground">
+            {segment.estimatedArrival} - {segment.estimatedDeparture}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {(segment.durationFromPrevious / 60).toFixed(0)} min drive ·
+          {' '}{(segment.distanceFromPrevious / 1609.34).toFixed(1)} mi ·
+          {' '}{stopDuration / 60} min stop
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DeliveryMapView({
   deliveries,
   depotAddress,
@@ -65,10 +123,40 @@ export function DeliveryMapView({
   const [orderedDeliveries, setOrderedDeliveries] = useState<DeliveryStop[]>(deliveries);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalOrder, setOriginalOrder] = useState<DeliveryStop[]>(deliveries);
+  const [optimizationSavings, setOptimizationSavings] = useState<{
+    distanceSaved: number;
+    timeSaved: number;
+  } | null>(null);
   const isCalculatingRef = useRef(false);
 
   const { execute: saveRoute, isPending: isSaving } = useServerAction(saveDeliveryRoute);
   const { execute: loadRoute } = useServerAction(getDeliveryRoute);
+  const { execute: optimizeRoute, isPending: isOptimizing } = useServerAction(optimizeDeliveryRoute);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end - reorder stops
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedDeliveries.findIndex(d => d.orderId === active.id);
+    const newIndex = orderedDeliveries.findIndex(d => d.orderId === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reordered = arrayMove(orderedDeliveries, oldIndex, newIndex);
+      setOrderedDeliveries(reordered);
+      setHasUnsavedChanges(true);
+      toast.info('Route reordered - click Save to persist changes');
+    }
+  };
 
   // Calculate route and segment times when deliveries change
   const calculateRoute = useCallback(() => {
@@ -194,7 +282,86 @@ export function DeliveryMapView({
   const handleRevertRoute = () => {
     setOrderedDeliveries(originalOrder);
     setHasUnsavedChanges(false);
+    setOptimizationSavings(null);
     toast.info('Route reverted to original order');
+  };
+
+  // Optimize route using Google Directions API
+  const handleOptimizeRoute = async () => {
+    try {
+      const [data, err] = await optimizeRoute({
+        deliveries: orderedDeliveries,
+        depotAddress,
+        startTime,
+        stopDuration,
+      });
+
+      if (err) {
+        toast.error('Failed to optimize route: ' + err.message);
+        return;
+      }
+
+      if (!data) {
+        toast.error('No optimization data returned');
+        return;
+      }
+
+      // Update state with optimized data
+      setOrderedDeliveries(data.optimizedDeliveries);
+      setSegments(data.segments);
+      setOptimizationSavings(data.savings);
+      setHasUnsavedChanges(true);
+
+      // Force visual route update on map
+      if (map && isLoaded) {
+        const directionsService = new google.maps.DirectionsService();
+        const waypoints = data.optimizedDeliveries.map(d => ({
+          location: { lat: d.lat, lng: d.lng },
+          stopover: true,
+        }));
+
+        directionsService.route({
+          origin: { lat: depotAddress.lat, lng: depotAddress.lng },
+          destination: { lat: depotAddress.lat, lng: depotAddress.lng },
+          waypoints,
+          optimizeWaypoints: false, // Already optimized
+          travelMode: google.maps.TravelMode.DRIVING,
+        }, (result, status) => {
+          if (status === 'OK' && result) {
+            setDirections(result);
+          } else {
+            console.error('Failed to update directions:', status);
+          }
+        });
+      }
+
+      // Show savings message
+      const distanceSavedMiles = (data.savings.distanceSaved / 1609.34).toFixed(1);
+      const timeSavedMinutes = (data.savings.timeSaved / 60).toFixed(0);
+
+      if (data.savings.distanceSaved > 0 || data.savings.timeSaved > 0) {
+        toast.success(
+          `Route optimized! Saved ${distanceSavedMiles} mi and ${timeSavedMinutes} min`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.info('Route is already optimal');
+      }
+    } catch (error) {
+      toast.error('Failed to optimize route');
+      console.error(error);
+    }
+  };
+
+  // Open route in Google Maps
+  const handleOpenInGoogleMaps = () => {
+    const url = generateGoogleMapsRouteUrl(orderedDeliveries, depotAddress);
+    if (url) {
+      window.open(url, '_blank');
+      toast.success('Route opened in Google Maps');
+    } else {
+      toast.error('No deliveries to navigate');
+    }
   };
 
   if (loadError) {
@@ -229,11 +396,31 @@ export function DeliveryMapView({
           <Button
             variant="outline"
             size="sm"
+            onClick={handleOpenInGoogleMaps}
+            disabled={orderedDeliveries.length === 0}
+            title="Open route in Google Maps for navigation"
+          >
+            <ExternalLink className="h-4 w-4 mr-1" />
+            Open in Maps
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleRevertRoute}
             disabled={!hasUnsavedChanges}
           >
             <RotateCcw className="h-4 w-4 mr-1" />
             Revert
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleOptimizeRoute}
+            disabled={isOptimizing || orderedDeliveries.length < 2}
+            title="Auto-optimize route for shortest distance"
+          >
+            <Zap className="h-4 w-4 mr-1" />
+            {isOptimizing ? 'Optimizing...' : 'Optimize Route'}
           </Button>
           <Button
             variant="default"
@@ -244,17 +431,28 @@ export function DeliveryMapView({
             <Save className="h-4 w-4 mr-1" />
             {isSaving ? 'Saving...' : 'Save Route'}
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled
-            title="Coming in Phase 3"
-          >
-            <Zap className="h-4 w-4 mr-1" />
-            Optimize
-          </Button>
         </div>
       </div>
+
+      {/* How to use alert */}
+      <Alert className="bg-blue-50 border-blue-200">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800 text-sm">
+          <strong>How to adjust route:</strong> Drag stops in the timeline below, drag waypoints on the map, or click "Optimize Route" for automatic optimization.
+        </AlertDescription>
+      </Alert>
+
+      {/* Optimization Savings Alert */}
+      {optimizationSavings && (optimizationSavings.distanceSaved > 0 || optimizationSavings.timeSaved > 0) && (
+        <Alert className="bg-green-50 border-green-200">
+          <TrendingDown className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>Route optimized!</strong> Saved{' '}
+            <strong>{(optimizationSavings.distanceSaved / 1609.34).toFixed(1)} miles</strong> and{' '}
+            <strong>{(optimizationSavings.timeSaved / 60).toFixed(0)} minutes</strong> compared to original route.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Route Summary */}
       <div className="bg-muted p-4 rounded-lg">
@@ -383,31 +581,40 @@ export function DeliveryMapView({
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Route Timeline</h3>
           <p className="text-xs text-muted-foreground">
-            💡 Drag route waypoints on map to reorder stops
+            🎯 Drag stops below to reorder route
           </p>
         </div>
-        <div className="space-y-1">
-          <div className="text-sm p-2 bg-muted rounded">
-            <span className="font-mono">{startTime}</span> - Start from {depotAddress.name}
-          </div>
-          {segments.map((segment, index) => (
-            <div key={segment.orderId} className="text-sm p-2 border rounded hover:bg-muted cursor-pointer" onClick={() => setSelectedStop(index)}>
-              <div className="flex justify-between">
-                <div>
-                  <span className="font-semibold">Stop {index + 1}:</span> {orderedDeliveries[index].customerName}
-                </div>
-                <div className="font-mono text-muted-foreground">
-                  {segment.estimatedArrival} - {segment.estimatedDeparture}
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {(segment.durationFromPrevious / 60).toFixed(0)} min drive ·
-                {' '}{(segment.distanceFromPrevious / 1609.34).toFixed(1)} mi ·
-                {' '}{stopDuration / 60} min stop
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="space-y-1">
+            <div className="text-sm p-2 bg-muted rounded">
+              <span className="font-mono">{startTime}</span> - Start from {depotAddress.name}
             </div>
-          ))}
-        </div>
+            <SortableContext
+              items={orderedDeliveries.map(d => d.orderId)}
+              strategy={verticalListSortingStrategy}
+            >
+              {segments.map((segment, index) => {
+                const delivery = orderedDeliveries[index];
+                if (!delivery) return null;
+
+                return (
+                  <SortableStopItem
+                    key={delivery.orderId}
+                    delivery={delivery}
+                    segment={segment}
+                    index={index}
+                    stopDuration={stopDuration}
+                    onClick={() => setSelectedStop(index)}
+                  />
+                );
+              })}
+            </SortableContext>
+          </div>
+        </DndContext>
       </div>
     </div>
   );

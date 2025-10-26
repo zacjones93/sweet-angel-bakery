@@ -1091,14 +1091,53 @@ export const optimizeDeliveryRoute = createServerAction()
 - Revert to original order if unsatisfied with changes
 - Clear visual feedback with unsaved changes badge
 
+---
+
+### Phase 3: Route Optimization & Export ✅ COMPLETED
+
+**Implemented:**
+- ✅ Automatic route optimization using Google Directions API
+- ✅ Before/after comparison with distance and time savings
+- ✅ "Open in Google Maps" export for navigation
+- ✅ Drag-and-drop reordering in timeline list
+- ✅ Visual feedback with optimization savings alert
+- ✅ Help instructions for all adjustment methods
+
+**New Files:**
+- `src/app/(admin)/admin/_actions/optimize-delivery-route.action.ts` - Route optimization server action
+- `src/utils/google-maps.ts` - Google Maps URL generation utilities
+- `src/components/ui/alert.tsx` - Alert component (shadcn/ui)
+
+**Dependencies Added:**
+- `@dnd-kit/core` - Drag and drop core
+- `@dnd-kit/sortable` - Sortable list functionality
+- `@dnd-kit/utilities` - DnD utilities
+
+**Features:**
+- **Automatic Optimization**: One-click optimization using Google's TSP solver
+  - Compares original vs optimized routes
+  - Shows savings in miles and minutes
+  - Green alert displays optimization results
+- **Google Maps Export**: "Open in Maps" button
+  - Generates URL with all waypoints (lat/lng format)
+  - Opens in Google Maps app/web with full route
+  - Ready for turn-by-turn navigation
+- **Timeline Drag & Drop**: Reorder stops in list below map
+  - Drag handle (⋮⋮) on each stop
+  - Real-time route recalculation
+  - Visual feedback during drag
+- **Three Ways to Adjust Route**:
+  1. Drag stops in timeline list
+  2. Drag waypoints on map
+  3. Click "Optimize Route" for automatic optimization
+
 **Next Steps:**
-- Phase 3: Automatic Route Optimization (integrate Google Route Optimization API)
 - Phase 4: Advanced features (multi-day planning, driver assignment, print sheets)
 
 ---
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Created:** 2025-10-25
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-26
 **Author:** Claude Code
-**Status:** Phase 2 Complete - Drag & Drop Reordering Fully Functional
+**Status:** Phase 3 Complete - Route Optimization & Export Fully Functional
