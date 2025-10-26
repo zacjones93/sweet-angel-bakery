@@ -272,14 +272,9 @@ export default async function OrdersByFulfillmentPage({
                 }
               }
 
-              // Calculate start time based on delivery date
-              // If delivery is today, use current time; otherwise use 9:00 AM
-              const deliveryDateObj = new Date(delivery.date);
-              const today = new Date();
-              const isToday = deliveryDateObj.toDateString() === today.toDateString();
-              const startTime = isToday
-                ? format(today, 'HH:mm:ss')
-                : '09:00:00';
+              // Use current time as starting point for route planning
+              const now = new Date();
+              const startTime = format(now, 'HH:mm:ss');
 
               return (
                 <Card key={delivery.date}>
