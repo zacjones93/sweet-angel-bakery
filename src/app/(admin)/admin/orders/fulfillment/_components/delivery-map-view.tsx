@@ -1,7 +1,7 @@
 'use client'
 
 import { GoogleMap, Marker, DirectionsRenderer, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { addSeconds, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Save, RotateCcw, Zap } from 'lucide-react';
@@ -59,11 +59,13 @@ export function DeliveryMapView({
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
   const [segments, setSegments] = useState<RouteSegment[]>([]);
   const [selectedStop, setSelectedStop] = useState<number | null>(null);
   const [orderedDeliveries, setOrderedDeliveries] = useState<DeliveryStop[]>(deliveries);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalOrder, setOriginalOrder] = useState<DeliveryStop[]>(deliveries);
+  const isCalculatingRef = useRef(false);
 
   const { execute: saveRoute, isPending: isSaving } = useServerAction(saveDeliveryRoute);
   const { execute: loadRoute } = useServerAction(getDeliveryRoute);
@@ -72,6 +74,7 @@ export function DeliveryMapView({
   const calculateRoute = useCallback(() => {
     if (!orderedDeliveries.length || !map || !isLoaded) return;
 
+    isCalculatingRef.current = true;
     const directionsService = new google.maps.DirectionsService();
 
     // Start from bakery/depot, visit all deliveries, return to depot
@@ -120,6 +123,11 @@ export function DeliveryMapView({
         });
 
         setSegments(calculatedSegments);
+
+        // Reset flag after calculation completes
+        setTimeout(() => {
+          isCalculatingRef.current = false;
+        }, 100);
       }
     });
   }, [orderedDeliveries, map, depotAddress, startTime, stopDuration, isLoaded]);
@@ -131,10 +139,20 @@ export function DeliveryMapView({
 
   // Handle directions drag end - reorder deliveries based on new waypoint order
   const handleDirectionsDragEnd = useCallback(() => {
-    if (!directions) return;
+    // Ignore if we're in the middle of calculating a route
+    if (isCalculatingRef.current) return;
 
-    const route = directions.routes[0];
+    if (!directionsRenderer) return;
+
+    const currentDirections = directionsRenderer.getDirections();
+    if (!currentDirections) return;
+
+    const route = currentDirections.routes[0];
     if (!route || !route.waypoint_order) return;
+
+    // Check if the order actually changed
+    const hasOrderChanged = route.waypoint_order.some((newIndex, i) => newIndex !== i);
+    if (!hasOrderChanged) return;
 
     // Reorder deliveries based on Google's waypoint_order
     const newOrder = route.waypoint_order.map(index => orderedDeliveries[index]);
@@ -142,7 +160,7 @@ export function DeliveryMapView({
     setHasUnsavedChanges(true);
 
     toast.info('Route reordered - click Save to persist changes');
-  }, [directions, orderedDeliveries]);
+  }, [directionsRenderer, orderedDeliveries]);
 
   // Save route to database
   const handleSaveRoute = async () => {
@@ -301,6 +319,7 @@ export function DeliveryMapView({
                   strokeOpacity: 0.7,
                 },
               }}
+              onLoad={setDirectionsRenderer}
               onDirectionsChanged={handleDirectionsDragEnd}
             />
           )}

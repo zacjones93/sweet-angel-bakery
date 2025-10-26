@@ -181,14 +181,36 @@ export default async function OrdersByFulfillmentPage({
                 })
                 .filter(Boolean);
 
-              const [geocodedAddresses] = addresses.length > 0
-                ? await geocodeDeliveryAddresses({ addresses })
-                : [[]];
+              // Geocode addresses if Google Maps API key is available
+              let geocodedAddresses: Array<{
+                street: string;
+                city: string;
+                state: string;
+                zip: string;
+                lat: number;
+                lng: number;
+              }> = [];
+
+              if (addresses.length > 0 && process.env.GOOGLE_MAPS_API_KEY) {
+                const [data, err] = await geocodeDeliveryAddresses({ addresses });
+                if (!err && data) {
+                  geocodedAddresses = data.filter((addr): addr is {
+                    street: string;
+                    city: string;
+                    state: string;
+                    zip: string;
+                    lat: number;
+                    lng: number;
+                  } => addr !== null);
+                } else if (err) {
+                  console.error('Geocoding error:', err);
+                }
+              }
 
               // Create delivery stops with geocoded coordinates
               const deliveryStops = delivery.orders
                 .map((orderData, index) => {
-                  const geocoded = geocodedAddresses?.[index];
+                  const geocoded = geocodedAddresses[index];
                   if (!geocoded) return null;
 
                   return {

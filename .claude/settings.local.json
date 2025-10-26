@@ -35,7 +35,8 @@
       "Bash(wrangler d1 migrations apply sweet-angel-bakery --local)",
       "WebFetch(domain:developer.squareup.com)",
       "Bash(awk:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wrangler d1 execute:*)"
     ],
     "deny": [],
     "ask": []
