@@ -38,6 +38,7 @@ interface OrderData {
 }
 
 interface Props {
+  deliveryDate: string; // ISO date "2024-10-26"
   orders: OrderData[];
   deliveryStops: DeliveryStop[];
   depotAddress: {
@@ -47,7 +48,7 @@ interface Props {
   };
 }
 
-export function DeliveryViewTabs({ orders, deliveryStops, depotAddress }: Props) {
+export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAddress }: Props) {
   return (
     <Tabs defaultValue="list" className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -154,6 +155,7 @@ export function DeliveryViewTabs({ orders, deliveryStops, depotAddress }: Props)
           <DeliveryMapView
             deliveries={deliveryStops}
             depotAddress={depotAddress}
+            deliveryDate={deliveryDate}
             startTime="09:00:00"
             stopDuration={300}
           />

@@ -388,6 +388,12 @@ export const orderTable = sqliteTable("order", {
   deliveryZoneId: text('delivery_zone_id').references(() => deliveryZoneTable.id), // Zone used for delivery
   deliveryStatus: text('delivery_status', { length: 50 }), // pending, confirmed, preparing, out_for_delivery, delivered
 
+  // Route optimization fields (for delivery route planning)
+  deliverySequence: integer('delivery_sequence'), // Order in delivery route (0, 1, 2, 3...)
+  estimatedArrivalTime: text('estimated_arrival_time', { length: 20 }), // "09:15:00" - HH:mm:ss format
+  routeDurationFromPrevious: integer('route_duration_from_previous'), // Seconds from previous stop
+  routeDistanceFromPrevious: integer('route_distance_from_previous'), // Meters from previous stop
+
   // Pickup fields (if fulfillmentMethod === 'pickup')
   pickupLocationId: text('pickup_location_id').references(() => pickupLocationTable.id),
   pickupDate: text('pickup_date', { length: 20 }), // ISO date string "2024-10-26"

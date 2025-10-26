@@ -1,8 +1,14 @@
 'use client'
 
 import { GoogleMap, Marker, DirectionsRenderer, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { addSeconds, format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Save, RotateCcw, Zap } from 'lucide-react';
+import { useServerAction } from 'zsa-react';
+import { saveDeliveryRoute } from '../../../_actions/save-delivery-route.action';
+import { getDeliveryRoute } from '../../../_actions/get-delivery-route.action';
+import { toast } from 'sonner';
 
 interface DeliveryStop {
   orderId: string;
@@ -34,6 +40,7 @@ interface Props {
     lng: number;
     name: string; // "Sweet Angel Bakery"
   };
+  deliveryDate: string; // ISO date "2024-10-26"
   startTime?: string; // "09:00:00"
   stopDuration?: number; // seconds, default 300 (5 min)
 }
@@ -41,6 +48,7 @@ interface Props {
 export function DeliveryMapView({
   deliveries,
   depotAddress,
+  deliveryDate,
   startTime = "09:00:00",
   stopDuration = 300
 }: Props) {
@@ -53,15 +61,21 @@ export function DeliveryMapView({
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [segments, setSegments] = useState<RouteSegment[]>([]);
   const [selectedStop, setSelectedStop] = useState<number | null>(null);
+  const [orderedDeliveries, setOrderedDeliveries] = useState<DeliveryStop[]>(deliveries);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [originalOrder, setOriginalOrder] = useState<DeliveryStop[]>(deliveries);
+
+  const { execute: saveRoute, isPending: isSaving } = useServerAction(saveDeliveryRoute);
+  const { execute: loadRoute } = useServerAction(getDeliveryRoute);
 
   // Calculate route and segment times when deliveries change
-  useEffect(() => {
-    if (!deliveries.length || !map || !isLoaded) return;
+  const calculateRoute = useCallback(() => {
+    if (!orderedDeliveries.length || !map || !isLoaded) return;
 
     const directionsService = new google.maps.DirectionsService();
 
     // Start from bakery/depot, visit all deliveries, return to depot
-    const waypoints = deliveries.map(d => ({
+    const waypoints = orderedDeliveries.map(d => ({
       location: { lat: d.lat, lng: d.lng },
       stopover: true,
     }));
@@ -87,14 +101,14 @@ export function DeliveryMapView({
 
         legs.forEach((leg, index) => {
           // Skip the last leg (return to depot)
-          if (index >= deliveries.length) return;
+          if (index >= orderedDeliveries.length) return;
 
           // Add drive time to current time
           const arrivalTime = addSeconds(currentTime, leg.duration?.value || 0);
           const departureTime = addSeconds(arrivalTime, stopDuration);
 
           calculatedSegments.push({
-            orderId: deliveries[index].orderId,
+            orderId: orderedDeliveries[index].orderId,
             estimatedArrival: format(arrivalTime, 'HH:mm:ss'),
             estimatedDeparture: format(departureTime, 'HH:mm:ss'),
             durationFromPrevious: leg.duration?.value || 0,
@@ -108,7 +122,62 @@ export function DeliveryMapView({
         setSegments(calculatedSegments);
       }
     });
-  }, [deliveries, map, depotAddress, startTime, stopDuration, isLoaded]);
+  }, [orderedDeliveries, map, depotAddress, startTime, stopDuration, isLoaded]);
+
+  // Call calculateRoute when ordered deliveries change
+  useEffect(() => {
+    calculateRoute();
+  }, [calculateRoute]);
+
+  // Handle directions drag end - reorder deliveries based on new waypoint order
+  const handleDirectionsDragEnd = useCallback(() => {
+    if (!directions) return;
+
+    const route = directions.routes[0];
+    if (!route || !route.waypoint_order) return;
+
+    // Reorder deliveries based on Google's waypoint_order
+    const newOrder = route.waypoint_order.map(index => orderedDeliveries[index]);
+    setOrderedDeliveries(newOrder);
+    setHasUnsavedChanges(true);
+
+    toast.info('Route reordered - click Save to persist changes');
+  }, [directions, orderedDeliveries]);
+
+  // Save route to database
+  const handleSaveRoute = async () => {
+    try {
+      const [data, err] = await saveRoute({
+        deliveryDate,
+        routeSegments: segments.map((seg, idx) => ({
+          orderId: seg.orderId,
+          sequence: idx,
+          estimatedArrival: seg.estimatedArrival,
+          durationFromPrevious: seg.durationFromPrevious,
+          distanceFromPrevious: seg.distanceFromPrevious,
+        })),
+      });
+
+      if (err) {
+        toast.error('Failed to save route: ' + err.message);
+        return;
+      }
+
+      setHasUnsavedChanges(false);
+      setOriginalOrder(orderedDeliveries);
+      toast.success(`Route saved! Updated ${data.updatedCount} deliveries.`);
+    } catch (error) {
+      toast.error('Failed to save route');
+      console.error(error);
+    }
+  };
+
+  // Revert to original order
+  const handleRevertRoute = () => {
+    setOrderedDeliveries(originalOrder);
+    setHasUnsavedChanges(false);
+    toast.info('Route reverted to original order');
+  };
 
   if (loadError) {
     return <div className="text-destructive">Error loading maps</div>;
@@ -128,6 +197,47 @@ export function DeliveryMapView({
 
   return (
     <div className="space-y-4">
+      {/* Route Controls */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">Delivery Route</h3>
+          {hasUnsavedChanges && (
+            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+              Unsaved changes
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRevertRoute}
+            disabled={!hasUnsavedChanges}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            Revert
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSaveRoute}
+            disabled={!hasUnsavedChanges || isSaving}
+          >
+            <Save className="h-4 w-4 mr-1" />
+            {isSaving ? 'Saving...' : 'Save Route'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled
+            title="Coming in Phase 3"
+          >
+            <Zap className="h-4 w-4 mr-1" />
+            Optimize
+          </Button>
+        </div>
+      </div>
+
       {/* Route Summary */}
       <div className="bg-muted p-4 rounded-lg">
         <div className="grid grid-cols-4 gap-4 text-sm">
@@ -137,7 +247,7 @@ export function DeliveryMapView({
           </div>
           <div>
             <div className="text-muted-foreground">Total Stops</div>
-            <div className="font-semibold">{deliveries.length}</div>
+            <div className="font-semibold">{orderedDeliveries.length}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Total Distance</div>
@@ -184,17 +294,19 @@ export function DeliveryMapView({
               directions={directions}
               options={{
                 suppressMarkers: true, // We'll add custom markers
+                draggable: true, // Enable drag-and-drop reordering
                 polylineOptions: {
                   strokeColor: '#2563eb',
                   strokeWeight: 4,
                   strokeOpacity: 0.7,
                 },
               }}
+              onDirectionsChanged={handleDirectionsDragEnd}
             />
           )}
 
           {/* Custom markers with arrival times */}
-          {deliveries.map((delivery, index) => (
+          {orderedDeliveries.map((delivery, index) => (
             <Marker
               key={delivery.orderId}
               position={{ lat: delivery.lat, lng: delivery.lng }}
@@ -219,18 +331,18 @@ export function DeliveryMapView({
           {selectedStop !== null && segments[selectedStop] && (
             <InfoWindow
               position={{
-                lat: deliveries[selectedStop].lat,
-                lng: deliveries[selectedStop].lng
+                lat: orderedDeliveries[selectedStop].lat,
+                lng: orderedDeliveries[selectedStop].lng
               }}
               onCloseClick={() => setSelectedStop(null)}
             >
               <div className="p-2">
-                <div className="font-semibold">{deliveries[selectedStop].customerName}</div>
+                <div className="font-semibold">{orderedDeliveries[selectedStop].customerName}</div>
                 <div className="text-sm text-gray-600 mt-1">
-                  {deliveries[selectedStop].address.street}
+                  {orderedDeliveries[selectedStop].address.street}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {deliveries[selectedStop].address.city}, {deliveries[selectedStop].address.state} {deliveries[selectedStop].address.zip}
+                  {orderedDeliveries[selectedStop].address.city}, {orderedDeliveries[selectedStop].address.state} {orderedDeliveries[selectedStop].address.zip}
                 </div>
                 <div className="text-sm text-gray-900 mt-2 font-medium">
                   Arrival: {segments[selectedStop].estimatedArrival}
@@ -249,7 +361,12 @@ export function DeliveryMapView({
 
       {/* Segment Details List */}
       <div className="space-y-2">
-        <h3 className="font-semibold">Route Timeline</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Route Timeline</h3>
+          <p className="text-xs text-muted-foreground">
+            💡 Drag route waypoints on map to reorder stops
+          </p>
+        </div>
         <div className="space-y-1">
           <div className="text-sm p-2 bg-muted rounded">
             <span className="font-mono">{startTime}</span> - Start from {depotAddress.name}
@@ -258,7 +375,7 @@ export function DeliveryMapView({
             <div key={segment.orderId} className="text-sm p-2 border rounded hover:bg-muted cursor-pointer" onClick={() => setSelectedStop(index)}>
               <div className="flex justify-between">
                 <div>
-                  <span className="font-semibold">Stop {index + 1}:</span> {deliveries[index].customerName}
+                  <span className="font-semibold">Stop {index + 1}:</span> {orderedDeliveries[index].customerName}
                 </div>
                 <div className="font-mono text-muted-foreground">
                   {segment.estimatedArrival} - {segment.estimatedDeparture}

@@ -242,6 +242,7 @@ export default async function OrdersByFulfillmentPage({
                   </CardHeader>
                   <CardContent>
                     <DeliveryViewTabs
+                      deliveryDate={delivery.date}
                       orders={delivery.orders}
                       deliveryStops={deliveryStops}
                       depotAddress={depotAddress}
