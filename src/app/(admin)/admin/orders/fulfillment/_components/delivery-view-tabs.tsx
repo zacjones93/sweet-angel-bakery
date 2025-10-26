@@ -46,9 +46,10 @@ interface Props {
     lng: number;
     name: string;
   };
+  startTime?: string; // "09:00:00" or current time
 }
 
-export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAddress }: Props) {
+export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAddress, startTime = "09:00:00" }: Props) {
   return (
     <Tabs defaultValue="list" className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -156,7 +157,7 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
             deliveries={deliveryStops}
             depotAddress={depotAddress}
             deliveryDate={deliveryDate}
-            startTime="09:00:00"
+            startTime={startTime}
             stopDuration={300}
           />
         ) : (

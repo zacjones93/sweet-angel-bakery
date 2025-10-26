@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { getOrdersByFulfillmentAction } from "../../_actions/orders-by-fulfillment.action";
 import { geocodeDeliveryAddresses } from "../../_actions/geocode-delivery-addresses.action";
+import { getSessionFromCookie } from "@/utils/auth";
 import type { Metadata } from "next";
 import {
   Card,
@@ -37,6 +38,10 @@ export default async function OrdersByFulfillmentPage({
   searchParams,
 }: PageProps) {
   const params = await searchParams;
+
+  // Get current user for depot address
+  const session = await getSessionFromCookie();
+  const user = session?.user;
 
   // Default to showing next 14 days
   const startDate = params.startDate || new Date().toISOString().split("T")[0];
@@ -236,12 +241,45 @@ export default async function OrdersByFulfillmentPage({
                   timeWindow?: string;
                 }>;
 
-              // Default depot address (bakery location)
-              const depotAddress = {
+              // Get depot address from current user's profile
+              let depotAddress = {
                 lat: 43.6187,
                 lng: -116.2146,
-                name: 'Sweet Angel Bakery',
+                name: 'Sweet Angel Bakery (Default)',
               };
+
+              // Use logged-in user's address as depot starting point
+              if (user?.streetAddress1 && user?.city && user?.state && user?.zipCode) {
+                const [depotGeocode] = await geocodeDeliveryAddresses({
+                  addresses: [{
+                    street: user.streetAddress1 + (user.streetAddress2 ? ` ${user.streetAddress2}` : ''),
+                    city: user.city,
+                    state: user.state,
+                    zip: user.zipCode,
+                  }]
+                });
+
+                if (depotGeocode && depotGeocode.length > 0 && depotGeocode[0]) {
+                  const geocoded = depotGeocode[0];
+                  const userName = user.firstName && user.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.email || 'Your Location';
+                  depotAddress = {
+                    lat: geocoded.lat,
+                    lng: geocoded.lng,
+                    name: userName,
+                  };
+                }
+              }
+
+              // Calculate start time based on delivery date
+              // If delivery is today, use current time; otherwise use 9:00 AM
+              const deliveryDateObj = new Date(delivery.date);
+              const today = new Date();
+              const isToday = deliveryDateObj.toDateString() === today.toDateString();
+              const startTime = isToday
+                ? format(today, 'HH:mm:ss')
+                : '09:00:00';
 
               return (
                 <Card key={delivery.date}>
@@ -268,6 +306,7 @@ export default async function OrdersByFulfillmentPage({
                       orders={delivery.orders}
                       deliveryStops={deliveryStops}
                       depotAddress={depotAddress}
+                      startTime={startTime}
                     />
                   </CardContent>
                 </Card>
