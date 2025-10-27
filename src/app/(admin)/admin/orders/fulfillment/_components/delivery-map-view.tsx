@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Save, RotateCcw, Zap, ExternalLink, TrendingDown, Info, GripVertical } from 'lucide-react';
 import { useServerAction } from 'zsa-react';
 import { saveDeliveryRoute } from '../../../_actions/save-delivery-route.action';
-import { getDeliveryRoute } from '../../../_actions/get-delivery-route.action';
 import { optimizeDeliveryRoute } from '../../../_actions/optimize-delivery-route.action';
 import { toast } from 'sonner';
 import { generateGoogleMapsRouteUrl } from '@/utils/google-maps';
@@ -130,7 +129,6 @@ export function DeliveryMapView({
   const isCalculatingRef = useRef(false);
 
   const { execute: saveRoute, isPending: isSaving } = useServerAction(saveDeliveryRoute);
-  const { execute: loadRoute } = useServerAction(getDeliveryRoute);
   const { execute: optimizeRoute, isPending: isOptimizing } = useServerAction(optimizeDeliveryRoute);
 
   // Drag and drop sensors
@@ -306,34 +304,18 @@ export function DeliveryMapView({
         return;
       }
 
+      console.log('Optimization result:', {
+        optimizedDeliveries: data.optimizedDeliveries,
+        segments: data.segments,
+        deliveriesCount: data.optimizedDeliveries?.length,
+        segmentsCount: data.segments?.length,
+      });
+
       // Update state with optimized data
       setOrderedDeliveries(data.optimizedDeliveries);
-      setSegments(data.segments);
+      setSegments(data.segments); // ✅ Set segments from server to avoid waiting for useEffect
       setOptimizationSavings(data.savings);
       setHasUnsavedChanges(true);
-
-      // Force visual route update on map
-      if (map && isLoaded) {
-        const directionsService = new google.maps.DirectionsService();
-        const waypoints = data.optimizedDeliveries.map(d => ({
-          location: { lat: d.lat, lng: d.lng },
-          stopover: true,
-        }));
-
-        directionsService.route({
-          origin: { lat: depotAddress.lat, lng: depotAddress.lng },
-          destination: { lat: depotAddress.lat, lng: depotAddress.lng },
-          waypoints,
-          optimizeWaypoints: false, // Already optimized
-          travelMode: google.maps.TravelMode.DRIVING,
-        }, (result, status) => {
-          if (status === 'OK' && result) {
-            setDirections(result);
-          } else {
-            console.error('Failed to update directions:', status);
-          }
-        });
-      }
 
       // Show savings message
       const distanceSavedMiles = (data.savings.distanceSaved / 1609.34).toFixed(1);
@@ -438,7 +420,7 @@ export function DeliveryMapView({
       <Alert className="bg-blue-50 border-blue-200">
         <Info className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-sm">
-          <strong>How to adjust route:</strong> Drag stops in the timeline below, drag waypoints on the map, or click "Optimize Route" for automatic optimization.
+          <strong>How to adjust route:</strong> Drag stops in the timeline below, drag waypoints on the map, or click &ldquo;Optimize Route&rdquo; for automatic optimization.
         </AlertDescription>
       </Alert>
 

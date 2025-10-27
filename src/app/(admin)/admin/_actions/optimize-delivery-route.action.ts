@@ -14,6 +14,8 @@ const DeliveryStopSchema = z.object({
   lat: z.number(),
   lng: z.number(),
   customerName: z.string(),
+  timeWindow: z.string().optional(),
+  estimatedArrival: z.string().optional(),
 });
 
 const DepotAddressSchema = z.object({
@@ -83,18 +85,14 @@ export const optimizeDeliveryRoute = createServerAction()
     }
 
     // Build waypoints for Google Directions API
-    const waypoints = deliveries.map((d) => ({
-      location: `${d.lat},${d.lng}`,
-      stopover: true,
-    }));
+    const waypoints = deliveries.map((d) => `${d.lat},${d.lng}`);
 
     // Call Google Directions API with optimization enabled
     const origin = `${depotAddress.lat},${depotAddress.lng}`;
     const destination = origin; // Return to depot
 
-    const waypointsParam = waypoints
-      .map((wp) => `via:${wp.location}`)
-      .join("|");
+    // IMPORTANT: Don't use 'via:' prefix - that makes them pass-through points, not stops!
+    const waypointsParam = waypoints.join("|");
 
     const url = new URL(
       "https://maps.googleapis.com/maps/api/directions/json"
@@ -116,8 +114,13 @@ export const optimizeDeliveryRoute = createServerAction()
     const waypointOrder = route.waypoint_order as number[];
     const legs = route.legs;
 
+    console.log('[Optimize] Input deliveries count:', deliveries.length);
+    console.log('[Optimize] Waypoint order from Google:', waypointOrder);
+    console.log('[Optimize] Legs count:', legs.length);
+
     // Reorder deliveries based on optimized waypoint order
     const optimizedDeliveries = waypointOrder.map((idx) => deliveries[idx]);
+    console.log('[Optimize] Optimized deliveries count:', optimizedDeliveries.length);
 
     // Calculate segment timing
     const [hours, minutes] = startTime.split(":").map(Number);
@@ -128,7 +131,10 @@ export const optimizeDeliveryRoute = createServerAction()
 
     legs.forEach((leg, index) => {
       // Skip last leg (return to depot)
-      if (index >= optimizedDeliveries.length) return;
+      if (index >= optimizedDeliveries.length) {
+        console.log(`[Optimize] Skipping leg ${index} (return to depot)`);
+        return;
+      }
 
       const driveDuration = leg.duration.value; // seconds
       const driveDistance = leg.distance.value; // meters
@@ -153,6 +159,8 @@ export const optimizeDeliveryRoute = createServerAction()
       currentTime = departureTime;
     });
 
+    console.log('[Optimize] Segments built:', segments.length);
+
     // Calculate totals
     const totalDistance = legs.reduce(
       (sum, leg) => sum + leg.distance.value,
@@ -172,7 +180,7 @@ export const optimizeDeliveryRoute = createServerAction()
     originalUrl.searchParams.set("destination", destination);
     originalUrl.searchParams.set(
       "waypoints",
-      waypoints.map((wp) => `via:${wp.location}`).join("|")
+      waypoints.join("|") // No 'via:' prefix - we want actual stops, not pass-through points
     );
     originalUrl.searchParams.set("mode", "driving");
     originalUrl.searchParams.set("key", process.env.GOOGLE_MAPS_API_KEY);
@@ -187,11 +195,11 @@ export const optimizeDeliveryRoute = createServerAction()
     if (originalData.status === "OK" && originalData.routes?.[0]) {
       const originalRoute = originalData.routes[0];
       originalDistance = originalRoute.legs.reduce(
-        (sum: number, leg: GoogleMapsLeg) => sum + leg.distance.value,
+        (sum, leg) => sum + (leg as GoogleMapsLeg).distance.value,
         0
       );
       originalDuration = originalRoute.legs.reduce(
-        (sum: number, leg: GoogleMapsLeg) => sum + leg.duration.value,
+        (sum, leg) => sum + (leg as GoogleMapsLeg).duration.value,
         0
       );
     }
