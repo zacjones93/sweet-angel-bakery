@@ -41,40 +41,46 @@ export function FulfillmentFilters() {
   }
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-4">
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Start date</label>
-        <Input
-          type="date"
-          value={startDate || defaultStart}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-[200px]"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">End date</label>
-        <Input
-          type="date"
-          value={endDate || defaultEnd}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-[200px]"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Method</label>
-        <Select value={method || "all"} onValueChange={(v) => setMethod(v)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="delivery">Delivery</SelectItem>
-            <SelectItem value="pickup">Pickup</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={handleReset}>
+    <div className="bg-muted/50 p-3 sm:p-4 rounded-lg border">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <label className="text-xs text-muted-foreground">Start</label>
+          <Input
+            type="date"
+            value={startDate || defaultStart}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <label className="text-xs text-muted-foreground">End</label>
+          <Input
+            type="date"
+            value={endDate || defaultEnd}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <label className="text-xs text-muted-foreground">Method</label>
+          <Select value={method || "all"} onValueChange={(v) => setMethod(v)}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="delivery">Delivery</SelectItem>
+              <SelectItem value="pickup">Pickup</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleReset}
+          className="h-9 text-sm shrink-0"
+          size="sm"
+        >
           Reset
         </Button>
       </div>

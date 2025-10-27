@@ -4,10 +4,12 @@ import { GoogleMap, Marker, DirectionsRenderer, InfoWindow, useJsApiLoader } fro
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { addSeconds, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Save, RotateCcw, Zap, ExternalLink, TrendingDown, Info, GripVertical } from 'lucide-react';
+import { Save, RotateCcw, Zap, ExternalLink, TrendingDown, Info, GripVertical, Bell } from 'lucide-react';
 import { useServerAction } from 'zsa-react';
 import { saveDeliveryRoute } from '../../../_actions/save-delivery-route.action';
+import { getDeliveryRoute } from '../../../_actions/get-delivery-route.action';
 import { optimizeDeliveryRoute } from '../../../_actions/optimize-delivery-route.action';
+import { notifyDeliveryETA } from '../../../_actions/notify-delivery-eta.action';
 import { toast } from 'sonner';
 import { generateGoogleMapsRouteUrl } from '@/utils/google-maps';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -77,25 +79,28 @@ function SortableStopItem({ delivery, segment, index, stopDuration, onClick }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="text-sm p-2 border rounded hover:bg-muted cursor-pointer flex items-center gap-2"
+      className="text-sm p-2 sm:p-3 border rounded hover:bg-muted cursor-pointer flex items-start gap-2"
       onClick={onClick}
     >
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing pt-1">
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex-1">
-        <div className="flex justify-between">
-          <div>
-            <span className="font-semibold">Stop {index + 1}:</span> {delivery.customerName}
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-xs sm:text-sm">Stop {index + 1}:</span>{' '}
+            <span className="text-xs sm:text-sm truncate">{delivery.customerName}</span>
           </div>
-          <div className="font-mono text-muted-foreground">
+          <div className="font-mono text-xs text-muted-foreground sm:whitespace-nowrap">
             {segment.estimatedArrival} - {segment.estimatedDeparture}
           </div>
         </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          {(segment.durationFromPrevious / 60).toFixed(0)} min drive ·
-          {' '}{(segment.distanceFromPrevious / 1609.34).toFixed(1)} mi ·
-          {' '}{stopDuration / 60} min stop
+        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-2">
+          <span>{(segment.durationFromPrevious / 60).toFixed(0)} min drive</span>
+          <span>·</span>
+          <span>{(segment.distanceFromPrevious / 1609.34).toFixed(1)} mi</span>
+          <span>·</span>
+          <span>{stopDuration / 60} min stop</span>
         </div>
       </div>
     </div>
@@ -126,10 +131,13 @@ export function DeliveryMapView({
     distanceSaved: number;
     timeSaved: number;
   } | null>(null);
+  const [isLoadingSavedRoute, setIsLoadingSavedRoute] = useState(true);
   const isCalculatingRef = useRef(false);
 
   const { execute: saveRoute, isPending: isSaving } = useServerAction(saveDeliveryRoute);
+  const { execute: getRoute } = useServerAction(getDeliveryRoute);
   const { execute: optimizeRoute, isPending: isOptimizing } = useServerAction(optimizeDeliveryRoute);
+  const { execute: sendNotifications, isPending: isSendingNotifications } = useServerAction(notifyDeliveryETA);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -138,6 +146,42 @@ export function DeliveryMapView({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Load saved route on mount
+  useEffect(() => {
+    const loadSavedRoute = async () => {
+      try {
+        const [data, err] = await getRoute({ deliveryDate });
+
+        if (err) {
+          console.error('Failed to load saved route:', err);
+          setIsLoadingSavedRoute(false);
+          return;
+        }
+
+        if (data && data.routeSegments && data.routeSegments.length > 0) {
+          // Reorder deliveries based on saved sequence
+          const reordered = [...deliveries].sort((a, b) => {
+            const aSegment = data.routeSegments.find(s => s.orderId === a.orderId);
+            const bSegment = data.routeSegments.find(s => s.orderId === b.orderId);
+            const aSeq = aSegment?.sequence ?? 999;
+            const bSeq = bSegment?.sequence ?? 999;
+            return aSeq - bSeq;
+          });
+
+          setOrderedDeliveries(reordered);
+          setOriginalOrder(reordered);
+          toast.success('Loaded saved route');
+        }
+      } catch (error) {
+        console.error('Error loading saved route:', error);
+      } finally {
+        setIsLoadingSavedRoute(false);
+      }
+    };
+
+    loadSavedRoute();
+  }, [deliveryDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle drag end - reorder stops
   const handleDragEnd = (event: DragEndEvent) => {
@@ -158,7 +202,7 @@ export function DeliveryMapView({
 
   // Calculate route and segment times when deliveries change
   const calculateRoute = useCallback(() => {
-    if (!orderedDeliveries.length || !map || !isLoaded) return;
+    if (!orderedDeliveries.length || !map || !isLoaded || isLoadingSavedRoute) return;
 
     isCalculatingRef.current = true;
     const directionsService = new google.maps.DirectionsService();
@@ -216,7 +260,7 @@ export function DeliveryMapView({
         }, 100);
       }
     });
-  }, [orderedDeliveries, map, depotAddress, startTime, stopDuration, isLoaded]);
+  }, [orderedDeliveries, map, depotAddress, startTime, stopDuration, isLoaded, isLoadingSavedRoute]);
 
   // Call calculateRoute when ordered deliveries change
   useEffect(() => {
@@ -346,12 +390,50 @@ export function DeliveryMapView({
     }
   };
 
+  // Send delivery ETA notifications to customers
+  const handleSendNotifications = async () => {
+    try {
+      const [data, err] = await sendNotifications({
+        deliveryDate,
+      });
+
+      if (err) {
+        toast.error('Failed to send notifications: ' + err.message);
+        return;
+      }
+
+      if (!data) {
+        toast.error('No notification data returned');
+        return;
+      }
+
+      // Show success message with details
+      if (data.sent > 0) {
+        toast.success(data.message, { duration: 5000 });
+      } else if (data.skipped > 0) {
+        toast.warning(data.message, { duration: 5000 });
+      } else {
+        toast.info(data.message);
+      }
+
+      // Show any failures
+      if (data.details.failed.length > 0) {
+        console.error('Failed notifications:', data.details.failed);
+      }
+    } catch (error) {
+      toast.error('Failed to send notifications');
+      console.error(error);
+    }
+  };
+
   if (loadError) {
     return <div className="text-destructive">Error loading maps</div>;
   }
 
-  if (!isLoaded) {
-    return <div className="text-muted-foreground">Loading maps...</div>;
+  if (!isLoaded || isLoadingSavedRoute) {
+    return <div className="text-muted-foreground">
+      {isLoadingSavedRoute ? 'Loading saved route...' : 'Loading maps...'}
+    </div>;
   }
 
   if (deliveries.length === 0) {
@@ -365,34 +447,37 @@ export function DeliveryMapView({
   return (
     <div className="space-y-4">
       {/* Route Controls */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">Delivery Route</h3>
           {hasUnsavedChanges && (
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full whitespace-nowrap">
               Unsaved changes
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleOpenInGoogleMaps}
             disabled={orderedDeliveries.length === 0}
             title="Open route in Google Maps for navigation"
+            className="flex-1 sm:flex-none"
           >
-            <ExternalLink className="h-4 w-4 mr-1" />
-            Open in Maps
+            <ExternalLink className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Open in Maps</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleRevertRoute}
             disabled={!hasUnsavedChanges}
+            title="Revert to original route"
+            className="flex-1 sm:flex-none"
           >
-            <RotateCcw className="h-4 w-4 mr-1" />
-            Revert
+            <RotateCcw className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Revert</span>
           </Button>
           <Button
             variant="secondary"
@@ -400,55 +485,76 @@ export function DeliveryMapView({
             onClick={handleOptimizeRoute}
             disabled={isOptimizing || orderedDeliveries.length < 2}
             title="Auto-optimize route for shortest distance"
+            className="flex-1 sm:flex-none"
           >
-            <Zap className="h-4 w-4 mr-1" />
-            {isOptimizing ? 'Optimizing...' : 'Optimize Route'}
+            <Zap className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{isOptimizing ? 'Optimizing...' : 'Optimize'}</span>
+            <span className="sm:hidden">{isOptimizing ? '...' : ''}</span>
           </Button>
           <Button
             variant="default"
             size="sm"
             onClick={handleSaveRoute}
             disabled={!hasUnsavedChanges || isSaving}
+            title="Save route changes"
+            className="flex-1 sm:flex-none"
           >
-            <Save className="h-4 w-4 mr-1" />
-            {isSaving ? 'Saving...' : 'Save Route'}
+            <Save className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
+            <span className="sm:hidden">{isSaving ? '...' : ''}</span>
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSendNotifications}
+            disabled={isSendingNotifications || orderedDeliveries.length === 0}
+            title="Notify customers of estimated delivery time"
+            className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none whitespace-nowrap"
+          >
+            <Bell className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{isSendingNotifications ? 'Sending...' : 'Notify'}</span>
+            <span className="sm:hidden">{isSendingNotifications ? '...' : ''}</span>
           </Button>
         </div>
       </div>
 
-      {/* How to use alert */}
-      <Alert className="bg-blue-50 border-blue-200">
-        <Info className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800 text-sm">
-          <strong>How to adjust route:</strong> Drag stops in the timeline below, drag waypoints on the map, or click &ldquo;Optimize Route&rdquo; for automatic optimization.
+      {/* How to use alert - compact on mobile */}
+      <Alert className="bg-blue-50 border-blue-200 py-2 sm:py-3">
+        <Info className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800 text-xs sm:text-sm">
+          <strong className="hidden sm:inline">How to adjust route:</strong>
+          <span className="hidden sm:inline"> Drag stops, waypoints, or click Optimize.</span>
+          <span className="sm:hidden">Drag stops or optimize to adjust route</span>
         </AlertDescription>
       </Alert>
 
       {/* Optimization Savings Alert */}
       {optimizationSavings && (optimizationSavings.distanceSaved > 0 || optimizationSavings.timeSaved > 0) && (
-        <Alert className="bg-green-50 border-green-200">
-          <TrendingDown className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            <strong>Route optimized!</strong> Saved{' '}
-            <strong>{(optimizationSavings.distanceSaved / 1609.34).toFixed(1)} miles</strong> and{' '}
-            <strong>{(optimizationSavings.timeSaved / 60).toFixed(0)} minutes</strong> compared to original route.
+        <Alert className="bg-green-50 border-green-200 py-2 sm:py-3">
+          <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+          <AlertDescription className="text-green-800 text-xs sm:text-sm">
+            <strong>Optimized!</strong> Saved{' '}
+            <strong>{(optimizationSavings.distanceSaved / 1609.34).toFixed(1)} mi</strong>
+            <span className="hidden sm:inline"> and </span>
+            <span className="sm:hidden">, </span>
+            <strong>{(optimizationSavings.timeSaved / 60).toFixed(0)} min</strong>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Route Summary */}
       <div className="bg-muted p-4 rounded-lg">
-        <div className="grid grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
-            <div className="text-muted-foreground">Start Time</div>
+            <div className="text-muted-foreground text-xs sm:text-sm">Start Time</div>
             <div className="font-semibold">{startTime}</div>
           </div>
           <div>
-            <div className="text-muted-foreground">Total Stops</div>
+            <div className="text-muted-foreground text-xs sm:text-sm">Total Stops</div>
             <div className="font-semibold">{orderedDeliveries.length}</div>
           </div>
           <div>
-            <div className="text-muted-foreground">Total Distance</div>
+            <div className="text-muted-foreground text-xs sm:text-sm">Total Distance</div>
             <div className="font-semibold">
               {directions ?
                 `${(directions.routes[0].legs.reduce((sum, leg) => sum + (leg.distance?.value || 0), 0) / 1609.34).toFixed(1)} mi`
@@ -456,7 +562,7 @@ export function DeliveryMapView({
             </div>
           </div>
           <div>
-            <div className="text-muted-foreground">Est. Completion</div>
+            <div className="text-muted-foreground text-xs sm:text-sm">Est. Completion</div>
             <div className="font-semibold">
               {segments.length > 0 ? segments[segments.length - 1].estimatedDeparture : '-'}
             </div>
@@ -465,7 +571,7 @@ export function DeliveryMapView({
       </div>
 
       {/* Map */}
-      <div className="h-[600px] w-full rounded-lg overflow-hidden border">
+      <div className="h-[400px] sm:h-[500px] lg:h-[600px] w-full rounded-lg overflow-hidden border">
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={depotAddress}
@@ -560,10 +666,11 @@ export function DeliveryMapView({
 
       {/* Segment Details List */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Route Timeline</h3>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="font-semibold text-sm sm:text-base">Route Timeline</h3>
           <p className="text-xs text-muted-foreground">
-            🎯 Drag stops below to reorder route
+            🎯 <span className="hidden sm:inline">Drag stops below to reorder route</span>
+            <span className="sm:hidden">Drag to reorder</span>
           </p>
         </div>
         <DndContext

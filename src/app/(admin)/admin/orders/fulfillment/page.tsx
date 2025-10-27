@@ -98,52 +98,51 @@ export default async function OrdersByFulfillmentPage({
           { href: "/admin/orders/fulfillment", label: "By Fulfillment" },
         ]}
       />
-      <div className="container mx-auto py-6 space-y-6">
-        <div>
-          <FulfillmentFilters />
-        </div>
+      <div className="container mx-auto py-4 sm:py-6 space-y-4">
+        <FulfillmentFilters />
+
         {/* Summary Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Total Deliveries
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+              <div className="text-xl sm:text-2xl font-bold">
                 {summary.totalDeliveryOrders}
               </div>
               <p className="text-xs text-muted-foreground">
-                Revenue: {formatCents(summary.totalDeliveryRevenue)}
+                {formatCents(summary.totalDeliveryRevenue)}
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Total Pickups
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+              <div className="text-xl sm:text-2xl font-bold">
                 {summary.totalPickupOrders}
               </div>
               <p className="text-xs text-muted-foreground">
-                Revenue: {formatCents(summary.totalPickupRevenue)}
+                {formatCents(summary.totalPickupRevenue)}
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Delivery Revenue
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+              <div className="text-xl sm:text-2xl font-bold">
                 {formatCents(summary.totalDeliveryRevenue)}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -153,13 +152,13 @@ export default async function OrdersByFulfillmentPage({
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Pickup Revenue
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+              <div className="text-xl sm:text-2xl font-bold">
                 {formatCents(summary.totalPickupRevenue)}
               </div>
               <p className="text-xs text-muted-foreground">

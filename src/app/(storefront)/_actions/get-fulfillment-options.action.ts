@@ -59,9 +59,21 @@ export const getCartDeliveryOptionsAction = createServerAction()
         cartItems: items,
         deliveryZipCode,
       });
+
+      // If no zone matches the ZIP code, delivery is not available
+      if (!feeResult.appliedZone) {
+        return {
+          available: false,
+          deliveryDates: [],
+          feeAmount: 0,
+          zoneName: null,
+          zoneId: null,
+        };
+      }
+
       feeAmount = feeResult.feeAmount;
-      zoneName = feeResult.appliedZone?.name || null;
-      zoneId = feeResult.appliedZone?.id || null;
+      zoneName = feeResult.appliedZone.name;
+      zoneId = feeResult.appliedZone.id;
     }
 
     return {

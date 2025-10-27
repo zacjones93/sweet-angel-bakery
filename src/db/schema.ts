@@ -394,6 +394,10 @@ export const orderTable = sqliteTable("order", {
   routeDurationFromPrevious: integer('route_duration_from_previous'), // Seconds from previous stop
   routeDistanceFromPrevious: integer('route_distance_from_previous'), // Meters from previous stop
 
+  // Delivery notification tracking (for spam prevention and status display)
+  deliveryNotificationSentAt: integer('delivery_notification_sent_at', { mode: "timestamp" }), // When notification was last sent
+  deliveryNotificationCount: integer('delivery_notification_count').default(0), // How many times notification has been sent
+
   // Pickup fields (if fulfillmentMethod === 'pickup')
   pickupLocationId: text('pickup_location_id').references(() => pickupLocationTable.id),
   pickupDate: text('pickup_date', { length: 20 }), // ISO date string "2024-10-26"

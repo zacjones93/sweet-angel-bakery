@@ -6,7 +6,10 @@ import { formatCents } from "@/utils/tax";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Navigation } from "lucide-react";
+import { Navigation, Bell } from "lucide-react";
+import { useServerAction } from "zsa-react";
+import { notifyDeliveryETA } from "../../../_actions/notify-delivery-eta.action";
+import { toast } from "sonner";
 
 interface DeliveryStop {
   orderId: string;
@@ -50,6 +53,44 @@ interface Props {
 }
 
 export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAddress, startTime = "09:00:00" }: Props) {
+  const { execute: sendNotifications, isPending: isSendingNotifications } = useServerAction(notifyDeliveryETA);
+
+  // Send delivery ETA notifications to customers
+  const handleSendNotifications = async () => {
+    try {
+      const [data, err] = await sendNotifications({
+        deliveryDate,
+      });
+
+      if (err) {
+        toast.error('Failed to send notifications: ' + err.message);
+        return;
+      }
+
+      if (!data) {
+        toast.error('No notification data returned');
+        return;
+      }
+
+      // Show success message with details
+      if (data.sent > 0) {
+        toast.success(data.message, { duration: 5000 });
+      } else if (data.skipped > 0) {
+        toast.warning(data.message, { duration: 5000 });
+      } else {
+        toast.info(data.message);
+      }
+
+      // Show any failures
+      if (data.details.failed.length > 0) {
+        console.error('Failed notifications:', data.details.failed);
+      }
+    } catch (error) {
+      toast.error('Failed to send notifications');
+      console.error(error);
+    }
+  };
+
   return (
     <Tabs defaultValue="list" className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -58,6 +99,20 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
       </TabsList>
 
       <TabsContent value="list" className="mt-4">
+        <div className="mb-3 flex justify-end">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSendNotifications}
+            disabled={isSendingNotifications || orders.length === 0}
+            title="Notify customers of estimated delivery time"
+            className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+          >
+            <Bell className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{isSendingNotifications ? 'Sending...' : 'Notify Customers'}</span>
+            <span className="sm:hidden">{isSendingNotifications ? '...' : 'Notify'}</span>
+          </Button>
+        </div>
         <div className="space-y-3">
           {orders.map((orderData) => {
             // Parse delivery address for Google Maps
@@ -86,27 +141,29 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
             return (
               <div
                 key={orderData.order.id}
-                className="p-4 rounded-lg border"
+                className="p-3 sm:p-4 rounded-lg border"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                   <Link
                     href={`/admin/orders/${orderData.order.id}`}
-                    className="flex-1 space-y-1 hover:opacity-80 transition-opacity"
+                    className="flex-1 space-y-1 hover:opacity-80 transition-opacity min-w-0"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs sm:text-sm">
                         #{orderData.order.id.slice(-8)}
                       </span>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs">
                         {orderData.order.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {orderData.order.customerName} ·{" "}
+                    <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                      {orderData.order.customerName}
+                    </div>
+                    <div className="text-xs text-muted-foreground break-all">
                       {orderData.order.customerEmail}
                     </div>
                     {orderData.deliveryZone && (
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-xs sm:text-sm text-muted-foreground">
                         Zone: {orderData.deliveryZone.name} · Fee:{" "}
                         {formatCents(
                           orderData.order.deliveryFee || 0
@@ -117,9 +174,9 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
                       {orderData.items.length} items
                     </div>
                   </Link>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="text-right">
-                      <div className="font-semibold">
+                  <div className="flex sm:flex-col items-center sm:items-end gap-2 justify-between sm:justify-start">
+                    <div className="text-left sm:text-right">
+                      <div className="font-semibold text-sm sm:text-base">
                         {formatCents(orderData.order.totalAmount)}
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -131,15 +188,15 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
                         size="sm"
                         variant="outline"
                         asChild
-                        className="w-full"
+                        className="shrink-0"
                       >
                         <a
                           href={mapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Navigation className="h-3 w-3 mr-1" />
-                          Directions
+                          <Navigation className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Directions</span>
                         </a>
                       </Button>
                     )}
