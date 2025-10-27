@@ -62,7 +62,7 @@ export const DeliveryETANotificationEmail = ({
             <Text style={addressText}>{addressString}</Text>
             {deliveryInstructions && (
               <>
-                <Text style={addressLabel} marginTop="16px">
+                <Text style={{ ...addressLabel, marginTop: "16px" }}>
                   Delivery Instructions
                 </Text>
                 <Text style={addressText}>{deliveryInstructions}</Text>
