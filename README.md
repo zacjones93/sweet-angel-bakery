@@ -1,175 +1,184 @@
-# Cloudflare Workers SaaS Template
+# Sweet Angel Bakery
 
-[![.github/workflows/deploy.yml](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml)
+E-commerce platform for Sweet Angel Bakery built on Cloudflare Workers with Next.js 15. Features customer storefront, admin management, delivery tracking, loyalty program, and integrated payment processing.
 
-# [Live Demo](https://nextjs-saas-template.lubomirgeorgiev.com/sign-up)
-# [Github Repo](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
+## Tech Stack
 
-This is a SaaS template for Cloudflare Workers. It uses the [OpenNext](https://opennext.js.org/cloudflare) framework to build a SaaS application.
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn UI
+- **Backend**: Cloudflare Workers with OpenNext, Drizzle ORM, Cloudflare D1 (SQLite)
+- **Storage**: Cloudflare KV (sessions/cache), R2 (product images), Durable Objects (cache queue)
+- **Payments**: Square SDK, Stripe (fallback)
+- **Auth**: Lucia Auth patterns, WebAuthn/Passkeys, Google OAuth
+- **Email**: React Email with Resend/Brevo
 
-Have a look at the [project plan](./cursor-docs/project-plan.md) to get an overview of the project.
+## Features
 
-> [!TIP]
-> This template is brought to you by 👉 [AgenticDev](https://agenticdev.agency/?ref=github-readme-nextjs-template) 👈 - where we help businesses automate operations and boost productivity through custom AI implementations. Just like this open-source project demonstrates technical excellence, we deliver:
->
-> - Process automation with LLM-powered workflows
-> - AI strategy consulting for sustainable scaling
-> - Custom SaaS development using cutting-edge stacks
->
-> Hundrets of developers already trust our codebase - Just Imagine what we could build for your business.
+### Customer Storefront
+- 🛒 Product browsing with categories and customization options
+- 🛍️ Shopping cart with product customizations
+- 💳 Secure checkout with Square/Stripe payment processing
+- 📧 Magic link authentication for customers
+- 🎁 Loyalty program signup with phone verification
+- 📦 Order tracking and history
+- 🗺️ Delivery scheduling with Google Maps integration
+- 📱 Responsive design for mobile and desktop
 
-# Supported Features:
+### Admin Dashboard
+- 📊 Order management and fulfillment tracking
+- 🍰 Product catalog management with customization options
+- 📦 Inventory tracking and stock management
+- 🚚 Delivery route optimization and ETA tracking
+- 📈 Revenue analytics with date range filtering
+- 📅 Calendar closures management
+- 👥 Customer and user management
+- 💰 Transaction history and reporting
+- 🔄 Square product sync utilities
 
-- 🔐 Authentication with Lucia Auth
-  - 📧 Email/Password Sign In
-  - 📝 Email/Password Sign Up
-  - 🔑 WebAuthn/Passkey Authentication
-  - 🌐 Google OAuth/SSO Integration
-  - 🔄 Forgot Password Flow
-  - 🔒 Change Password
-  - ✉️ Email Verification
-  - 🗝️ Session Management with Cloudflare KV
-  - 🤖 Turnstile Captcha Integration
-  - ⚡ Rate Limiting for Auth Endpoints
-  - 🛡️ Protected Routes and Layouts
-  - 📋 Session Listing and Management
-  - 🔒 Anti-Disposable Email Protection
-- 💾 Database with Drizzle and Cloudflare D1
-  - 🏗️ Type-safe Database Operations
-  - 🔄 Automatic Migration Generation
-  - 💻 SQLite for Local Development
-  - ⚡ Efficient Data Fetching
-  - 🔍 Type-safe Queries
-- 📨 Email Service with React Email and Resend or Brevo
-  - 🎨 Beautiful Email Templates
-  - 👀 Email Preview Mode
-  - 🔧 Local Email Development Server
-  - 📬 Transactional Emails
-  - ✉️ Email Verification Flow
-  - 📱 Responsive Email Templates
-- 🚀 Deployment with Github Actions
-  - ⚙️ Automatic Deployments
-  - 🔐 Environment Variables Management
-  - 📦 Database Migrations
-  - 🔄 Comprehensive CI/CD Pipeline
-  - 🧹 Cache Purging
-  - ✅ Type Checking
-- 🎨 Modern UI
-  - 🎨 Tailwind CSS
-  - 🧩 Shadcn UI Components
-  - 🌓 Dark/Light Mode
-  - 📱 Responsive Design
-  - ⚡ Loading States and Animations
-  - 🔔 Toast Notifications
-  - ⚙️ Settings Dashboard
-  - 🏠 Landing Page
-  - ✨ Beautiful Email Templates
-  - 👤 Profile Settings Page
-  - 🎯 Form Validation States
-- 💳 Credit Billing System
-  - 💰 Credit-based Pricing Model
-  - 🔄 Monthly Credit Refresh
-  - 📊 Credit Usage Tracking
-  - 💳 Stripe Payment Integration
-  - 📜 Transaction History
-  - 📦 Credit Package Management
-  - 💸 Pay-as-you-go Model
-  - 📈 Usage Analytics
-- 👑 Admin Dashboard
-  - 👥 User Management
-- ✨ Validations with Zod and React Hook Form
-  - 🛡️ Type-safe Form Validations
-  - 🔒 Server-side Validations
-  - 🔍 Client-side Validations
-  - 🧹 Input Sanitization
-  - ⚡ Real-time Validation
-  - 🔄 Form State Management
-- 👨‍💻 Developer Experience
-  - 🧪 Local Development Setup
-  - 📘 TypeScript Support
-  - 🔍 ESLint Configuration
-  - ✨ Prettier Configuration
-  - 🔐 Type-safe Environment Variables
-  - 🏗️ Cloudflare Types Generation
-  - 🤖 AI-powered Development with Cursor
-  - 📚 Comprehensive Documentation
-  - 📐 Project Structure Best Practices
-- ⚡ Edge Computing
-  - 🌍 Global Deployment with Cloudflare Workers
-  - 🚀 Zero Cold Starts
-  - 💨 Edge Caching
-  - ⚛️ React Server Components
-  - 🖥️ Server-side Rendering
-  - 💾 Edge Database with D1
-  - 🗄️ Session Storage with KV
-  - ⚡ API Rate Limiting
-- 🏢 Multi-tenancy Support
-  - 👥 Organization Management
-  - 👤 User Roles and Permissions
-  - 🔍 Tenant Isolation
-  - 🔄 Resource Sharing Controls
-  - 📊 Per-tenant Analytics
-  - 🔐 Tenant-specific Configurations
-  - 💼 Team Collaboration Features
+### Authentication & Security
 
-## Planned features (TODO):
+- 🔐 Email/Password authentication
+- 🔑 WebAuthn/Passkey support
+- 🌐 Google OAuth/SSO integration
+- 🗝️ Session management with Cloudflare KV
+- 🤖 Turnstile CAPTCHA integration
+- ⚡ Rate limiting for auth endpoints
+- 🛡️ Protected admin routes
+- 🔒 Anti-disposable email protection
 
-- [ ] Add an eslint rule to check for unused imports and exports
-- [ ] Add an eslint rule to check for unused variables and functions
-- [ ] Upgrade to Tailwind 4 and fix the errors and visual regressions. Already started here https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/tree/tailwind-4-upgrade
-- [ ] Update Meta SEO tags 🔍
-- [ ] Dynamic OpenGraph images 📸
-- [ ] sitemap.xml 📄
-- [ ] robots.txt 📄
-- [ ] Multi-language support (i18n) 🌐
-- [ ] Notifications 🔔
-- [ ] Webhooks 🔗
+### Developer Experience
+- 📘 Full TypeScript support with type-safe queries
+- 🏗️ Drizzle ORM with automatic migrations
+- 💻 SQLite for local development, D1 for production
+- 🚀 Automated deployment with GitHub Actions
+- 📨 Email template preview server
+- 🔍 ESLint and type checking
+- 📚 Comprehensive documentation (CLAUDE.md)
 
-# Running it locally
+## Local Development
 
-1. `pnpm install`
-2.  Copy `.dev.vars.example` to `.dev.vars` and fill in the values.
-3.  Copy `.env.example` to `.env` and fill in the values.
-4. `pnpm db:migrate:dev` - Creates a local SQLite database and applies migrations
-5. `pnpm dev`
-6.  Open http://localhost:3000
+1. Install dependencies:
+```bash
+pnpm install
+```
 
-## Changes to wrangler.jsonc
+2. Set up environment variables:
+   - Copy `.dev.vars.example` to `.dev.vars` and fill in Cloudflare credentials and API keys
+   - Copy `.env.example` to `.env` and fill in public keys (Turnstile, Square, Stripe, Google OAuth, email service)
 
-After making a change to wrangler.jsonc, you need to run `pnpm cf-typegen` to generate the new types.
+3. Create and migrate local database:
+```bash
+pnpm db:migrate:dev
+```
 
-## Things to change and customize before deploying to production
-1. Go to `src/constants.ts` and update it with your project details
-2. Update `.cursor/rules/001-main-project-context.mdc` with your project specification so that Cursor AI can give you better suggestions
-3. Update the footer in `src/components/footer.tsx` with your project details and links
-4. Optional: Update the color palette in `src/app/globals.css`
-5. Update the metadata in `src/app/layout.tsx` with your project details
+4. Start development server:
+```bash
+pnpm dev
+```
 
-## Deploying to Cloudflare with Github Actions
+5. Open http://localhost:3000
 
-1. Create D1 and KV namespaces
-2. Set either `RESEND_API_KEY` or `BREVO_API_KEY` as a secret in your Cloudflare Worker depending on which email service you want to use.
-3. Create a Turnstile catcha in your Cloudflare account, and set the `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as a Github Actions variable.
-4. Set `TURNSTILE_SECRET_KEY` as a secret in your Cloudflare Worker.
-5. Update the `wrangler.jsonc` file with the new database and KV namespaces, env variables and account id. Search for "cloudflare-workers-nextjs-saas-template" recursively in the whole repository and change that to the name of your project. Don't forget that the name you choose at the top of the wrangler.jsonc should be the same as `services->[0]->service` in the same file.
-6. Go to https://dash.cloudflare.com/profile/api-tokens and click on "Use template" next to "Edit Cloudflare Workers". On the next, page add the following permissions in addition to the ones from the template:
-    - Account:AI Gateway:Edit
-    - Account:Workers AI:Edit
-    - Account:Workers AI:Read
-    - Account:Queues:Edit
-    - Account:Vectorize:Edit
-    - Account:D1:Edit
-    - Account:Cloudflare Images:Edit
-    - Account:Workers KV Storage:Edit
-    - Zone:Cache Purge:Purge
-7. Add the API token to the Github repository secrets as `CLOUDFLARE_API_TOKEN`
-8. Add the Cloudflare account id to the Github repository variables as `CLOUDFLARE_ACCOUNT_ID`
-9. Optional: If you want clear the CDN cache on deploy, add `CLOUDFLARE_ZONE_ID` to the Github repository variables for the zone id of your domain. This is the zone id of your domain, not the account id.
-10. Push to the main branch
+### Additional Development Commands
 
-## Email templates
-If you want to preview and edit the email templates you can:
-1. `pnpm email:dev`
-2. Open http://localhost:3001
-3. Edit the email templates in the `src/react-email` folder
-4. For inspiration you can checkout https://react.email/templates
+```bash
+pnpm db:studio              # Open Drizzle Studio to visualize database
+pnpm email:dev              # Preview email templates at localhost:3001
+pnpm scrape:products        # Scrape products from external source
+pnpm sync:square            # Sync products with Square
+pnpm import:square          # Import products from Square
+```
+
+## Database Management
+
+The project uses Drizzle ORM with Cloudflare D1 (SQLite).
+
+### Making Schema Changes
+
+1. Edit the schema in `src/db/schema.ts`
+2. Generate a migration:
+```bash
+pnpm db:generate migration-name
+```
+3. Apply migration locally:
+```bash
+pnpm db:migrate:dev
+```
+4. Apply migration to production:
+```bash
+pnpm db:migrate:prod
+```
+
+### Viewing Database
+
+Use Drizzle Studio to visually explore the database:
+```bash
+pnpm db:studio
+```
+
+**Important**: After making changes to `wrangler.jsonc`, run `pnpm cf-typegen` to regenerate Cloudflare types.
+
+## Deployment
+
+The project uses GitHub Actions for automated deployment to Cloudflare Workers. Pushes to the `main` branch trigger:
+
+1. Type checking and linting
+2. Database migration (local test)
+3. OpenNext build for Cloudflare
+4. Deployment to Cloudflare Workers
+5. Production database migration
+6. CDN cache purge
+
+### Required Cloudflare Resources
+
+- D1 Database: `sweet-angel-bakery`
+- KV Namespace: Session and cache storage
+- R2 Bucket: `product-images`
+- Durable Object: Cache queue
+
+### Required Secrets & Variables
+
+**Cloudflare Worker Secrets:**
+- `RESEND_API_KEY` or `BREVO_API_KEY` (email service)
+- `TURNSTILE_SECRET_KEY` (CAPTCHA verification)
+- `SQUARE_ACCESS_TOKEN`, `SQUARE_APPLICATION_ID` (payment processing)
+- `STRIPE_SECRET_KEY` (optional, fallback payment)
+- `GOOGLE_OAUTH_CLIENT_SECRET` (SSO)
+
+**GitHub Actions Variables:**
+- `CLOUDFLARE_API_TOKEN` (secret)
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_ZONE_ID` (optional, for cache purging)
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── (auth)/              # Authentication flows
+│   ├── (storefront)/        # Customer-facing pages
+│   ├── (admin)/admin/       # Admin dashboard
+│   ├── (settings)/settings/ # User settings
+│   └── api/                 # API routes and webhooks
+├── db/
+│   ├── schema.ts            # Database schema
+│   └── migrations/          # SQL migrations
+├── lib/
+│   └── merchant-provider/   # Payment provider abstraction
+├── components/
+│   └── ui/                  # Shadcn UI components
+├── utils/                   # Core utilities
+├── actions/                 # Server actions
+├── schemas/                 # Zod validation schemas
+├── state/                   # Zustand stores
+└── react-email/             # Email templates
+```
+
+## Key Architectural Patterns
+
+- **Server Actions**: Type-safe with ZSA and Zod validation
+- **Merchant Provider Factory**: Abstracted payment processing (Square/Stripe)
+- **KV Session Storage**: Edge-optimized session management
+- **Product Customizations**: Flexible addon system with price adjustments
+- **Delivery System**: Timezone-aware scheduling with route optimization
+
+For detailed development guidance, see [CLAUDE.md](./CLAUDE.md).
