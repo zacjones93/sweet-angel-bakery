@@ -31,6 +31,8 @@ export const getRevenueStatsAction = createServerAction()
         netRevenue: sql<number>`COALESCE(SUM(${merchantFeeTable.netAmount}), 0)`,
         avgOrderValue: sql<number>`COALESCE(AVG(${orderTable.totalAmount}), 0)`,
         avgFee: sql<number>`COALESCE(AVG(${merchantFeeTable.totalFee}), 0)`,
+        totalDeliveryFees: sql<number>`COALESCE(SUM(${orderTable.deliveryFee}), 0)`,
+        totalTax: sql<number>`COALESCE(SUM(${orderTable.tax}), 0)`,
       })
       .from(orderTable)
       .leftJoin(merchantFeeTable, eq(merchantFeeTable.orderId, orderTable.id))
@@ -75,6 +77,8 @@ export const getRevenueStatsAction = createServerAction()
         avgFee: Number(stats.avgFee) || 0,
         stripeFees: Number(stats.stripeFees) || 0,
         squareFees: Number(stats.squareFees) || 0,
+        totalDeliveryFees: Number(stats.totalDeliveryFees) || 0,
+        totalTax: Number(stats.totalTax) || 0,
       },
       byProvider: providerBreakdown.map((row) => ({
         provider: row.provider || "unknown",
