@@ -67,6 +67,8 @@ export const getOrdersAction = createServerAction()
         stripePaymentIntentId: orderTable.stripePaymentIntentId,
         createdAt: orderTable.createdAt,
         updatedAt: orderTable.updatedAt,
+        fulfillmentMethod: orderTable.fulfillmentMethod,
+        fulfillmentType: orderTable.fulfillmentType,
         itemsCount: sql<number>`count(${orderItemTable.id})`,
       })
       .from(orderTable)

@@ -29,7 +29,7 @@ export default async function HomePage() {
             Saturdays.
           </p>
           <Button size="lg" asChild className="text-lg px-8 py-6">
-            <Link href="/">View Menu</Link>
+            <Link href={"/products" as Route}>View Menu</Link>
           </Button>
         </div>
       </section>
@@ -48,7 +48,7 @@ export default async function HomePage() {
             </div>
             <div className="text-center mt-12">
               <Button size="lg" variant="outline" asChild>
-                <Link href="/">Browse All Products</Link>
+                <Link href={"/products" as Route}>Browse All Products</Link>
               </Button>
             </div>
           </div>
@@ -151,9 +151,7 @@ export default async function HomePage() {
                   <Link href="/login">Already a Member? Login</Link>
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Joining is free
-              </p>
+              <p className="text-sm text-muted-foreground">Joining is free</p>
             </div>
           </div>
         </div>

@@ -101,7 +101,7 @@ export default async function OrdersPage() {
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {orders.map((order) => {
           const items = orderItemsMap.get(order.id) || [];
 
@@ -156,7 +156,7 @@ export default async function OrdersPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="flex flex-col gap-3">
                     {items.map((item, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <div className="flex-1">
@@ -174,9 +174,25 @@ export default async function OrdersPage() {
                       </div>
                     ))}
 
-                    <div className="border-t pt-3 flex justify-between font-bold">
-                      <span>Total</span>
-                      <span>{formatPrice(order.totalAmount)}</span>
+                    <div className="border-t pt-3 flex flex-col gap-2">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatPrice(order.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Tax</span>
+                        <span>{formatPrice(order.tax)}</span>
+                      </div>
+                      {order.deliveryFee && order.deliveryFee > 0 && (
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>Delivery Fee</span>
+                          <span>{formatPrice(order.deliveryFee)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold pt-1">
+                        <span>Total</span>
+                        <span>{formatPrice(order.totalAmount)}</span>
+                      </div>
                     </div>
 
                     <div className="text-sm text-primary hover:underline pt-2">

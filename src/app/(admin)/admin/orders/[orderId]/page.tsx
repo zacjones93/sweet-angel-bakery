@@ -60,6 +60,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 <UpdateOrderStatusDialog
                   orderId={order.id}
                   currentStatus={order.status}
+                  fulfillmentMethod={(order.fulfillmentMethod || order.fulfillmentType) as "delivery" | "pickup" | null}
                 />
               </div>
             </CardHeader>

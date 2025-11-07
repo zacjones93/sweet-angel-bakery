@@ -3,11 +3,10 @@
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import {
-  getNextDeliveryDate,
   getAvailablePickupLocations,
   calculateDeliveryFee,
-  getCartDeliveryDate,
   getAvailableDeliveryDates,
+  getAvailablePickupDates,
 } from "@/utils/delivery";
 
 /**
@@ -93,7 +92,7 @@ export const getCartDeliveryOptionsAction = createServerAction()
 
 /**
  * Get pickup options for a cart
- * Returns all available pickup locations with next available dates
+ * Returns all available pickup locations with multiple available pickup dates
  */
 export const getCartPickupOptionsAction = createServerAction()
   .input(
@@ -116,16 +115,32 @@ export const getCartPickupOptionsAction = createServerAction()
       productId: firstProductId,
     });
 
+    // For each location, get all available pickup dates
+    const locationsWithDates = await Promise.all(
+      locations.map(async (loc) => {
+        const pickupDates = await getAvailablePickupDates({
+          pickupLocationId: loc.id,
+          productId: firstProductId,
+          maxDates: 4, // Show up to 4 pickup date options
+        });
+
+        return {
+          id: loc.id,
+          name: loc.name,
+          address: JSON.parse(loc.address),
+          instructions: loc.instructions,
+          pickupDates: pickupDates.map((date) => ({
+            pickupDate: date.pickupDate.toISOString(),
+            cutoffDate: date.cutoffDate.toISOString(),
+            pickupTimeWindow: date.timeWindow,
+          })),
+        };
+      })
+    );
+
     return {
-      available: locations.length > 0,
-      locations: locations.map((loc) => ({
-        id: loc.id,
-        name: loc.name,
-        address: JSON.parse(loc.address),
-        pickupDate: loc.nextPickupDate.toISOString(),
-        pickupTimeWindow: loc.pickupTimeWindow,
-        instructions: loc.instructions,
-      })),
+      available: locationsWithDates.length > 0,
+      locations: locationsWithDates,
     };
   });
 

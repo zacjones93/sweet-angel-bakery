@@ -24,21 +24,44 @@ import { ORDER_STATUS, ORDER_STATUS_LABELS } from "@/db/schema";
 import { updateOrderStatusAction } from "../../_actions/orders.action";
 import { Loader2 } from "lucide-react";
 
+// Simplified order statuses for admin interface
+const ALLOWED_ORDER_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+  'IN_PRODUCTION',
+  'READY_FOR_PICKUP',
+  'OUT_FOR_DELIVERY',
+  'COMPLETED',
+] as const;
+
 interface UpdateOrderStatusDialogProps {
   orderId: string;
   currentStatus: string;
+  fulfillmentMethod: "delivery" | "pickup" | null;
   trigger?: React.ReactNode;
 }
 
 export function UpdateOrderStatusDialog({
   orderId,
   currentStatus,
+  fulfillmentMethod,
   trigger,
 }: UpdateOrderStatusDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Filter statuses based on fulfillment method
+  const availableStatuses = ALLOWED_ORDER_STATUSES.filter((status) => {
+    if (status === 'READY_FOR_PICKUP') {
+      return fulfillmentMethod === 'pickup';
+    }
+    if (status === 'OUT_FOR_DELIVERY') {
+      return fulfillmentMethod === 'delivery';
+    }
+    return true; // Include all other statuses
+  });
 
   async function handleUpdateStatus() {
     if (selectedStatus === currentStatus) {
@@ -96,12 +119,12 @@ export function UpdateOrderStatusDialog({
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
+              {availableStatuses.map((key) => (
                 <SelectItem
                   key={key}
                   value={ORDER_STATUS[key as keyof typeof ORDER_STATUS]}
                 >
-                  {label}
+                  {ORDER_STATUS_LABELS[key as keyof typeof ORDER_STATUS_LABELS]}
                 </SelectItem>
               ))}
             </SelectContent>

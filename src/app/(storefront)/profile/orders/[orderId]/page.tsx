@@ -4,6 +4,7 @@ import {
   orderTable,
   orderItemTable,
   productTable,
+  pickupLocationTable,
   ORDER_STATUS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
@@ -73,6 +74,16 @@ export default async function OrderDetailsPage({ params }: Props) {
     .where(eq(orderItemTable.orderId, orderId))
     .all();
 
+  // Fetch pickup location if this is a pickup order
+  let pickupLocation = null;
+  if (order.pickupLocationId) {
+    pickupLocation = await db
+      .select()
+      .from(pickupLocationTable)
+      .where(eq(pickupLocationTable.id, order.pickupLocationId))
+      .get();
+  }
+
   function formatPrice(cents: number) {
     return `$${(cents / 100).toFixed(2)}`;
   }
@@ -95,14 +106,14 @@ export default async function OrderDetailsPage({ params }: Props) {
     { key: "IN_PRODUCTION", label: "In Production", icon: PackageIcon },
     {
       key:
-        order.fulfillmentType === "delivery"
+        (order.fulfillmentMethod || order.fulfillmentType) === "delivery"
           ? "OUT_FOR_DELIVERY"
           : "READY_FOR_PICKUP",
       label:
-        order.fulfillmentType === "delivery"
+        (order.fulfillmentMethod || order.fulfillmentType) === "delivery"
           ? "Out for Delivery"
           : "Ready for Pickup",
-      icon: order.fulfillmentType === "delivery" ? TruckIcon : MapPinIcon,
+      icon: (order.fulfillmentMethod || order.fulfillmentType) === "delivery" ? TruckIcon : MapPinIcon,
     },
     { key: "COMPLETED", label: "Completed", icon: CheckCircle2Icon },
   ];
@@ -325,6 +336,12 @@ export default async function OrderDetailsPage({ params }: Props) {
               <span className="text-muted-foreground">Tax</span>
               <span>{formatPrice(order.tax)}</span>
             </div>
+            {order.deliveryFee && order.deliveryFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery Fee</span>
+                <span>{formatPrice(order.deliveryFee)}</span>
+              </div>
+            )}
             <div className="border-t pt-3 flex justify-between font-bold text-lg">
               <span>Total</span>
               <span>{formatPrice(order.totalAmount)}</span>
@@ -336,28 +353,123 @@ export default async function OrderDetailsPage({ params }: Props) {
         <Card>
           <CardHeader>
             <CardTitle>
-              {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}{" "}
+              {(order.fulfillmentMethod || order.fulfillmentType) === "delivery" ? "Delivery" : "Pickup"}{" "}
               Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {order.fulfillmentType === "delivery" && order.deliveryAddress ? (
-              <div>
-                <p className="text-sm font-medium mb-1">Delivery Address</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-line">
-                  {order.deliveryAddress}
-                </p>
-              </div>
-            ) : order.fulfillmentType === "pickup" && order.pickupTime ? (
-              <div>
-                <p className="text-sm font-medium mb-1">Pickup Time</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(
-                    new Date(order.pickupTime),
-                    "MMMM d, yyyy 'at' h:mm a"
-                  )}
-                </p>
-              </div>
+            {(order.fulfillmentMethod || order.fulfillmentType) === "delivery" ? (
+              <>
+                {order.deliveryDate && order.deliveryDate !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Delivery Date</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(order.deliveryDate), "EEEE, MMMM d, yyyy")}
+                    </p>
+                  </div>
+                )}
+
+                {order.deliveryTimeWindow && order.deliveryTimeWindow !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Delivery Window</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.deliveryTimeWindow}
+                    </p>
+                  </div>
+                )}
+
+                {(order.deliveryAddressJson || order.deliveryAddress) && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Delivery Address</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                      {order.deliveryAddressJson && order.deliveryAddressJson !== "null"
+                        ? (() => {
+                            try {
+                              const addr = JSON.parse(order.deliveryAddressJson);
+                              return `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+                            } catch {
+                              return order.deliveryAddress || "Address not available";
+                            }
+                          })()
+                        : order.deliveryAddress}
+                    </p>
+                  </div>
+                )}
+
+                {order.deliveryInstructions && order.deliveryInstructions !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Delivery Instructions</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.deliveryInstructions}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (order.fulfillmentMethod || order.fulfillmentType) === "pickup" ? (
+              <>
+                {order.pickupDate && order.pickupDate !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Pickup Date</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(order.pickupDate), "EEEE, MMMM d, yyyy")}
+                    </p>
+                  </div>
+                )}
+
+                {order.pickupTimeWindow && order.pickupTimeWindow !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Pickup Window</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.pickupTimeWindow}
+                    </p>
+                  </div>
+                )}
+
+                {pickupLocation && (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Pickup Location</p>
+                      <p className="text-sm text-muted-foreground font-medium">
+                        {pickupLocation.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {pickupLocation.address && pickupLocation.address !== "null"
+                          ? (() => {
+                              try {
+                                const addr = JSON.parse(pickupLocation.address);
+                                return `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+                              } catch {
+                                return pickupLocation.address;
+                              }
+                            })()
+                          : "Address not available"}
+                      </p>
+                    </div>
+
+                    {pickupLocation.instructions && pickupLocation.instructions !== "null" && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">Pickup Instructions</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pickupLocation.instructions}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Fallback to legacy pickupTime field if no new data */}
+                {!order.pickupDate && order.pickupTime && order.pickupTime !== "null" && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Pickup Time</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(
+                        new Date(order.pickupTime),
+                        "MMMM d, yyyy 'at' h:mm a"
+                      )}
+                    </p>
+                  </div>
+                )}
+              </>
             ) : null}
 
             {order.notes && (

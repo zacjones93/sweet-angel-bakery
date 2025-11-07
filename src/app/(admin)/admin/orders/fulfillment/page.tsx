@@ -173,8 +173,15 @@ export default async function OrdersByFulfillmentPage({
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Deliveries</h2>
             {await Promise.all(deliveries.map(async (delivery) => {
+              // Filter to only true delivery orders (exclude any pickup orders)
+              const deliveryOnlyOrders = delivery.orders.filter(
+                (orderData) =>
+                  orderData.order.fulfillmentMethod === 'delivery' &&
+                  !orderData.order.pickupLocationId
+              );
+
               // Geocode all delivery addresses for this date
-              const addresses = delivery.orders
+              const addresses = deliveryOnlyOrders
                 .map((orderData) => {
                   if (!orderData.order.deliveryAddressJson) return null;
                   try {
@@ -212,7 +219,7 @@ export default async function OrdersByFulfillmentPage({
               }
 
               // Create delivery stops with geocoded coordinates
-              const deliveryStops = delivery.orders
+              const deliveryStops = deliveryOnlyOrders
                 .map((orderData, index) => {
                   const geocoded = geocodedAddresses[index];
                   if (!geocoded) return null;
@@ -297,7 +304,7 @@ export default async function OrdersByFulfillmentPage({
                   <CardContent>
                     <DeliveryViewTabs
                       deliveryDate={delivery.date}
-                      orders={delivery.orders}
+                      orders={deliveryOnlyOrders}
                       deliveryStops={deliveryStops}
                       depotAddress={depotAddress}
                       startTime={startTime}

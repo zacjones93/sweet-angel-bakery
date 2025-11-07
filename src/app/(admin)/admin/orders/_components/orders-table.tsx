@@ -26,11 +26,22 @@ import { UpdateOrderStatusDialog } from "./update-order-status-dialog";
 import {
   ORDER_STATUS,
   ORDER_STATUS_LABELS,
+  PAYMENT_STATUS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
-import { Search, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, ChevronLeft, ChevronRight, Truck, Store } from "lucide-react";
 import { formatDate } from "@/utils/format-date";
+
+// Simplified order statuses for admin interface
+const ALLOWED_ORDER_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+  'IN_PRODUCTION',
+  'READY_FOR_PICKUP',
+  'OUT_FOR_DELIVERY',
+  'COMPLETED',
+] as const;
 
 interface Order {
   id: string;
@@ -42,6 +53,8 @@ interface Order {
   createdAt: Date;
   updatedAt: Date;
   itemsCount: number;
+  fulfillmentMethod: string | null;
+  fulfillmentType: string | null;
 }
 
 interface OrdersTableProps {
@@ -98,12 +111,12 @@ export function OrdersTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
+              {ALLOWED_ORDER_STATUSES.map((key) => (
                 <SelectItem
                   key={key}
                   value={ORDER_STATUS[key as keyof typeof ORDER_STATUS]}
                 >
-                  {label}
+                  {ORDER_STATUS_LABELS[key as keyof typeof ORDER_STATUS_LABELS]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -118,6 +131,7 @@ export function OrdersTable({
                 <TableHead>Order ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Payment</TableHead>
@@ -130,7 +144,7 @@ export function OrdersTable({
               {orders.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="text-center text-muted-foreground"
                   >
                     No orders found
@@ -140,13 +154,15 @@ export function OrdersTable({
                 orders.map((order) => {
                   // Find payment status key for styling
                   const paymentStatusKey = Object.keys(
-                    PAYMENT_STATUS_LABELS
+                    PAYMENT_STATUS
                   ).find(
                     (key) =>
-                      PAYMENT_STATUS_LABELS[
-                        key as keyof typeof PAYMENT_STATUS_LABELS
+                      PAYMENT_STATUS[
+                        key as keyof typeof PAYMENT_STATUS
                       ] === order.paymentStatus
                   ) as keyof typeof PAYMENT_STATUS_LABELS | undefined;
+
+                  const fulfillmentMethod = (order.fulfillmentMethod || order.fulfillmentType) as "delivery" | "pickup" | null;
 
                   return (
                     <TableRow key={order.id}>
@@ -155,6 +171,23 @@ export function OrdersTable({
                       </TableCell>
                       <TableCell>{order.customerName}</TableCell>
                       <TableCell>{order.customerEmail}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {fulfillmentMethod === "delivery" ? (
+                            <>
+                              <Truck className="h-4 w-4 text-muted-foreground" />
+                              <span>Delivery</span>
+                            </>
+                          ) : fulfillmentMethod === "pickup" ? (
+                            <>
+                              <Store className="h-4 w-4 text-muted-foreground" />
+                              <span>Pickup</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{order.itemsCount}</TableCell>
                       <TableCell>
                         ${(order.totalAmount / 100).toFixed(2)}
@@ -179,6 +212,7 @@ export function OrdersTable({
                           <UpdateOrderStatusDialog
                             orderId={order.id}
                             currentStatus={order.status}
+                            fulfillmentMethod={fulfillmentMethod}
                             trigger={
                               <Button variant="outline" size="sm">
                                 Update Status
