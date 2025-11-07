@@ -25,7 +25,7 @@ export default async function HomePage() {
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
             Handcrafted cakes and cookies made with love, using the finest
-            ingredients. Order online for delivery orpickup on Wednesdays and
+            ingredients. Order online for delivery or pickup on Wednesdays and
             Saturdays.
           </p>
           <Button size="lg" asChild className="text-lg px-8 py-6">
