@@ -458,7 +458,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                 )}
 
                 {/* Fallback to legacy pickupTime field if no new data */}
-                {!order.pickupDate && order.pickupTime && order.pickupTime !== "null" && (
+                {!order.pickupDate && order.pickupTime && (
                   <div>
                     <p className="text-sm font-medium mb-1">Pickup Time</p>
                     <p className="text-sm text-muted-foreground">

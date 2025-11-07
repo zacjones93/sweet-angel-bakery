@@ -311,6 +311,28 @@ export async function getAvailablePickupDates({
 }
 
 /**
+ * Get the next available pickup date for a location
+ */
+export async function getNextPickupDate({
+  pickupLocationId,
+  productId,
+  orderDate = new Date(),
+}: {
+  pickupLocationId: string;
+  productId?: string;
+  orderDate?: Date;
+}): Promise<PickupDateResult | null> {
+  const dates = await getAvailablePickupDates({
+    pickupLocationId,
+    productId,
+    orderDate,
+    maxDates: 1,
+  });
+
+  return dates.length > 0 ? dates[0] : null;
+}
+
+/**
  * Get available pickup locations for a product with next available dates
  */
 export async function getAvailablePickupLocations({

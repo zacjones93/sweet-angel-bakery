@@ -421,7 +421,7 @@ export function FulfillmentMethodSelector({
                             const location = pickupOptions.locations.find(
                               (loc) => loc.id === locationId
                             );
-                            if (location?.pickupDates?.length > 0) {
+                            if (location && location.pickupDates && location.pickupDates.length > 0) {
                               setSelectedPickupDate(
                                 location.pickupDates[0].pickupDate
                               );
