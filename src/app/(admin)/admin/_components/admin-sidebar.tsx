@@ -13,6 +13,7 @@ import {
   Truck,
   MapPin,
   Calendar,
+  DollarSign,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -70,7 +71,13 @@ const adminNavItems: NavMainItem[] = [
     isActive: true,
   },
   {
-    title: "Users",
+    title: "Revenue",
+    url: "/admin/revenue",
+    icon: DollarSign,
+    isActive: true,
+  },
+  {
+    title: "User Management",
     url: "/admin",
     icon: Users,
     isActive: true,

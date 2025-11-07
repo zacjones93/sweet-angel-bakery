@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeliverySchedulesTable } from "./delivery-schedules-table";
 import { PickupLocationsTable } from "./pickup-locations-table";
 import { DeliveryZonesTable } from "./delivery-zones-table";
-import type { DeliverySchedule, PickupLocation, DeliveryZone } from "@/db/schema";
+import { CalendarClosuresTable } from "./calendar-closures-table";
+import type { DeliverySchedule, PickupLocation, DeliveryZone, DeliveryCalendarClosure } from "@/db/schema";
 
 interface LocationWithParsedData extends Omit<PickupLocation, 'address' | 'pickupDays'> {
   address: { street: string; city: string; state: string; zip: string };
@@ -19,19 +20,22 @@ interface DeliverySettingsTabsProps {
   initialSchedules: DeliverySchedule[];
   initialLocations: LocationWithParsedData[];
   initialZones: ZoneWithParsedData[];
+  initialClosures: DeliveryCalendarClosure[];
 }
 
 export function DeliverySettingsTabs({
   initialSchedules,
   initialLocations,
   initialZones,
+  initialClosures,
 }: DeliverySettingsTabsProps) {
   return (
     <Tabs defaultValue="schedules" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="schedules">Delivery Schedules</TabsTrigger>
         <TabsTrigger value="locations">Pickup Locations</TabsTrigger>
         <TabsTrigger value="zones">Delivery Zones</TabsTrigger>
+        <TabsTrigger value="closures">Calendar Closures</TabsTrigger>
       </TabsList>
 
       <TabsContent value="schedules" className="mt-6">
@@ -44,6 +48,10 @@ export function DeliverySettingsTabs({
 
       <TabsContent value="zones" className="mt-6">
         <DeliveryZonesTable zones={initialZones} />
+      </TabsContent>
+
+      <TabsContent value="closures" className="mt-6">
+        <CalendarClosuresTable closures={initialClosures} />
       </TabsContent>
     </Tabs>
   );
