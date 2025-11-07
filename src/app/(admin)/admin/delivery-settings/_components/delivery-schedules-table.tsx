@@ -87,7 +87,6 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
               <TableHead>Name</TableHead>
               <TableHead>Delivery Day</TableHead>
               <TableHead>Cutoff</TableHead>
-              <TableHead>Lead Time</TableHead>
               <TableHead>Time Window</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]"></TableHead>
@@ -96,7 +95,7 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
           <TableBody>
             {schedules.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No delivery schedules configured
                 </TableCell>
               </TableRow>
@@ -108,7 +107,6 @@ export function DeliverySchedulesTable({ schedules }: { schedules: DeliverySched
                   <TableCell>
                     {DAYS[schedule.cutoffDay]} {schedule.cutoffTime}
                   </TableCell>
-                  <TableCell>{schedule.leadTimeDays} days</TableCell>
                   <TableCell>{schedule.deliveryTimeWindow || '-'}</TableCell>
                   <TableCell>
                     <Badge variant={schedule.isActive ? "default" : "secondary"}>

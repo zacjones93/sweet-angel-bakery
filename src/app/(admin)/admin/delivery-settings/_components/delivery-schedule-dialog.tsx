@@ -44,7 +44,6 @@ const formSchema = z.object({
   dayOfWeek: z.string().min(1, "Delivery day is required"),
   cutoffDay: z.string().min(1, "Cutoff day is required"),
   cutoffTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
-  leadTimeDays: z.string().min(1, "Lead time is required"),
   deliveryTimeWindow: z.string().optional(),
 });
 
@@ -84,7 +83,6 @@ export function DeliveryScheduleDialog({
       dayOfWeek: schedule?.dayOfWeek?.toString() || "",
       cutoffDay: schedule?.cutoffDay?.toString() || "",
       cutoffTime: schedule?.cutoffTime || "",
-      leadTimeDays: schedule?.leadTimeDays?.toString() || "2",
       deliveryTimeWindow: schedule?.deliveryTimeWindow || "",
     },
   });
@@ -97,7 +95,6 @@ export function DeliveryScheduleDialog({
         dayOfWeek: schedule.dayOfWeek.toString(),
         cutoffDay: schedule.cutoffDay.toString(),
         cutoffTime: schedule.cutoffTime,
-        leadTimeDays: schedule.leadTimeDays.toString(),
         deliveryTimeWindow: schedule.deliveryTimeWindow || "",
       });
     } else {
@@ -106,7 +103,6 @@ export function DeliveryScheduleDialog({
         dayOfWeek: "",
         cutoffDay: "",
         cutoffTime: "",
-        leadTimeDays: "2",
         deliveryTimeWindow: "",
       });
     }
@@ -118,7 +114,7 @@ export function DeliveryScheduleDialog({
       dayOfWeek: parseInt(values.dayOfWeek),
       cutoffDay: parseInt(values.cutoffDay),
       cutoffTime: values.cutoffTime,
-      leadTimeDays: parseInt(values.leadTimeDays),
+      leadTimeDays: 0, // Not used - controlled by cutoff time only
       deliveryTimeWindow: values.deliveryTimeWindow,
       isActive: true,
     };
@@ -240,23 +236,6 @@ export function DeliveryScheduleDialog({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="leadTimeDays"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lead Time (Days)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" placeholder="2" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Minimum days between order and delivery
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}

@@ -108,7 +108,6 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
               <TableHead>Address</TableHead>
               <TableHead>Pickup Days</TableHead>
               <TableHead>Hours</TableHead>
-              <TableHead>Lead Time</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]"></TableHead>
             </TableRow>
@@ -116,7 +115,7 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
           <TableBody>
             {locations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No pickup locations configured
                 </TableCell>
               </TableRow>
@@ -134,7 +133,6 @@ export function PickupLocationsTable({ locations }: { locations: PickupLocationW
                   </TableCell>
                   <TableCell>{formatPickupDays(location.pickupDays)}</TableCell>
                   <TableCell>{location.pickupTimeWindows}</TableCell>
-                  <TableCell>{location.leadTimeDays} days</TableCell>
                   <TableCell>
                     <Badge variant={location.isActive ? "default" : "secondary"}>
                       {location.isActive ? 'Active' : 'Inactive'}

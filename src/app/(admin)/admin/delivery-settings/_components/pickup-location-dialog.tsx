@@ -41,7 +41,6 @@ const formSchema = z.object({
   zip: z.string().min(1, "ZIP code is required"),
   pickupTimeWindows: z.string().min(1, "Pickup hours are required"),
   instructions: z.string().optional(),
-  leadTimeDays: z.string().min(1, "Lead time is required"),
   pickupDays: z.object({
     sunday: z.boolean(),
     monday: z.boolean(),
@@ -92,7 +91,6 @@ export function PickupLocationDialog({
       zip: location?.address?.zip || "",
       pickupTimeWindows: location?.pickupTimeWindows || "",
       instructions: location?.instructions || "",
-      leadTimeDays: location?.leadTimeDays?.toString() || "2",
       pickupDays: {
         sunday: location?.pickupDays?.includes(0) || false,
         monday: location?.pickupDays?.includes(1) || false,
@@ -115,7 +113,6 @@ export function PickupLocationDialog({
         zip: location.address.zip,
         pickupTimeWindows: location.pickupTimeWindows,
         instructions: location.instructions || "",
-        leadTimeDays: location.leadTimeDays.toString(),
         pickupDays: {
           sunday: location.pickupDays.includes(0),
           monday: location.pickupDays.includes(1),
@@ -135,7 +132,6 @@ export function PickupLocationDialog({
         zip: "",
         pickupTimeWindows: "",
         instructions: "",
-        leadTimeDays: "2",
         pickupDays: {
           sunday: false,
           monday: false,
@@ -176,7 +172,7 @@ export function PickupLocationDialog({
       pickupDays: pickupDaysArray,
       pickupTimeWindows: values.pickupTimeWindows,
       instructions: values.instructions,
-      leadTimeDays: parseInt(values.leadTimeDays),
+      leadTimeDays: 0, // No longer used
       isActive: true,
       requiresPreorder: false,
     };
@@ -325,23 +321,6 @@ export function PickupLocationDialog({
                   <FormControl>
                     <Input placeholder="e.g., 9:00 AM - 6:00 PM MT" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="leadTimeDays"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lead Time (Days)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" placeholder="2" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Minimum days between order and pickup
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
