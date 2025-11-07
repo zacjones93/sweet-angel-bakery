@@ -103,116 +103,8 @@ async function getActiveClosureDates(): Promise<string[]> {
 }
 
 /**
- * Calculate next available delivery date for a product
- *
- * Algorithm (all times in Mountain Time - America/Boise):
- * 1. Get current date/time in MT
- * 2. Check if before Tuesday 11:59 PM MT cutoff
- * 3. If before cutoff: Next fulfillment options are this week's Thursday & Saturday
- * 4. If after cutoff: Next fulfillment options are following week's Thursday & Saturday
- * 5. Apply product-specific lead time requirements
- * 6. Skip closure dates
- * 7. Return earliest valid delivery date
- */
-export async function getNextDeliveryDate({
-  productId,
-  orderDate = new Date(),
-}: {
-  productId?: string;
-  orderDate?: Date;
-}): Promise<DeliveryDateResult | null> {
-  const db = await getDB();
-  const now = getCurrentMountainTime();
-
-  // Get active delivery schedules
-  const schedules = await getActiveDeliverySchedules();
-  if (schedules.length === 0) {
-    return null; // No delivery schedules configured
-  }
-
-  // Get closure dates
-  const closureDates = await getActiveClosureDates();
-
-  // Get product-specific delivery rules if productId provided
-  let productRules: ProductDeliveryRules | undefined;
-  if (productId) {
-    productRules = await db
-      .select()
-      .from(productDeliveryRulesTable)
-      .where(eq(productDeliveryRulesTable.productId, productId))
-      .get();
-  }
-
-  // Filter schedules based on product rules
-  let validSchedules = schedules;
-  if (productRules?.allowedDeliveryDays) {
-    const allowedDays = JSON.parse(productRules.allowedDeliveryDays) as number[];
-    validSchedules = schedules.filter((s) => allowedDays.includes(s.dayOfWeek));
-  }
-
-  if (validSchedules.length === 0) {
-    return null; // No valid delivery days for this product
-  }
-
-  // Check each schedule and find earliest valid delivery date
-  let earliestDelivery: DeliveryDateResult | null = null;
-
-  for (const schedule of validSchedules) {
-    // Check if we're before the cutoff for this schedule
-    const beforeCutoff = isBeforeMountainCutoff({
-      cutoffDay: schedule.cutoffDay,
-      cutoffTime: schedule.cutoffTime,
-    });
-
-    // Get next occurrence of this delivery day
-    let nextDeliveryDate: Date;
-    if (beforeCutoff) {
-      // This week's delivery
-      nextDeliveryDate = getNextDayOfWeek(schedule.dayOfWeek, now);
-    } else {
-      // Following week's delivery
-      nextDeliveryDate = getWeekAfterNextDayOfWeek(schedule.dayOfWeek, now);
-    }
-
-    // Apply lead time requirement
-    const leadTime = productRules?.minimumLeadTimeDays ?? schedule.leadTimeDays;
-    const minDeliveryDate = addDaysMountainTime(now, leadTime);
-
-    // If next delivery date is too soon, move to following week
-    if (nextDeliveryDate < minDeliveryDate) {
-      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
-    }
-
-    // Skip closure dates
-    while (isClosureDate(nextDeliveryDate, closureDates)) {
-      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
-    }
-
-    // Calculate cutoff date for this delivery
-    const cutoffDate = new Date(nextDeliveryDate);
-    cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), nextDeliveryDate) + schedule.cutoffDay);
-    const [cutoffHour, cutoffMinute] = schedule.cutoffTime.split(':').map(Number);
-    cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
-
-    const result: DeliveryDateResult = {
-      deliveryDate: nextDeliveryDate,
-      cutoffDate,
-      timeWindow: schedule.deliveryTimeWindow || '',
-      schedule,
-    };
-
-    // Keep earliest delivery date
-    if (!earliestDelivery || nextDeliveryDate < earliestDelivery.deliveryDate) {
-      earliestDelivery = result;
-    }
-  }
-
-  return earliestDelivery;
-}
-
-/**
  * Get all available delivery date options for a product
- * Returns multiple delivery dates (e.g., both Thursday and Saturday) when available
+ * Returns delivery dates for next week (simplified - no complex cutoff logic)
  * Useful for letting customers choose their preferred delivery date
  */
 export async function getAvailableDeliveryDates({
@@ -231,7 +123,7 @@ export async function getAvailableDeliveryDates({
     return []; // No delivery schedules configured
   }
 
-  // Get closure dates
+  // Get closure dates that affect delivery
   const closureDates = await getActiveClosureDates();
 
   // Get product-specific delivery rules if productId provided
@@ -257,6 +149,7 @@ export async function getAvailableDeliveryDates({
 
   // Get all available delivery dates from all schedules
   const deliveryOptions: DeliveryDateResult[] = [];
+  const currentDayOfWeek = getMountainDayOfWeek(now);
 
   for (const schedule of validSchedules) {
     // Check if we're before the cutoff for this schedule
@@ -266,27 +159,19 @@ export async function getAvailableDeliveryDates({
     });
 
     // Get next occurrence of this delivery day
-    let nextDeliveryDate: Date;
-    if (beforeCutoff) {
-      // This week's delivery
-      nextDeliveryDate = getNextDayOfWeek(schedule.dayOfWeek, now);
-    } else {
-      // Following week's delivery
-      nextDeliveryDate = getWeekAfterNextDayOfWeek(schedule.dayOfWeek, now);
+    let nextDeliveryDate = getNextDayOfWeek(schedule.dayOfWeek, now);
+
+    // If we're AFTER the cutoff and the next occurrence is still this week, move to next week
+    if (!beforeCutoff) {
+      // If delivery day is later this week (hasn't passed yet), push to next week
+      if (schedule.dayOfWeek > currentDayOfWeek) {
+        nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
+      }
     }
 
-    // Apply lead time requirement
-    const leadTime = productRules?.minimumLeadTimeDays ?? schedule.leadTimeDays;
-    const minDeliveryDate = addDaysMountainTime(now, leadTime);
-
-    // If next delivery date is too soon, move to following week
-    if (nextDeliveryDate < minDeliveryDate) {
-      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
-    }
-
-    // Skip closure dates
-    while (isClosureDate(nextDeliveryDate, closureDates)) {
-      nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
+    // Skip this date if it's a closure date (don't move forward - just omit it)
+    if (isClosureDate(nextDeliveryDate, closureDates)) {
+      continue;
     }
 
     // Calculate cutoff date for this delivery
@@ -320,17 +205,21 @@ async function getActivePickupLocations(): Promise<PickupLocation[]> {
 }
 
 /**
- * Calculate pickup date for a specific location
+ * Get all available pickup dates for a specific location
+ * Returns pickup dates for next week (simplified - no complex cutoff logic)
+ * Returns multiple pickup date options based on the location's configured pickup days
  */
-export async function getNextPickupDate({
+export async function getAvailablePickupDates({
   pickupLocationId,
   productId,
   orderDate = new Date(),
+  maxDates = 4, // Return up to 4 pickup date options
 }: {
   pickupLocationId: string;
   productId?: string;
   orderDate?: Date;
-}): Promise<PickupDateResult | null> {
+  maxDates?: number;
+}): Promise<PickupDateResult[]> {
   const db = await getDB();
   const now = getCurrentMountainTime();
 
@@ -341,7 +230,7 @@ export async function getNextPickupDate({
     .get();
 
   if (!location) {
-    return null;
+    return [];
   }
 
   // Get product-specific delivery rules if productId provided
@@ -355,7 +244,7 @@ export async function getNextPickupDate({
 
     // Check if product allows pickup
     if (productRules?.allowPickup === 0) {
-      return null;
+      return [];
     }
   }
 
@@ -370,6 +259,9 @@ export async function getNextPickupDate({
   // Parse pickup days
   const pickupDays = JSON.parse(location.pickupDays) as number[];
 
+  const pickupOptions: PickupDateResult[] = [];
+  const currentDayOfWeek = getMountainDayOfWeek(now);
+
   // Check if we're before cutoff (if location requires preorder)
   let beforeCutoff = true;
   if (location.requiresPreorder && location.cutoffDay !== null && location.cutoffTime) {
@@ -379,62 +271,43 @@ export async function getNextPickupDate({
     });
   }
 
-  // Find next available pickup day
-  let nextPickupDate: Date | null = null;
-  const currentDay = getMountainDayOfWeek(now);
-
-  // Try each pickup day in order
   for (const day of pickupDays.sort()) {
-    let candidateDate: Date;
+    // Get next occurrence of this pickup day
+    let pickupDate = getNextDayOfWeek(day, now);
 
-    if (beforeCutoff && day > currentDay) {
-      // This week
-      candidateDate = getNextDayOfWeek(day, now);
-    } else if (beforeCutoff && day === currentDay) {
-      // Today if before cutoff and same day
-      candidateDate = now;
-    } else {
-      // Following week
-      candidateDate = getWeekAfterNextDayOfWeek(day, now);
+    // If we're AFTER the cutoff and the next occurrence is still this week, move to next week
+    if (!beforeCutoff) {
+      // If pickup day is later this week (hasn't passed yet), push to next week
+      if (day > currentDayOfWeek) {
+        pickupDate = addDaysMountainTime(pickupDate, 7);
+      }
     }
 
-    // Apply lead time
-    const leadTime = productRules?.minimumLeadTimeDays ?? location.leadTimeDays;
-    const minPickupDate = addDaysMountainTime(now, leadTime);
-
-    if (candidateDate < minPickupDate) {
-      candidateDate = addDaysMountainTime(candidateDate, 7);
+    // Skip this date if it's a closure date (don't move forward - just omit it)
+    if (isClosureDate(pickupDate, closureDates)) {
+      continue;
     }
 
-    // Skip closure dates
-    while (isClosureDate(candidateDate, closureDates)) {
-      candidateDate = addDaysMountainTime(candidateDate, 7);
+    // Calculate cutoff date for this pickup
+    let cutoffDate = pickupDate;
+    if (location.requiresPreorder && location.cutoffDay !== null && location.cutoffTime) {
+      cutoffDate = new Date(pickupDate);
+      cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), pickupDate) + location.cutoffDay);
+      const [cutoffHour, cutoffMinute] = location.cutoffTime.split(':').map(Number);
+      cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
     }
 
-    // Keep earliest date
-    if (!nextPickupDate || candidateDate < nextPickupDate) {
-      nextPickupDate = candidateDate;
-    }
+    pickupOptions.push({
+      pickupDate,
+      cutoffDate,
+      timeWindow: location.pickupTimeWindows,
+    });
+
+    if (pickupOptions.length >= maxDates) break;
   }
 
-  if (!nextPickupDate) {
-    return null;
-  }
-
-  // Calculate cutoff date
-  let cutoffDate = nextPickupDate;
-  if (location.requiresPreorder && location.cutoffDay !== null && location.cutoffTime) {
-    cutoffDate = new Date(nextPickupDate);
-    cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), nextPickupDate) + location.cutoffDay);
-    const [cutoffHour, cutoffMinute] = location.cutoffTime.split(':').map(Number);
-    cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
-  }
-
-  return {
-    pickupDate: nextPickupDate,
-    cutoffDate,
-    timeWindow: location.pickupTimeWindows,
-  };
+  // Sort by pickup date
+  return pickupOptions.sort((a, b) => a.pickupDate.getTime() - b.pickupDate.getTime());
 }
 
 /**
@@ -467,55 +340,6 @@ export async function getAvailablePickupLocations({
   }
 
   return results;
-}
-
-/**
- * Calculate delivery date for entire cart (returns latest delivery date if products have different requirements)
- */
-export async function getCartDeliveryDate({
-  items,
-  orderDate = new Date(),
-}: {
-  items: Array<{ productId: string; quantity: number }>;
-  orderDate?: Date;
-}): Promise<CartDeliveryDateResult | null> {
-  let latestDelivery: DeliveryDateResult | null = null;
-  const itemsByDate = new Map<string, string[]>();
-
-  for (const item of items) {
-    const delivery = await getNextDeliveryDate({
-      productId: item.productId,
-      orderDate,
-    });
-
-    if (!delivery) {
-      continue; // Skip if no delivery available for this product
-    }
-
-    const dateISO = getMountainISODate(delivery.deliveryDate);
-
-    // Track which products need which delivery dates
-    if (!itemsByDate.has(dateISO)) {
-      itemsByDate.set(dateISO, []);
-    }
-    itemsByDate.get(dateISO)!.push(item.productId);
-
-    // Keep latest delivery date (most restrictive)
-    if (!latestDelivery || delivery.deliveryDate > latestDelivery.deliveryDate) {
-      latestDelivery = delivery;
-    }
-  }
-
-  if (!latestDelivery) {
-    return null;
-  }
-
-  return {
-    deliveryDate: latestDelivery.deliveryDate,
-    cutoffDate: latestDelivery.cutoffDate,
-    timeWindow: latestDelivery.timeWindow,
-    itemsGroupedByDate: itemsByDate,
-  };
 }
 
 // ============================================================================
@@ -589,45 +413,6 @@ export async function calculateDeliveryFee({
       adjustments,
     },
   };
-}
-
-// ============================================================================
-// VALIDATION
-// ============================================================================
-
-/**
- * Validate if order can still make delivery cutoff
- */
-export async function validateDeliveryCutoff({
-  deliveryDate,
-  orderDate = new Date(),
-}: {
-  deliveryDate: Date;
-  orderDate?: Date;
-}): Promise<{
-  isValid: boolean;
-  reason?: string;
-}> {
-  const schedules = await getActiveDeliverySchedules();
-  const dayOfWeek = getMountainDayOfWeek(deliveryDate);
-
-  const schedule = schedules.find((s) => s.dayOfWeek === dayOfWeek);
-  if (!schedule) {
-    return {
-      isValid: false,
-      reason: 'No delivery schedule for this day',
-    };
-  }
-
-  const leadTimeDays = getDaysBetween(orderDate, deliveryDate);
-  if (leadTimeDays < schedule.leadTimeDays) {
-    return {
-      isValid: false,
-      reason: `Minimum ${schedule.leadTimeDays} days lead time required`,
-    };
-  }
-
-  return { isValid: true };
 }
 
 // ============================================================================
