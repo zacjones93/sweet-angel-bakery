@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, ArrowRight } from "lucide-react";
 import { CountdownTimer } from "@/components/countdown-timer";
 import Link from "next/link";
+import type { Route } from "next";
 import type { SalesBanner as SalesBannerType } from "@/db/schema";
 
 interface SalesBannerProps {
@@ -77,7 +78,7 @@ export function SalesBanner({ banner }: SalesBannerProps) {
             {/* CTA Button */}
             {banner.ctaText && banner.ctaLink && (
               <Link
-                href={banner.ctaLink}
+                href={banner.ctaLink as Route}
                 className="hidden md:flex items-center gap-1 px-3 py-1.5 bg-white/90 hover:bg-white text-gray-900 rounded text-xs font-medium transition-colors"
               >
                 {banner.ctaText}
@@ -110,7 +111,7 @@ export function SalesBanner({ banner }: SalesBannerProps) {
           </div>
           {banner.ctaText && banner.ctaLink && (
             <Link
-              href={banner.ctaLink}
+              href={banner.ctaLink as Route}
               className="flex items-center gap-1 px-2.5 py-0.5 bg-white/90 text-gray-900 rounded text-xs font-medium"
             >
               {banner.ctaText}

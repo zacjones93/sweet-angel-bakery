@@ -532,7 +532,7 @@ export class SquareFetchProvider implements IMerchantProvider {
           tax,
           deliveryFee: deliveryFee > 0 ? deliveryFee : undefined,
           total: totalAmount,
-          fulfillmentMethod: order.fulfillmentMethod || null,
+          fulfillmentMethod: (order.fulfillmentMethod as "delivery" | "pickup" | null) || null,
           deliveryDate: order.deliveryDate || null,
           deliveryTimeWindow: order.deliveryTimeWindow || null,
           deliveryAddress: deliveryAddressFormatted,
