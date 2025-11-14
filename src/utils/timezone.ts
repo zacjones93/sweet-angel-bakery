@@ -1,4 +1,4 @@
-import { zonedTimeToUtc, utcToZonedTime, format } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime, format } from 'date-fns-tz';
 import {
   parseISO,
   addDays,
@@ -14,14 +14,14 @@ export const BUSINESS_TIMEZONE = 'America/Boise' as const;
  * Returns a Date object representing the current MT time
  */
 export function getCurrentMountainTime(): Date {
-  return utcToZonedTime(new Date(), BUSINESS_TIMEZONE);
+  return toZonedTime(new Date(), BUSINESS_TIMEZONE);
 }
 
 /**
  * Convert any Date to Mountain Time
  */
 export function toMountainTime(date: Date): Date {
-  return utcToZonedTime(date, BUSINESS_TIMEZONE);
+  return toZonedTime(date, BUSINESS_TIMEZONE);
 }
 
 /**
@@ -48,7 +48,7 @@ export function getMountainISODate(date: Date = new Date()): string {
 export function parseMountainISODate(isoDate: string): Date {
   // Parse as MT midnight and convert to UTC
   const mtMidnight = startOfDay(parseISO(isoDate));
-  return zonedTimeToUtc(mtMidnight, BUSINESS_TIMEZONE);
+  return fromZonedTime(mtMidnight, BUSINESS_TIMEZONE);
 }
 
 /**

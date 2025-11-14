@@ -116,10 +116,12 @@ export function FulfillmentMethodSelector({
       const activeZip = isPreviewMode ? previewZipCode : deliveryZipCode;
 
       if (activeZip && activeZip.length >= 5) {
+        console.log('[FulfillmentSelector] Loading delivery options for ZIP:', activeZip);
         const [data] = await getDeliveryOptions({
           items: cartItems,
           deliveryZipCode: activeZip,
         });
+        console.log('[FulfillmentSelector] Delivery options received:', data);
         if (data) {
           setDeliveryOptions(data);
           // Auto-select first delivery date if available

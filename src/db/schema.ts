@@ -279,6 +279,26 @@ export const deliveryCalendarClosureTable = sqliteTable("delivery_calendar_closu
   index('delivery_closure_date_idx').on(table.closureDate),
 ]));
 
+// One-Off Delivery/Pickup Dates - custom dates outside regular schedule
+export const deliveryOneOffDateTable = sqliteTable("delivery_one_off_date", {
+  ...snakeCommonColumns,
+  id: text().primaryKey().$defaultFn(() => `oneoff_${createId()}`).notNull(),
+  date: text({ length: 20 }).notNull(), // ISO date "2025-12-15"
+  type: text({ length: 20 }).notNull(), // 'delivery' | 'pickup'
+  reason: text({ length: 500 }), // Optional: "Special holiday delivery", "Extra weekend pickup"
+  // Optional overrides - if null, use default schedule settings
+  timeWindowStart: text('time_window_start', { length: 10 }), // "09:00" or null (use default)
+  timeWindowEnd: text('time_window_end', { length: 10 }), // "21:00" or null (use default)
+  cutoffDay: integer('cutoff_day'), // Day of week (0-6) or null (use default)
+  cutoffTime: text('cutoff_time', { length: 10 }), // "23:59" or null (use default)
+  leadTimeDays: integer('lead_time_days'), // Minimum days before delivery or null (use default)
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
+}, (table) => ([
+  index('delivery_one_off_date_idx').on(table.date),
+  index('delivery_one_off_type_idx').on(table.type),
+  index('delivery_one_off_active_idx').on(table.isActive),
+]));
+
 // Delivery Zones - admin-configurable zones with ZIP codes and pricing
 export const deliveryZoneTable = sqliteTable("delivery_zone", {
   ...snakeCommonColumns,

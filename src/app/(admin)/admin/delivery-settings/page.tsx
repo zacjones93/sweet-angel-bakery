@@ -2,6 +2,7 @@ import { getDeliverySchedulesAction } from "../_actions/delivery-schedule.action
 import { getPickupLocationsAction } from "../_actions/pickup-location.action";
 import { getDeliveryZonesAction } from "../_actions/delivery-zone.action";
 import { listCalendarClosuresAction } from "./_actions/calendar-closures.action";
+import { listOneOffDatesAction } from "./_actions/one-off-dates.action";
 import { DeliverySettingsTabs } from "./_components/delivery-settings-tabs";
 
 export const metadata = {
@@ -11,11 +12,12 @@ export const metadata = {
 
 export default async function DeliverySettingsPage() {
   // Fetch all data in parallel
-  const [schedules, locations, zones, closures] = await Promise.all([
+  const [schedules, locations, zones, closures, oneOffDates] = await Promise.all([
     getDeliverySchedulesAction().then(([data]) => data || []),
     getPickupLocationsAction().then(([data]) => data || []),
     getDeliveryZonesAction().then(([data]) => data || []),
     listCalendarClosuresAction().then(([data]) => data || []),
+    listOneOffDatesAction().then(([data]) => data || []),
   ]);
 
   return (
@@ -23,7 +25,7 @@ export default async function DeliverySettingsPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Delivery Settings</h1>
         <p className="text-muted-foreground mt-1">
-          Configure delivery schedules, pickup locations, delivery zones, and calendar closures
+          Configure delivery schedules, pickup locations, delivery zones, calendar closures, and one-off dates
         </p>
       </div>
 
@@ -32,6 +34,7 @@ export default async function DeliverySettingsPage() {
         initialLocations={locations}
         initialZones={zones}
         initialClosures={closures}
+        initialOneOffDates={oneOffDates}
       />
     </div>
   );

@@ -39,7 +39,8 @@
       "Bash(wrangler d1 execute:*)",
       "Bash(pnpm drizzle-kit push:*)",
       "Bash(date:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(printf:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,5 +1,5 @@
 import { format, parseISO, differenceInMinutes, addMinutes } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 import { BUSINESS_TIMEZONE, toMountainTime, getMountainISODate } from './timezone';
 
 /**
@@ -20,14 +20,14 @@ export function generalizeDeliveryETA({
     if (deliveryDate === today) {
       return 'Today';
     }
-    const deliveryMT = utcToZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
+    const deliveryMT = toZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
     return `On ${format(deliveryMT, 'EEEE, MMMM d')}`;
   }
 
   // Parse the estimated arrival datetime in MT
   const [hours, minutes] = estimatedArrivalTime.split(':').map(Number);
   const deliveryDateObj = parseISO(deliveryDate);
-  const estimatedArrival = utcToZonedTime(deliveryDateObj, BUSINESS_TIMEZONE);
+  const estimatedArrival = toZonedTime(deliveryDateObj, BUSINESS_TIMEZONE);
   estimatedArrival.setHours(hours, minutes, 0, 0);
 
   if (deliveryDate !== today) {
@@ -62,7 +62,7 @@ export function getDetailedETA({
   }
 
   const [hours, minutes] = estimatedArrivalTime.split(':').map(Number);
-  const estimatedArrival = utcToZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
+  const estimatedArrival = toZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
   estimatedArrival.setHours(hours, minutes, 0, 0);
 
   const today = getMountainISODate(toMountainTime(new Date()));

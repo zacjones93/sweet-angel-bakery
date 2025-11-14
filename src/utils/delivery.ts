@@ -11,13 +11,14 @@
 import "server-only";
 
 import { eq, and, inArray } from "drizzle-orm";
-import type { DeliverySchedule, DeliveryZone, PickupLocation, ProductDeliveryRules, DeliveryCalendarClosure, Order } from "@/db/schema";
+import type { DeliverySchedule, DeliveryZone, PickupLocation, ProductDeliveryRules, DeliveryCalendarClosure, Order, DeliveryOneOffDate } from "@/db/schema";
 import {
   deliveryScheduleTable,
   deliveryZoneTable,
   pickupLocationTable,
   productDeliveryRulesTable,
   deliveryCalendarClosureTable,
+  deliveryOneOffDateTable,
   orderTable,
 } from "@/db/schema";
 import { getDB } from "@/db";
@@ -103,6 +104,40 @@ async function getActiveClosureDates(): Promise<string[]> {
 }
 
 /**
+ * Get all active one-off delivery dates
+ */
+async function getActiveOneOffDeliveryDates(): Promise<DeliveryOneOffDate[]> {
+  const db = await getDB();
+  return db
+    .select()
+    .from(deliveryOneOffDateTable)
+    .where(
+      and(
+        eq(deliveryOneOffDateTable.isActive, 1),
+        eq(deliveryOneOffDateTable.type, 'delivery')
+      )
+    )
+    .all();
+}
+
+/**
+ * Get all active one-off pickup dates
+ */
+async function getActiveOneOffPickupDates(): Promise<DeliveryOneOffDate[]> {
+  const db = await getDB();
+  return db
+    .select()
+    .from(deliveryOneOffDateTable)
+    .where(
+      and(
+        eq(deliveryOneOffDateTable.isActive, 1),
+        eq(deliveryOneOffDateTable.type, 'pickup')
+      )
+    )
+    .all();
+}
+
+/**
  * Get all available delivery date options for a product
  * Returns delivery dates for next week (simplified - no complex cutoff logic)
  * Useful for letting customers choose their preferred delivery date
@@ -117,14 +152,21 @@ export async function getAvailableDeliveryDates({
   const db = await getDB();
   const now = getCurrentMountainTime();
 
+  console.log('[getAvailableDeliveryDates] Current MT time:', now.toISOString());
+
   // Get active delivery schedules
   const schedules = await getActiveDeliverySchedules();
+  console.log('[getAvailableDeliveryDates] Active schedules:', schedules.length);
   if (schedules.length === 0) {
+    console.log('[getAvailableDeliveryDates] No active schedules found');
     return []; // No delivery schedules configured
   }
 
   // Get closure dates that affect delivery
   const closureDates = await getActiveClosureDates();
+
+  // Get one-off delivery dates
+  const oneOffDates = await getActiveOneOffDeliveryDates();
 
   // Get product-specific delivery rules if productId provided
   let productRules: ProductDeliveryRules | undefined;
@@ -204,6 +246,56 @@ export async function getAvailableDeliveryDates({
     });
   }
 
+  // Add one-off delivery dates
+  for (const oneOff of oneOffDates) {
+    const oneOffDate = new Date(oneOff.date + 'T00:00:00');
+
+    // Skip if this date is in the past
+    if (oneOffDate < now) {
+      continue;
+    }
+
+    // Skip this date if it's a closure date
+    if (isClosureDate(oneOffDate, closureDates)) {
+      continue;
+    }
+
+    // Use first schedule as fallback for defaults (if available)
+    const defaultSchedule = schedules[0];
+
+    // Determine time window: use override or fallback to default schedule
+    const timeWindow = oneOff.timeWindowStart && oneOff.timeWindowEnd
+      ? `${oneOff.timeWindowStart} - ${oneOff.timeWindowEnd}`
+      : (defaultSchedule?.deliveryTimeWindow || '');
+
+    // Calculate cutoff date: use override or fallback to default schedule
+    let cutoffDate = oneOffDate;
+    const cutoffDay = oneOff.cutoffDay ?? defaultSchedule?.cutoffDay;
+    const cutoffTime = oneOff.cutoffTime ?? defaultSchedule?.cutoffTime;
+
+    if (cutoffDay !== null && cutoffTime) {
+      cutoffDate = new Date(oneOffDate);
+      const deliveryDayOfWeek = oneOffDate.getDay();
+
+      // Calculate days backwards from delivery day to cutoff day
+      let daysBack = deliveryDayOfWeek - cutoffDay;
+      if (daysBack <= 0) {
+        daysBack += 7; // Go back to previous week if cutoff day is after delivery day
+      }
+
+      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+      const [cutoffHour, cutoffMinute] = cutoffTime.split(':').map(Number);
+      cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
+    }
+
+    deliveryOptions.push({
+      deliveryDate: oneOffDate,
+      cutoffDate,
+      timeWindow,
+      schedule: defaultSchedule, // Use default schedule as reference
+    });
+  }
+
   // Sort by delivery date
   return deliveryOptions.sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime());
 }
@@ -272,6 +364,9 @@ export async function getAvailablePickupDates({
     .all();
   const closureDates = closures.map((c) => c.closureDate);
 
+  // Get one-off pickup dates
+  const oneOffDates = await getActiveOneOffPickupDates();
+
   // Parse pickup days
   const pickupDays = JSON.parse(location.pickupDays) as number[];
 
@@ -332,6 +427,54 @@ export async function getAvailablePickupDates({
       pickupDate,
       cutoffDate,
       timeWindow: location.pickupTimeWindows,
+    });
+
+    if (pickupOptions.length >= maxDates) break;
+  }
+
+  // Add one-off pickup dates
+  for (const oneOff of oneOffDates) {
+    const oneOffDate = new Date(oneOff.date + 'T00:00:00');
+
+    // Skip if this date is in the past
+    if (oneOffDate < now) {
+      continue;
+    }
+
+    // Skip this date if it's a closure date
+    if (isClosureDate(oneOffDate, closureDates)) {
+      continue;
+    }
+
+    // Determine time window: use override or fallback to location time windows
+    const timeWindow = oneOff.timeWindowStart && oneOff.timeWindowEnd
+      ? `${oneOff.timeWindowStart} - ${oneOff.timeWindowEnd}`
+      : location.pickupTimeWindows;
+
+    // Calculate cutoff date: use override or fallback to location settings
+    let cutoffDate = oneOffDate;
+    const cutoffDay = oneOff.cutoffDay ?? location.cutoffDay;
+    const cutoffTime = oneOff.cutoffTime ?? location.cutoffTime;
+
+    if (cutoffDay !== null && cutoffTime) {
+      cutoffDate = new Date(oneOffDate);
+      const pickupDayOfWeek = oneOffDate.getDay();
+
+      // Calculate days backwards from pickup day to cutoff day
+      let daysBack = pickupDayOfWeek - cutoffDay;
+      if (daysBack <= 0) {
+        daysBack += 7; // Go back to previous week if cutoff day is after pickup day
+      }
+
+      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+      const [cutoffHour, cutoffMinute] = cutoffTime.split(':').map(Number);
+      cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
+    }
+
+    pickupOptions.push({
+      pickupDate: oneOffDate,
+      cutoffDate,
+      timeWindow,
     });
 
     if (pickupOptions.length >= maxDates) break;

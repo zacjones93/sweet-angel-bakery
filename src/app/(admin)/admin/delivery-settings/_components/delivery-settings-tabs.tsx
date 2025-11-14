@@ -5,7 +5,8 @@ import { DeliverySchedulesTable } from "./delivery-schedules-table";
 import { PickupLocationsTable } from "./pickup-locations-table";
 import { DeliveryZonesTable } from "./delivery-zones-table";
 import { CalendarClosuresTable } from "./calendar-closures-table";
-import type { DeliverySchedule, PickupLocation, DeliveryZone, DeliveryCalendarClosure } from "@/db/schema";
+import { OneOffDatesTable } from "./one-off-dates-table";
+import type { DeliverySchedule, PickupLocation, DeliveryZone, DeliveryCalendarClosure, DeliveryOneOffDate } from "@/db/schema";
 
 interface LocationWithParsedData extends Omit<PickupLocation, 'address' | 'pickupDays'> {
   address: { street: string; city: string; state: string; zip: string };
@@ -21,6 +22,7 @@ interface DeliverySettingsTabsProps {
   initialLocations: LocationWithParsedData[];
   initialZones: ZoneWithParsedData[];
   initialClosures: DeliveryCalendarClosure[];
+  initialOneOffDates: DeliveryOneOffDate[];
 }
 
 export function DeliverySettingsTabs({
@@ -28,14 +30,16 @@ export function DeliverySettingsTabs({
   initialLocations,
   initialZones,
   initialClosures,
+  initialOneOffDates,
 }: DeliverySettingsTabsProps) {
   return (
     <Tabs defaultValue="schedules" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="schedules">Delivery Schedules</TabsTrigger>
         <TabsTrigger value="locations">Pickup Locations</TabsTrigger>
         <TabsTrigger value="zones">Delivery Zones</TabsTrigger>
         <TabsTrigger value="closures">Calendar Closures</TabsTrigger>
+        <TabsTrigger value="one-off">One-Off Dates</TabsTrigger>
       </TabsList>
 
       <TabsContent value="schedules" className="mt-6">
@@ -52,6 +56,10 @@ export function DeliverySettingsTabs({
 
       <TabsContent value="closures" className="mt-6">
         <CalendarClosuresTable closures={initialClosures} />
+      </TabsContent>
+
+      <TabsContent value="one-off" className="mt-6">
+        <OneOffDatesTable oneOffDates={initialOneOffDates} />
       </TabsContent>
     </Tabs>
   );

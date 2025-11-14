@@ -29,6 +29,8 @@ export const getCartDeliveryOptionsAction = createServerAction()
   .handler(async ({ input }) => {
     const { items, deliveryZipCode } = input;
 
+    console.log('[getCartDeliveryOptions] Input:', { itemsCount: items.length, deliveryZipCode });
+
     // Get all available delivery dates for the cart
     // For carts with multiple products, we need to find dates that work for all products
     // Start by getting dates for the first product (with most restrictive rules)
@@ -38,7 +40,10 @@ export const getCartDeliveryOptionsAction = createServerAction()
       productId: firstProductId
     });
 
+    console.log('[getCartDeliveryOptions] Delivery date options:', deliveryDateOptions.length);
+
     if (deliveryDateOptions.length === 0) {
+      console.log('[getCartDeliveryOptions] No delivery dates available');
       return {
         available: false,
         deliveryDates: [],
