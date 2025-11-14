@@ -627,7 +627,7 @@ export const salesBannerTable = sqliteTable("sales_banner", {
   ...commonColumns,
   id: text().primaryKey().$defaultFn(() => `sban_${createId()}`),
   message: text({ length: 500 }).notNull(),
-  backgroundColor: text({ length: 50 }).default('#ef4444').notNull(),
+  backgroundColor: text({ length: 50 }).default('#FCACC5').notNull(), // bakery-pink
   textColor: text({ length: 50 }).default('#ffffff').notNull(),
   endDateTime: integer({ mode: "timestamp" }).notNull(),
   isActive: integer().default(1).notNull(),

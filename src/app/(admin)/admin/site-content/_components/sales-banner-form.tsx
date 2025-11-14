@@ -21,7 +21,7 @@ interface SalesBannerFormProps {
 export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
-  const [backgroundColor, setBackgroundColor] = useState("#ef4444");
+  const [backgroundColor, setBackgroundColor] = useState("#FCACC5"); // bakery-pink
   const [textColor, setTextColor] = useState("#ffffff");
   const [endDateTime, setEndDateTime] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -74,7 +74,7 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
 
   function resetForm() {
     setMessage("");
-    setBackgroundColor("#ef4444");
+    setBackgroundColor("#FCACC5"); // bakery-pink
     setTextColor("#ffffff");
     setEndDateTime("");
     setIsActive(true);
