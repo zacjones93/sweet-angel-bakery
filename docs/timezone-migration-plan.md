@@ -1,9 +1,16 @@
 # Timezone Migration Plan: Custom Utils → date-fns-tz
 
-**Status**: Planning
+**Status**: ✅ Phases 1-2, 4-5 Complete (Phase 3 deferred)
 **Priority**: 🔴 CRITICAL
-**Target Completion**: 2-3 weeks
-**Created**: 2025-11-14
+**Started**: 2025-11-14
+**Completed**: 2025-11-14 (Phases 1-2, 4-5)
+
+## Migration Commits
+
+- **Phase 1** (Setup & Utilities): `68ac2dc` - feat(timezone): Phase 1 - Install date-fns-tz and create new utilities
+- **Phase 2** (Delivery System): `2bbf570` - feat(timezone): Phase 2 - Update delivery system to use new utilities
+- **Phase 3** (Database Migration): DEFERRED - Requires separate implementation with parallel columns
+- **Phase 4-5** (Cleanup): `8035f04` - feat(timezone): Phase 5 - Replace old timezone utilities with new implementation
 
 ---
 
@@ -829,3 +836,35 @@ pnpm add -D vitest @vitest/ui
 - Date objects in JavaScript are always UTC internally
 - `toLocaleString` with `timeZone` only formats, doesn't convert
 - Consider migrating to Temporal API when it reaches Stage 4 (2026+)
+
+---
+
+## Phase 3 Implementation Notes (Deferred)
+
+**Reason for Deferral**: Database schema migration from ISO string dates to Unix timestamps is a high-risk operation that requires:
+
+1. **Parallel columns during transition** - Keep both old (`deliveryDate` text) and new (`deliveryDate` integer) columns until 100% verified
+2. **Data migration script** - Complex Node.js script to convert existing ISO dates to MT midnight timestamps
+3. **Comprehensive testing** - Test all date queries, filters, and exports with real production data
+4. **Rollback plan** - Ability to revert if critical bugs discovered
+5. **Gradual rollout** - Consider feature flag for testing in staging before production
+
+**Current State**:
+- ✅ New timezone utilities fully implemented and working
+- ✅ All date formatting uses proper MT timezone
+- ⚠️ Database still stores dates as ISO strings (YYYY-MM-DD)
+- ⚠️ Date queries still use string manipulation: `substr(deliveryDate, 1, 10) >= '2025-11-14'`
+
+**Impact of Deferral**:
+- Existing functionality continues to work
+- New timezone utilities fix critical timezone conversion bugs
+- Database performance slightly suboptimal (string comparisons vs integer)
+- Full benefits of migration realized when Phase 3 completed
+
+**Next Steps for Phase 3**:
+1. Review migration script in plan (lines 588-631)
+2. Test in local development environment
+3. Create database backup before migration
+4. Run migration on staging environment
+5. Monitor for 1 week before production migration
+6. Update all queries to use timestamp comparisons
