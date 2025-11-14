@@ -27,7 +27,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Plus, X, Trash2 } from "lucide-react";
+import { Plus, X, Trash2, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface CustomizationsFormProps {
   value: ProductCustomizations;
@@ -132,6 +149,13 @@ function SizeVariantsEditor({
   config: SizeVariantsConfig;
   onChange: (config: SizeVariantsConfig) => void;
 }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const addVariant = () => {
     onChange({
       ...config,
@@ -176,6 +200,20 @@ function SizeVariantsEditor({
     });
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = config.variants.findIndex((v) => v.id === active.id);
+      const newIndex = config.variants.findIndex((v) => v.id === over.id);
+
+      onChange({
+        ...config,
+        variants: arrayMove(config.variants, oldIndex, newIndex),
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -186,98 +224,156 @@ function SizeVariantsEditor({
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {config.variants.map((variant, index) => (
-          <Card key={variant.id}>
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant={variant.isDefault ? "default" : "outline"}>
-                    {variant.isDefault ? "Default" : `Variant ${index + 1}`}
-                  </Badge>
-                  {!variant.isDefault && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setDefault(variant.id)}
-                    >
-                      Set as Default
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => removeVariant(variant.id)}
-                  disabled={config.variants.length === 1}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Size Name</Label>
-                  <Input
-                    placeholder="6 inch"
-                    value={variant.name}
-                    onChange={(e) =>
-                      updateVariant(variant.id, { name: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Price ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="45.00"
-                    value={(variant.priceInCents / 100).toFixed(2)}
-                    onChange={(e) =>
-                      updateVariant(variant.id, {
-                        priceInCents: Math.round(
-                          parseFloat(e.target.value || "0") * 100
-                        ),
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quantity Available</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="5"
-                    value={variant.quantityAvailable ?? 0}
-                    onChange={(e) =>
-                      updateVariant(variant.id, {
-                        quantityAvailable: parseInt(e.target.value || "0"),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Description (Optional)</Label>
-                <Input
-                  placeholder="Serves 6-8 people"
-                  value={variant.description || ""}
-                  onChange={(e) =>
-                    updateVariant(variant.id, { description: e.target.value })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={config.variants.map((v) => v.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-3">
+            {config.variants.map((variant, index) => (
+              <SortableVariantCard
+                key={variant.id}
+                variant={variant}
+                index={index}
+                isOnlyVariant={config.variants.length === 1}
+                onRemove={() => removeVariant(variant.id)}
+                onUpdate={(updates) => updateVariant(variant.id, updates)}
+                onSetDefault={() => setDefault(variant.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
+  );
+}
+
+function SortableVariantCard({
+  variant,
+  index,
+  isOnlyVariant,
+  onRemove,
+  onUpdate,
+  onSetDefault,
+}: {
+  variant: SizeVariantsConfig["variants"][0];
+  index: number;
+  isOnlyVariant: boolean;
+  onRemove: () => void;
+  onUpdate: (updates: Partial<SizeVariantsConfig["variants"][0]>) => void;
+  onSetDefault: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: variant.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style}>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="cursor-grab active:cursor-grabbing touch-none"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <Badge variant={variant.isDefault ? "default" : "outline"}>
+              {variant.isDefault ? "Default" : `Variant ${index + 1}`}
+            </Badge>
+            {!variant.isDefault && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={onSetDefault}
+              >
+                Set as Default
+              </Button>
+            )}
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onRemove}
+            disabled={isOnlyVariant}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label>Size Name</Label>
+            <Input
+              placeholder="6 inch"
+              value={variant.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Price ($)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="45.00"
+              value={(variant.priceInCents / 100).toFixed(2)}
+              onChange={(e) =>
+                onUpdate({
+                  priceInCents: Math.round(
+                    parseFloat(e.target.value || "0") * 100
+                  ),
+                })
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Quantity Available</Label>
+            <Input
+              type="number"
+              min="0"
+              placeholder="5"
+              value={variant.quantityAvailable ?? 0}
+              onChange={(e) =>
+                onUpdate({
+                  quantityAvailable: parseInt(e.target.value || "0"),
+                })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Description (Optional)</Label>
+          <Input
+            placeholder="Serves 6-8 people"
+            value={variant.description || ""}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -288,6 +384,13 @@ function CustomBuilderEditor({
   config: CustomBuilderConfig;
   onChange: (config: CustomBuilderConfig) => void;
 }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const addOption = () => {
     onChange({
       ...config,
@@ -379,6 +482,47 @@ function CustomBuilderEditor({
     });
   };
 
+  const handleOptionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = config.options.findIndex((o) => o.id === active.id);
+      const newIndex = config.options.findIndex((o) => o.id === over.id);
+
+      const reorderedOptions = arrayMove(config.options, oldIndex, newIndex);
+
+      // Update displayOrder after reordering
+      onChange({
+        ...config,
+        options: reorderedOptions.map((opt, idx) => ({
+          ...opt,
+          displayOrder: idx,
+        })),
+      });
+    }
+  };
+
+  const handleChoiceDragEnd = (optionId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      onChange({
+        ...config,
+        options: config.options.map((o) => {
+          if (o.id === optionId) {
+            const oldIndex = o.choices.findIndex((c) => c.id === active.id);
+            const newIndex = o.choices.findIndex((c) => c.id === over.id);
+            return {
+              ...o,
+              choices: arrayMove(o.choices, oldIndex, newIndex),
+            };
+          }
+          return o;
+        }),
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -420,247 +564,376 @@ function CustomBuilderEditor({
           </div>
         )}
 
-        {config.options.map((option, index) => (
-          <Card key={option.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">
-                    Option {index + 1}
-                    {option.required && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        Required
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </div>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => removeOption(option.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Option Name</Label>
-                  <Input
-                    placeholder="Cake Size"
-                    value={option.name}
-                    onChange={(e) =>
-                      updateOption(option.id, { name: e.target.value })
-                    }
-                  />
-                </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleOptionDragEnd}
+        >
+          <SortableContext
+            items={config.options.map((o) => o.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {config.options.map((option, index) => (
+              <SortableOptionCard
+                key={option.id}
+                option={option}
+                index={index}
+                onRemove={() => removeOption(option.id)}
+                onUpdate={(updates) => updateOption(option.id, updates)}
+                onAddChoice={() => addChoice(option.id)}
+                onRemoveChoice={(choiceId) => removeChoice(option.id, choiceId)}
+                onUpdateChoice={(choiceId, updates) =>
+                  updateChoice(option.id, choiceId, updates)
+                }
+                onChoiceDragEnd={(event) =>
+                  handleChoiceDragEnd(option.id, event)
+                }
+                fullConfig={config}
+                onFullConfigChange={onChange}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </div>
+    </div>
+  );
+}
 
-                <div className="space-y-2">
-                  <Label>Selection Type</Label>
-                  <Select
-                    value={option.type}
-                    onValueChange={(value: "single" | "multiple") =>
-                      updateOption(option.id, { type: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Single Choice</SelectItem>
-                      <SelectItem value="multiple">Multiple Choices</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+function SortableOptionCard({
+  option,
+  index,
+  onRemove,
+  onUpdate,
+  onAddChoice,
+  onRemoveChoice,
+  onUpdateChoice,
+  onChoiceDragEnd,
+  fullConfig,
+  onFullConfigChange,
+}: {
+  option: CustomBuilderConfig["options"][0];
+  index: number;
+  onRemove: () => void;
+  onUpdate: (updates: Partial<CustomBuilderConfig["options"][0]>) => void;
+  onAddChoice: () => void;
+  onRemoveChoice: (choiceId: string) => void;
+  onUpdateChoice: (
+    choiceId: string,
+    updates: Partial<CustomBuilderConfig["options"][0]["choices"][0]>
+  ) => void;
+  onChoiceDragEnd: (event: DragEndEvent) => void;
+  fullConfig: CustomBuilderConfig;
+  onFullConfigChange: (config: CustomBuilderConfig) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: option.id });
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  return (
+    <Card ref={setNodeRef} style={style}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="cursor-grab active:cursor-grabbing touch-none"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <div className="space-y-1">
+              <CardTitle className="text-base">
+                Option {index + 1}
+                {option.required && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    Required
+                  </Badge>
+                )}
+              </CardTitle>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Option Name</Label>
+            <Input
+              placeholder="Cake Size"
+              value={option.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Selection Type</Label>
+            <Select
+              value={option.type}
+              onValueChange={(value: "single" | "multiple") =>
+                onUpdate({ type: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single Choice</SelectItem>
+                <SelectItem value="multiple">Multiple Choices</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Description (Optional)</Label>
+          <Input
+            placeholder="Select your cake size"
+            value={option.description || ""}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={`required-${option.id}`}
+              checked={option.required}
+              onCheckedChange={(checked) =>
+                onUpdate({ required: checked as boolean })
+              }
+            />
+            <Label htmlFor={`required-${option.id}`}>Required</Label>
+          </div>
+
+          {option.type === "multiple" && (
+            <>
               <div className="space-y-2">
-                <Label>Description (Optional)</Label>
+                <Label>Min Selections</Label>
                 <Input
-                  placeholder="Select your cake size"
-                  value={option.description || ""}
+                  type="number"
+                  min="0"
+                  value={option.minSelections || ""}
                   onChange={(e) =>
-                    updateOption(option.id, { description: e.target.value })
+                    onUpdate({
+                      minSelections: parseInt(e.target.value) || undefined,
+                    })
                   }
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`required-${option.id}`}
-                    checked={option.required}
-                    onCheckedChange={(checked) =>
-                      updateOption(option.id, { required: checked as boolean })
-                    }
-                  />
-                  <Label htmlFor={`required-${option.id}`}>Required</Label>
-                </div>
-
-                {option.type === "multiple" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Min Selections</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={option.minSelections || ""}
-                        onChange={(e) =>
-                          updateOption(option.id, {
-                            minSelections:
-                              parseInt(e.target.value) || undefined,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Max Selections</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={option.maxSelections || ""}
-                        onChange={(e) =>
-                          updateOption(option.id, {
-                            maxSelections:
-                              parseInt(e.target.value) || undefined,
-                          })
-                        }
-                      />
-                    </div>
-                  </>
-                )}
+              <div className="space-y-2">
+                <Label>Max Selections</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={option.maxSelections || ""}
+                  onChange={(e) =>
+                    onUpdate({
+                      maxSelections: parseInt(e.target.value) || undefined,
+                    })
+                  }
+                />
               </div>
+            </>
+          )}
+        </div>
 
-              <Separator />
+        <Separator />
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Choices</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => addChoice(option.id)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Choice
-                  </Button>
-                </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Choices</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onAddChoice}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Choice
+            </Button>
+          </div>
 
-                {option.choices.map((choice) => (
-                  <div
-                    key={choice.id}
-                    className="flex items-start gap-2 p-3 rounded-lg border"
-                  >
-                    <div className="flex-1 grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Choice Name</Label>
-                        <Input
-                          placeholder="Chocolate"
-                          value={choice.name}
-                          onChange={(e) =>
-                            updateChoice(option.id, choice.id, {
-                              name: e.target.value,
-                            })
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onChoiceDragEnd}
+          >
+            <SortableContext
+              items={option.choices.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {option.choices.map((choice) => (
+                <SortableChoiceCard
+                  key={choice.id}
+                  choice={choice}
+                  optionId={option.id}
+                  onRemove={() => onRemoveChoice(choice.id)}
+                  onUpdate={(updates) => onUpdateChoice(choice.id, updates)}
+                  fullConfig={fullConfig}
+                  onFullConfigChange={onFullConfigChange}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+
+          {option.choices.length === 0 && (
+            <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg">
+              No choices yet. Add choices for customers to select from.
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SortableChoiceCard({
+  choice,
+  optionId,
+  onRemove,
+  onUpdate,
+  fullConfig,
+  onFullConfigChange,
+}: {
+  choice: CustomBuilderConfig["options"][0]["choices"][0];
+  optionId: string;
+  onRemove: () => void;
+  onUpdate: (
+    updates: Partial<CustomBuilderConfig["options"][0]["choices"][0]>
+  ) => void;
+  fullConfig: CustomBuilderConfig;
+  onFullConfigChange: (config: CustomBuilderConfig) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: choice.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-start gap-2 p-3 rounded-lg border"
+    >
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing touch-none mt-6"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-5 w-5 text-muted-foreground" />
+      </button>
+      <div className="flex-1 grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs">Choice Name</Label>
+          <Input
+            placeholder="Chocolate"
+            value={choice.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs">Price Modifier ($)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            value={(choice.priceModifier / 100).toFixed(2)}
+            onChange={(e) =>
+              onUpdate({
+                priceModifier: Math.round(
+                  parseFloat(e.target.value || "0") * 100
+                ),
+              })
+            }
+          />
+        </div>
+
+        <div className="col-span-2 space-y-2">
+          <Label className="text-xs">Description (Optional)</Label>
+          <Input
+            placeholder="Rich chocolate flavor"
+            value={choice.description || ""}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+          />
+        </div>
+
+        <div className="col-span-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={`default-${choice.id}`}
+              checked={choice.isDefault || false}
+              onCheckedChange={(checked) => {
+                // If setting as default, unset all others
+                if (checked) {
+                  onFullConfigChange({
+                    ...fullConfig,
+                    options: fullConfig.options.map((o) =>
+                      o.id === optionId
+                        ? {
+                            ...o,
+                            choices: o.choices.map((c) => ({
+                              ...c,
+                              isDefault: c.id === choice.id,
+                            })),
                           }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Price Modifier ($)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={(choice.priceModifier / 100).toFixed(2)}
-                          onChange={(e) =>
-                            updateChoice(option.id, choice.id, {
-                              priceModifier: Math.round(
-                                parseFloat(e.target.value || "0") * 100
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-2 space-y-2">
-                        <Label className="text-xs">
-                          Description (Optional)
-                        </Label>
-                        <Input
-                          placeholder="Rich chocolate flavor"
-                          value={choice.description || ""}
-                          onChange={(e) =>
-                            updateChoice(option.id, choice.id, {
-                              description: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`default-${choice.id}`}
-                            checked={choice.isDefault || false}
-                            onCheckedChange={(checked) => {
-                              // If setting as default, unset all others
-                              if (checked) {
-                                onChange({
-                                  ...config,
-                                  options: config.options.map((o) =>
-                                    o.id === option.id
-                                      ? {
-                                          ...o,
-                                          choices: o.choices.map((c) => ({
-                                            ...c,
-                                            isDefault: c.id === choice.id,
-                                          })),
-                                        }
-                                      : o
-                                  ),
-                                });
-                              } else {
-                                updateChoice(option.id, choice.id, {
-                                  isDefault: false,
-                                });
-                              }
-                            }}
-                          />
-                          <Label
-                            htmlFor={`default-${choice.id}`}
-                            className="text-xs"
-                          >
-                            Set as default
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeChoice(option.id, choice.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-
-                {option.choices.length === 0 && (
-                  <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg">
-                    No choices yet. Add choices for customers to select from.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                        : o
+                    ),
+                  });
+                } else {
+                  onUpdate({ isDefault: false });
+                }
+              }}
+            />
+            <Label htmlFor={`default-${choice.id}`} className="text-xs">
+              Set as default
+            </Label>
+          </div>
+        </div>
       </div>
+
+      <Button type="button" size="icon" variant="ghost" onClick={onRemove}>
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

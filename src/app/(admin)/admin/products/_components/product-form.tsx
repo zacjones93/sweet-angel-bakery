@@ -40,14 +40,14 @@ const productFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   categoryId: z.string().min(1, "Category is required"),
-  price: z.string().min(1, "Price is required"),
+  price: z.string().optional(),
   imageUrl: z.string().optional(),
   status: z.enum([
     PRODUCT_STATUS.ACTIVE,
     PRODUCT_STATUS.FEATURED,
     PRODUCT_STATUS.INACTIVE,
   ]),
-  quantityAvailable: z.string().min(1, "Quantity is required"),
+  quantityAvailable: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -137,10 +137,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const validateAndUploadFile = (file: File) => {
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
@@ -158,6 +155,26 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     handleImageUpload(file);
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    validateAndUploadFile(file);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    validateAndUploadFile(file);
+  };
+
   const removeImage = () => {
     form.setValue("imageUrl", "");
     setImagePreview(null);
@@ -167,9 +184,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   };
 
   async function onSubmit(values: ProductFormValues) {
-    const price = parseFloat(values.price);
-    const quantityAvailable = parseInt(values.quantityAvailable, 10);
-
     // Validate customizations if present
     if (customizations) {
       if (customizations.type === "size_variants") {
@@ -204,6 +218,21 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         }
       }
     }
+
+    // Price and quantity validation - not needed when using size variants
+    if (!hasSizeVariants) {
+      if (!values.price || values.price === "") {
+        toast.error("Price is required");
+        return;
+      }
+      if (!values.quantityAvailable || values.quantityAvailable === "") {
+        toast.error("Quantity is required");
+        return;
+      }
+    }
+
+    const price = hasSizeVariants ? 0 : parseFloat(values.price!);
+    const quantityAvailable = hasSizeVariants ? 0 : parseInt(values.quantityAvailable!, 10);
 
     if (product) {
       const [, error] = await updateProduct({
@@ -365,6 +394,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       <label
                         htmlFor="image-upload"
                         className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors"
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
                       >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           {isUploadingImage ? (

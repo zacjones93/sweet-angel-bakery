@@ -481,6 +481,44 @@ export class SquareFetchProvider implements IMerchantProvider {
       const { sendOrderConfirmationEmail } = await import("@/utils/email");
 
       if (customerEmail) {
+        // Prepare delivery address
+        let deliveryAddressFormatted: string | null = null;
+        if (order.deliveryAddressJson && order.deliveryAddressJson !== "null") {
+          try {
+            const addr = JSON.parse(order.deliveryAddressJson);
+            deliveryAddressFormatted = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+          } catch {
+            deliveryAddressFormatted = null;
+          }
+        }
+
+        // Fetch pickup location if needed
+        let pickupLocationFormatted: { name: string; address: string } | null = null;
+        if (order.pickupLocationId) {
+          const { pickupLocationTable } = await import("@/db/schema");
+          const pickupLoc = await db
+            .select()
+            .from(pickupLocationTable)
+            .where(eq(pickupLocationTable.id, order.pickupLocationId))
+            .get();
+
+          if (pickupLoc) {
+            let pickupAddress = "";
+            if (pickupLoc.address && pickupLoc.address !== "null") {
+              try {
+                const addr = JSON.parse(pickupLoc.address);
+                pickupAddress = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+              } catch {
+                pickupAddress = pickupLoc.address;
+              }
+            }
+            pickupLocationFormatted = {
+              name: pickupLoc.name,
+              address: pickupAddress,
+            };
+          }
+        }
+
         await sendOrderConfirmationEmail({
           email: customerEmail,
           customerName,
@@ -490,7 +528,17 @@ export class SquareFetchProvider implements IMerchantProvider {
             quantity: item.quantity,
             price: item.price,
           })),
+          subtotal,
+          tax,
+          deliveryFee: deliveryFee > 0 ? deliveryFee : undefined,
           total: totalAmount,
+          fulfillmentMethod: order.fulfillmentMethod || null,
+          deliveryDate: order.deliveryDate || null,
+          deliveryTimeWindow: order.deliveryTimeWindow || null,
+          deliveryAddress: deliveryAddressFormatted,
+          pickupDate: order.pickupDate || null,
+          pickupTimeWindow: order.pickupTimeWindow || null,
+          pickupLocation: pickupLocationFormatted,
         });
       }
     } catch (error) {

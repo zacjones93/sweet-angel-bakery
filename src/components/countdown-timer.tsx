@@ -2,6 +2,18 @@
 
 import { useState, useEffect } from "react";
 
+/**
+ * Countdown Timer Component
+ *
+ * TIMEZONE NOTE: The endDateTime is expected to be in Mountain Time (America/Boise).
+ * This component calculates time remaining by comparing the endDateTime with the
+ * user's current local time. The countdown will be accurate for all users regardless
+ * of their timezone because:
+ * 1. Admin sets endDateTime in MT
+ * 2. Backend stores it as UTC timestamp
+ * 3. Frontend receives Date object and calculates difference
+ * 4. Time remaining is an absolute duration, not timezone-dependent
+ */
 interface CountdownTimerProps {
   endDateTime: Date;
   onExpired?: () => void;

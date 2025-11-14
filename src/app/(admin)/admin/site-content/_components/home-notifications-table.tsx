@@ -72,6 +72,7 @@ export function HomeNotificationsTable({ notifications }: { notifications: HomeN
           <h2 className="text-2xl font-bold">Home Notifications</h2>
           <p className="text-sm text-muted-foreground">
             Manage notifications displayed on the homepage between the hero and featured products sections.
+            All dates are in Mountain Time (America/Boise).
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>

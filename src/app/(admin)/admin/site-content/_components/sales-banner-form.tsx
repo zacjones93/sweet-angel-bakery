@@ -116,7 +116,8 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
         <div>
           <h2 className="text-2xl font-bold">Sales Banner</h2>
           <p className="text-sm text-muted-foreground">
-            Configure the sticky top banner with countdown timer and scrolling message
+            Configure the sticky top banner with countdown timer and scrolling message.
+            All dates/times are in Mountain Time (America/Boise).
           </p>
         </div>
         {initialBanner && (
@@ -135,7 +136,8 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
         <CardHeader>
           <CardTitle>{initialBanner ? "Edit Banner" : "Create Banner"}</CardTitle>
           <CardDescription>
-            The banner will appear at the top of all pages when active and before the countdown expires
+            The banner will appear at the top of all pages when active and before the countdown expires.
+            All dates/times are in Mountain Time (America/Boise).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -158,7 +160,7 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endDateTime">Countdown End Date & Time *</Label>
+              <Label htmlFor="endDateTime">Countdown End Date & Time (MT) *</Label>
               <Input
                 id="endDateTime"
                 type="datetime-local"
@@ -168,7 +170,7 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
                 required
               />
               <p className="text-xs text-muted-foreground">
-                The banner will hide automatically after this time
+                Banner will hide automatically after this Mountain Time. Countdown updates in real-time for all visitors.
               </p>
             </div>
 

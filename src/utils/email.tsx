@@ -273,7 +273,17 @@ export async function sendOrderConfirmationEmail({
   customerName,
   orderNumber,
   orderItems,
+  subtotal,
+  tax,
+  deliveryFee,
   total,
+  fulfillmentMethod,
+  deliveryDate,
+  deliveryTimeWindow,
+  deliveryAddress,
+  pickupDate,
+  pickupTimeWindow,
+  pickupLocation,
 }: {
   email: string;
   customerName: string;
@@ -283,12 +293,26 @@ export async function sendOrderConfirmationEmail({
     quantity: number;
     price: number;
   }>;
+  subtotal: number;
+  tax: number;
+  deliveryFee?: number;
   total: number;
+  fulfillmentMethod?: "delivery" | "pickup" | null;
+  deliveryDate?: string | null;
+  deliveryTimeWindow?: string | null;
+  deliveryAddress?: string | null;
+  pickupDate?: string | null;
+  pickupTimeWindow?: string | null;
+  pickupLocation?: {
+    name: string;
+    address: string;
+  } | null;
 }) {
   if (!isProd) {
     console.warn('\n\n\nOrder confirmation email would be sent to:', email);
     console.warn('Order #:', orderNumber);
     console.warn('Items:', orderItems);
+    console.warn('Fulfillment:', fulfillmentMethod);
     return;
   }
 
@@ -296,7 +320,17 @@ export async function sendOrderConfirmationEmail({
     customerName,
     orderNumber,
     orderItems,
+    subtotal,
+    tax,
+    deliveryFee,
     total,
+    fulfillmentMethod,
+    deliveryDate,
+    deliveryTimeWindow,
+    deliveryAddress,
+    pickupDate,
+    pickupTimeWindow,
+    pickupLocation,
   }));
 
   const provider = await getEmailProvider();

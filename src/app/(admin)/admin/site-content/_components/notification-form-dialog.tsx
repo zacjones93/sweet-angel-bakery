@@ -200,6 +200,7 @@ export function NotificationFormDialog({
           </DialogTitle>
           <DialogDescription>
             Create a notification to display on the homepage between the hero and featured products sections.
+            All dates are in Mountain Time (America/Boise).
           </DialogDescription>
         </DialogHeader>
 
@@ -280,7 +281,7 @@ export function NotificationFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date (Optional)</Label>
+              <Label htmlFor="startDate">Start Date (Optional, MT)</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -288,10 +289,13 @@ export function NotificationFormDialog({
                 onChange={(e) => setStartDate(e.target.value)}
                 disabled={isPending}
               />
+              <p className="text-xs text-muted-foreground">
+                Show notification starting at midnight Mountain Time
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date (Optional)</Label>
+              <Label htmlFor="endDate">End Date (Optional, MT)</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -299,6 +303,9 @@ export function NotificationFormDialog({
                 onChange={(e) => setEndDate(e.target.value)}
                 disabled={isPending}
               />
+              <p className="text-xs text-muted-foreground">
+                Hide notification after midnight Mountain Time
+              </p>
             </div>
           </div>
 

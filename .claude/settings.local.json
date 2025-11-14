@@ -36,7 +36,8 @@
       "WebFetch(domain:developer.squareup.com)",
       "Bash(awk:*)",
       "WebSearch",
-      "Bash(wrangler d1 execute:*)"
+      "Bash(wrangler d1 execute:*)",
+      "Bash(pnpm drizzle-kit push:*)"
     ],
     "deny": [],
     "ask": []

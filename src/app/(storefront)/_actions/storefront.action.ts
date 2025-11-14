@@ -52,6 +52,7 @@ export const getStorefrontProductsAction = createServerAction()
         status: productTable.status,
         quantityAvailable: productTable.quantityAvailable,
         customizations: productTable.customizations,
+        createdAt: productTable.createdAt,
         category: {
           id: categoryTable.id,
           name: categoryTable.name,
@@ -67,11 +68,36 @@ export const getStorefrontProductsAction = createServerAction()
         desc(productTable.createdAt)
       );
 
-    // Parse customizations JSON
-    return products.map((p) => ({
-      ...p,
-      customizations: p.customizations ? JSON.parse(p.customizations) : null,
-    }));
+    // Parse customizations JSON and calculate effective stock
+    const parsedProducts = products.map((p) => {
+      const customizations = p.customizations ? JSON.parse(p.customizations) : null;
+
+      // For products with size variants, calculate total stock across all variants
+      let effectiveStock = p.quantityAvailable;
+      if (customizations?.type === "size_variants" && customizations.variants) {
+        effectiveStock = customizations.variants.reduce(
+          (sum: number, variant: { quantityAvailable: number }) => sum + variant.quantityAvailable,
+          0
+        );
+      }
+
+      return {
+        ...p,
+        customizations,
+        effectiveStock,
+      };
+    });
+
+    // Re-sort by effective stock (in-stock first, out-of-stock last)
+    return parsedProducts.sort((a, b) => {
+      // Primary sort: in-stock vs out-of-stock
+      const aInStock = a.effectiveStock > 0 ? 1 : 0;
+      const bInStock = b.effectiveStock > 0 ? 1 : 0;
+      if (aInStock !== bInStock) return bInStock - aInStock;
+
+      // Secondary sort: by creation date (newer first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   });
 
 // Get single product for storefront

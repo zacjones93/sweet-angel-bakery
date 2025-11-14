@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
-  variable: "--font-open-sans"
+  variable: "--font-open-sans",
 });
 
 export const metadata: Metadata = {
@@ -82,7 +82,7 @@ export default function BaseLayout({
           shadow="0 0 10px #000, 0 0 5px #000"
           height={4}
         />
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <TooltipProvider delayDuration={100} skipDelayDuration={50}>
             {children}
           </TooltipProvider>

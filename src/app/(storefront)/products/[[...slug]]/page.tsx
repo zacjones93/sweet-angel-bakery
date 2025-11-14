@@ -28,9 +28,21 @@ export default async function ProductsPage({
       <div className="container mx-auto px-4 py-12">
         {products && products.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {products.map((product) => {
+              // Check if product is out of stock (considering variants)
+              const hasVariants = product.customizations?.type === "size_variants";
+              const isOutOfStock = hasVariants
+                ? product.customizations.variants.every((v: { quantityAvailable: number }) => v.quantityAvailable <= 0)
+                : product.quantityAvailable <= 0;
+
+              return (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  compact={isOutOfStock}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-20">

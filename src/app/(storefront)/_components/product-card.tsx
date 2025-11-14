@@ -34,7 +34,13 @@ type Product = {
   } | null;
 };
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  compact = false,
+}: {
+  product: Product;
+  compact?: boolean;
+}) {
   const { addItem, items, updateQuantity, removeItem } = useCart();
 
   // For size variants, track selected variant
@@ -149,27 +155,39 @@ export function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 group flex flex-col h-full">
+    <Card
+      className={`overflow-hidden transition-all duration-300 border-2 group flex flex-col h-full ${
+        compact
+          ? "opacity-60 hover:opacity-80 hover:shadow-md"
+          : "hover:shadow-xl hover:border-primary/20"
+      }`}
+    >
       <CardHeader className="p-0">
         {product.imageUrl ? (
-          <div className="relative aspect-square overflow-hidden">
+          <div
+            className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`}
+          >
             <Image
               src={product.imageUrl}
               alt={product.name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              className={`object-cover ${!compact && "group-hover:scale-105 transition-transform duration-300"}`}
             />
           </div>
         ) : (
-          <div className="aspect-square bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center">
-            <span className="text-muted-foreground">No image</span>
+          <div
+            className={`bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center ${compact ? "aspect-[4/3]" : "aspect-square"}`}
+          >
+            <span className="text-muted-foreground text-sm">No image</span>
           </div>
         )}
       </CardHeader>
-      <CardContent className="p-6 flex-1 flex flex-col">
-        <div className="space-y-3 flex-1">
+      <CardContent className={`flex-1 flex flex-col ${compact ? "p-4" : "p-6"}`}>
+        <div className={`flex-1 ${compact ? "space-y-2" : "space-y-3"}`}>
           <div>
-            <h3 className="font-display font-bold text-xl mb-1">
+            <h3
+              className={`font-display font-bold mb-1 ${compact ? "text-base" : "text-xl"}`}
+            >
               {product.name}
             </h3>
             {product.category && (
@@ -178,30 +196,32 @@ export function ProductCard({ product }: { product: Product }) {
               </p>
             )}
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.625rem]">
-            {product.description || " "}
-          </p>
+          {!compact && (
+            <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.625rem]">
+              {product.description || " "}
+            </p>
+          )}
           {!hasVariants && (
-            <p className="text-2xl font-bold text-primary">
+            <p className={`font-bold text-primary ${compact ? "text-lg" : "text-2xl"}`}>
               {formatPrice(product.price)}
             </p>
           )}
           {hasVariants && (
-            <p className="text-2xl font-bold text-primary">
+            <p className={`font-bold text-primary ${compact ? "text-lg" : "text-2xl"}`}>
               {formatPrice(selectedPrice)}
             </p>
           )}
           {isOutOfStock ? (
-            <p className="text-sm font-semibold text-destructive">
+            <p className={`font-semibold text-destructive ${compact ? "text-xs" : "text-sm"}`}>
               Out of Stock
             </p>
           ) : availableQuantity <= 5 ? (
-            <p className="text-sm font-semibold text-orange-600">
+            <p className={`font-semibold text-orange-600 ${compact ? "text-xs" : "text-sm"}`}>
               Only {availableQuantity} left!
             </p>
           ) : null}
         </div>
-        {hasVariants && product.customizations && (
+        {!compact && hasVariants && product.customizations && (
           <ProductVariantSelector
             config={product.customizations as SizeVariantsConfig}
             onVariantChange={handleVariantChange}
@@ -209,19 +229,25 @@ export function ProductCard({ product }: { product: Product }) {
           />
         )}
       </CardContent>
-      <CardFooter className="p-6 pt-0">
+      <CardFooter className={compact ? "p-4 pt-0" : "p-6 pt-0"}>
         {isInCart ? (
           <div className="w-full space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <Button variant="outline" size="icon" onClick={handleDecrement}>
+              <Button
+                variant="outline"
+                size={compact ? "sm" : "icon"}
+                onClick={handleDecrement}
+              >
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="text-lg font-semibold min-w-[3rem] text-center">
+              <span
+                className={`font-semibold min-w-[3rem] text-center ${compact ? "text-base" : "text-lg"}`}
+              >
                 {cartQuantity}
               </span>
               <Button
                 variant="outline"
-                size="icon"
+                size={compact ? "sm" : "icon"}
                 onClick={handleIncrement}
                 disabled={isMaxedOut}
               >
@@ -238,7 +264,7 @@ export function ProductCard({ product }: { product: Product }) {
           <Button
             onClick={handleAddToCart}
             className="w-full"
-            size="lg"
+            size={compact ? "default" : "lg"}
             disabled={isOutOfStock}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />

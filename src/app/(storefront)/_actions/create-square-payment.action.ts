@@ -4,7 +4,7 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getMerchantProvider } from "@/lib/merchant-provider/factory";
 import { getDB } from "@/db";
-import { productTable, orderTable, orderItemTable, merchantFeeTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
+import { productTable, orderTable, orderItemTable, merchantFeeTable, pickupLocationTable, ORDER_STATUS, PAYMENT_STATUS } from "@/db/schema";
 import { inArray, eq, sql } from "drizzle-orm";
 import { orderItemCustomizationsSchema } from "@/schemas/customizations.schema";
 import { calculateTax } from "@/utils/tax";
@@ -228,6 +228,45 @@ export const createSquarePaymentAction = createServerAction()
     try {
       const { sendOrderConfirmationEmail } = await import("@/utils/email");
 
+      // Prepare delivery address
+      let deliveryAddressFormatted: string | null = null;
+      if (deliveryAddressJson && deliveryAddressJson !== "null") {
+        try {
+          const addr = JSON.parse(deliveryAddressJson);
+          deliveryAddressFormatted = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+        } catch {
+          deliveryAddressFormatted = deliveryAddress;
+        }
+      } else {
+        deliveryAddressFormatted = deliveryAddress;
+      }
+
+      // Fetch pickup location if needed
+      let pickupLocationFormatted: { name: string; address: string } | null = null;
+      if (input.pickupLocationId) {
+        const pickupLoc = await db
+          .select()
+          .from(pickupLocationTable)
+          .where(eq(pickupLocationTable.id, input.pickupLocationId))
+          .get();
+
+        if (pickupLoc) {
+          let pickupAddress = "";
+          if (pickupLoc.address && pickupLoc.address !== "null") {
+            try {
+              const addr = JSON.parse(pickupLoc.address);
+              pickupAddress = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+            } catch {
+              pickupAddress = pickupLoc.address;
+            }
+          }
+          pickupLocationFormatted = {
+            name: pickupLoc.name,
+            address: pickupAddress,
+          };
+        }
+      }
+
       await sendOrderConfirmationEmail({
         email: input.customerEmail,
         customerName: input.customerName,
@@ -237,7 +276,17 @@ export const createSquarePaymentAction = createServerAction()
           quantity: item.quantity,
           price: item.price,
         })),
+        subtotal,
+        tax,
+        deliveryFee: deliveryFee > 0 ? deliveryFee : undefined,
         total: totalAmount,
+        fulfillmentMethod: input.fulfillmentMethod || null,
+        deliveryDate: input.deliveryDate || null,
+        deliveryTimeWindow: input.deliveryTimeWindow || null,
+        deliveryAddress: deliveryAddressFormatted,
+        pickupDate: input.pickupDate || null,
+        pickupTimeWindow: input.pickupTimeWindow || null,
+        pickupLocation: pickupLocationFormatted,
       });
     } catch (error) {
       console.error("[Square Payment] Error sending confirmation email:", error);
