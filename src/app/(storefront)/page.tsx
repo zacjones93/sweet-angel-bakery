@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { getStorefrontProductsAction } from "./_actions/storefront.action";
 import { ProductCard } from "./_components/product-card";
+import { HomeNotificationSection } from "./_components/home-notification-section";
 
 export default async function HomePage() {
   const [products] = await getStorefrontProductsAction({ featured: true });
@@ -33,6 +34,9 @@ export default async function HomePage() {
           </Button>
         </div>
       </section>
+
+      {/* Home Notification Section */}
+      <HomeNotificationSection />
 
       {/* Featured Products */}
       {products && products.length > 0 && (

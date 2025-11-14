@@ -610,6 +610,32 @@ export const productDeliveryRulesRelations = relations(productDeliveryRulesTable
   }),
 }));
 
+// Site Content Tables
+export const homeNotificationTable = sqliteTable("home_notification", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `hnot_${createId()}`),
+  title: text({ length: 255 }).notNull(),
+  message: text({ length: 2000 }).notNull(),
+  imageUrl: text({ length: 600 }),
+  isActive: integer().default(1).notNull(),
+  displayOrder: integer().default(0).notNull(),
+  startDate: integer({ mode: "timestamp" }),
+  endDate: integer({ mode: "timestamp" }),
+});
+
+export const salesBannerTable = sqliteTable("sales_banner", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `sban_${createId()}`),
+  message: text({ length: 500 }).notNull(),
+  backgroundColor: text({ length: 50 }).default('#ef4444').notNull(),
+  textColor: text({ length: 50 }).default('#ffffff').notNull(),
+  endDateTime: integer({ mode: "timestamp" }).notNull(),
+  isActive: integer().default(1).notNull(),
+  isDismissible: integer().default(1).notNull(),
+  ctaText: text({ length: 100 }),
+  ctaLink: text({ length: 500 }),
+});
+
 // Type exports
 export type User = InferSelectModel<typeof userTable>;
 export type PassKeyCredential = InferSelectModel<typeof passKeyCredentialTable>;
@@ -626,3 +652,5 @@ export type DeliveryZone = InferSelectModel<typeof deliveryZoneTable>;
 export type PickupLocation = InferSelectModel<typeof pickupLocationTable>;
 export type DeliveryFeeRule = InferSelectModel<typeof deliveryFeeRuleTable>;
 export type ProductDeliveryRules = InferSelectModel<typeof productDeliveryRulesTable>;
+export type HomeNotification = InferSelectModel<typeof homeNotificationTable>;
+export type SalesBanner = InferSelectModel<typeof salesBannerTable>;

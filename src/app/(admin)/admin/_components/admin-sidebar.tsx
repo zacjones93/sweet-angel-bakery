@@ -14,6 +14,7 @@ import {
   MapPin,
   Calendar,
   DollarSign,
+  FileText,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -68,6 +69,12 @@ const adminNavItems: NavMainItem[] = [
     title: "Delivery Settings",
     url: "/admin/delivery-settings",
     icon: Truck,
+    isActive: true,
+  },
+  {
+    title: "Site Content",
+    url: "/admin/site-content",
+    icon: FileText,
     isActive: true,
   },
   {

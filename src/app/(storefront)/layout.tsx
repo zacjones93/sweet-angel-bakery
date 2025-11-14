@@ -1,14 +1,19 @@
 import { StorefrontNav } from "./_components/storefront-nav";
+import { SalesBanner } from "./_components/sales-banner";
 import { CartProvider } from "@/state/cart-context";
+import { getActiveSalesBannerAction } from "./_actions/site-content.action";
 
-export default function StorefrontLayout({
+export default async function StorefrontLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [activeBanner] = await getActiveSalesBannerAction();
+
   return (
     <CartProvider>
       <div className="min-h-screen flex flex-col">
+        {activeBanner && <SalesBanner banner={activeBanner} />}
         <StorefrontNav />
         <main className="flex-1">{children}</main>
         <footer className="border-t py-12 mt-16 bg-muted/30">
