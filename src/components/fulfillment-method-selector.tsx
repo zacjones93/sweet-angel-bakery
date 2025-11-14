@@ -269,6 +269,16 @@ export function FulfillmentMethodSelector({
                     </div>
                   )}
 
+                  {/* Show warning if logged-in user has no ZIP code */}
+                  {!isPreviewMode && !deliveryZipCode && (
+                    <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                      <p className="font-semibold">⚠️ No delivery address on file</p>
+                      <p className="text-xs mt-1">
+                        Please add your delivery address to your profile to see delivery options.
+                      </p>
+                    </div>
+                  )}
+
                   {((isPreviewMode && previewZipCode.length >= 5) ||
                     (!isPreviewMode &&
                       deliveryZipCode &&
@@ -365,8 +375,19 @@ export function FulfillmentMethodSelector({
                           </div>
                         ) : (
                           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                            Delivery not available to this ZIP code. Please try
-                            pickup or contact us.
+                            {deliveryOptions.deliveryDates.length === 0 && deliveryZipCode ? (
+                              // No delivery dates available (either no schedules configured or ZIP not in zones)
+                              <div>
+                                <p className="font-semibold">Delivery not available</p>
+                                <p className="text-xs mt-1">
+                                  {deliveryOptions.zoneName
+                                    ? "No delivery schedules configured. Please contact us."
+                                    : "Delivery not available to this ZIP code. Please try pickup or contact us."}
+                                </p>
+                              </div>
+                            ) : (
+                              "Delivery not available to this ZIP code. Please try pickup or contact us."
+                            )}
                           </div>
                         )}
                       </>

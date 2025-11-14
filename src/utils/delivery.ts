@@ -161,12 +161,19 @@ export async function getAvailableDeliveryDates({
     // Get next occurrence of this delivery day
     let nextDeliveryDate = getNextDayOfWeek(schedule.dayOfWeek, now);
 
-    // If we're AFTER the cutoff and the next occurrence is still this week, move to next week
+    // CRITICAL FIX: If we're AFTER the cutoff, we need NEXT WEEK's delivery
+    // regardless of whether this week's delivery day has passed
     if (!beforeCutoff) {
-      // If delivery day is later this week (hasn't passed yet), push to next week
-      if (schedule.dayOfWeek > currentDayOfWeek) {
+      // Calculate if the delivery day is still in the future this week
+      const daysUntilDelivery = schedule.dayOfWeek - currentDayOfWeek;
+
+      // If delivery day hasn't occurred yet this week (or is today),
+      // we still need to push to next week because we missed the cutoff
+      if (daysUntilDelivery >= 0) {
         nextDeliveryDate = addDaysMountainTime(nextDeliveryDate, 7);
       }
+      // If delivery day already passed this week, getNextDayOfWeek already
+      // returned next week's date, so no additional adjustment needed
     }
 
     // Skip this date if it's a closure date (don't move forward - just omit it)
@@ -284,12 +291,19 @@ export async function getAvailablePickupDates({
     // Get next occurrence of this pickup day
     let pickupDate = getNextDayOfWeek(day, now);
 
-    // If we're AFTER the cutoff and the next occurrence is still this week, move to next week
+    // CRITICAL FIX: If we're AFTER the cutoff, we need NEXT WEEK's pickup
+    // regardless of whether this week's pickup day has passed
     if (!beforeCutoff) {
-      // If pickup day is later this week (hasn't passed yet), push to next week
-      if (day > currentDayOfWeek) {
+      // Calculate if the pickup day is still in the future this week
+      const daysUntilPickup = day - currentDayOfWeek;
+
+      // If pickup day hasn't occurred yet this week (or is today),
+      // we still need to push to next week because we missed the cutoff
+      if (daysUntilPickup >= 0) {
         pickupDate = addDaysMountainTime(pickupDate, 7);
       }
+      // If pickup day already passed this week, getNextDayOfWeek already
+      // returned next week's date, so no additional adjustment needed
     }
 
     // Skip this date if it's a closure date (don't move forward - just omit it)
