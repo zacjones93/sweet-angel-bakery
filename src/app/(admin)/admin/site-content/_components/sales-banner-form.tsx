@@ -22,7 +22,7 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#FCACC5"); // bakery-pink
-  const [textColor, setTextColor] = useState("#ffffff");
+  const [textColor, setTextColor] = useState("#000000"); // black for pink bg
   const [endDateTime, setEndDateTime] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isDismissible, setIsDismissible] = useState(true);
@@ -75,7 +75,7 @@ export function SalesBannerForm({ initialBanner }: SalesBannerFormProps) {
   function resetForm() {
     setMessage("");
     setBackgroundColor("#FCACC5"); // bakery-pink
-    setTextColor("#ffffff");
+    setTextColor("#000000"); // black for pink bg
     setEndDateTime("");
     setIsActive(true);
     setIsDismissible(true);

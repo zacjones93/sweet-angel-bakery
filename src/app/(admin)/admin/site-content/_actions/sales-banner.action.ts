@@ -29,7 +29,7 @@ export const upsertSalesBannerAction = createServerAction()
       id: z.string().optional(), // If provided, update; otherwise create
       message: z.string().min(1, "Message is required").max(500),
       backgroundColor: z.string().max(50).default("#FCACC5"), // bakery-pink
-      textColor: z.string().max(50).default("#ffffff"),
+      textColor: z.string().max(50).default("#000000"), // black for pink bg
       endDateTime: z.date(),
       isActive: z.boolean().default(true),
       isDismissible: z.boolean().default(true),
