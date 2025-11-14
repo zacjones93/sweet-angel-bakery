@@ -78,7 +78,9 @@ export const getCartDeliveryOptionsAction = createServerAction()
     return {
       available: true,
       deliveryDates: deliveryDateOptions.map(option => ({
-        deliveryDate: option.deliveryDate.toISOString(),
+        // Return ISO date strings in format that preserves the date (YYYY-MM-DD)
+        // so date-fns parses them correctly without timezone shift
+        deliveryDate: option.deliveryDate.toISOString().split('T')[0],
         cutoffDate: option.cutoffDate.toISOString(),
         timeWindow: option.timeWindow,
         dayOfWeek: option.schedule.dayOfWeek,
@@ -130,7 +132,9 @@ export const getCartPickupOptionsAction = createServerAction()
           address: JSON.parse(loc.address),
           instructions: loc.instructions,
           pickupDates: pickupDates.map((date) => ({
-            pickupDate: date.pickupDate.toISOString(),
+            // Return ISO date strings in format that preserves the date (YYYY-MM-DD)
+            // so date-fns parses them correctly without timezone shift
+            pickupDate: date.pickupDate.toISOString().split('T')[0],
             cutoffDate: date.cutoffDate.toISOString(),
             pickupTimeWindow: date.timeWindow,
           })),

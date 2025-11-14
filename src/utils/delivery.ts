@@ -175,8 +175,17 @@ export async function getAvailableDeliveryDates({
     }
 
     // Calculate cutoff date for this delivery
+    // Find the most recent occurrence of cutoffDay before the delivery date
     const cutoffDate = new Date(nextDeliveryDate);
-    cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), nextDeliveryDate) + schedule.cutoffDay);
+    const deliveryDayOfWeek = nextDeliveryDate.getDay();
+
+    // Calculate days backwards from delivery day to cutoff day
+    let daysBack = deliveryDayOfWeek - schedule.cutoffDay;
+    if (daysBack <= 0) {
+      daysBack += 7; // Go back to previous week if cutoff day is after delivery day
+    }
+
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
     const [cutoffHour, cutoffMinute] = schedule.cutoffTime.split(':').map(Number);
     cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
 
@@ -292,7 +301,15 @@ export async function getAvailablePickupDates({
     let cutoffDate = pickupDate;
     if (location.requiresPreorder && location.cutoffDay !== null && location.cutoffTime) {
       cutoffDate = new Date(pickupDate);
-      cutoffDate.setDate(cutoffDate.getDate() - getDaysBetween(new Date(0), pickupDate) + location.cutoffDay);
+      const pickupDayOfWeek = pickupDate.getDay();
+
+      // Calculate days backwards from pickup day to cutoff day
+      let daysBack = pickupDayOfWeek - location.cutoffDay;
+      if (daysBack <= 0) {
+        daysBack += 7; // Go back to previous week if cutoff day is after pickup day
+      }
+
+      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
       const [cutoffHour, cutoffMinute] = location.cutoffTime.split(':').map(Number);
       cutoffDate.setHours(cutoffHour, cutoffMinute, 0, 0);
     }
