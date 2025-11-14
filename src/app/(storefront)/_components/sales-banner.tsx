@@ -45,36 +45,32 @@ export function SalesBanner({ banner }: SalesBannerProps) {
   }
 
   return (
-    <>
-      {/* Spacer to prevent content from being hidden under fixed banner */}
-      <div className="h-[72px] sm:h-[56px]" />
-
-      <div
-        className="fixed top-0 left-0 right-0 z-50 shadow-md"
-        style={{
-          backgroundColor: banner.backgroundColor,
-          color: banner.textColor,
-        }}
-      >
-      <div className="container mx-auto px-4 py-3">
+    <div
+      className="w-full shadow-sm"
+      style={{
+        backgroundColor: banner.backgroundColor,
+        color: banner.textColor,
+      }}
+    >
+      <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between gap-4">
           {/* Scrolling message on mobile, static on desktop */}
           <div className="flex-1 overflow-hidden">
             <div className="md:text-center">
-              <span className="font-medium inline-block animate-marquee md:animate-none whitespace-nowrap md:whitespace-normal">
+              <span className="text-sm font-medium inline-block animate-marquee md:animate-none whitespace-nowrap md:whitespace-normal">
                 {banner.message}
               </span>
             </div>
           </div>
 
           {/* Countdown timer */}
-          <div className="flex items-center gap-4 flex-shrink-0">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-md">
-              <span className="text-sm font-medium">Ends in:</span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-black/20 rounded">
+              <span className="text-xs font-medium">Ends in:</span>
               <CountdownTimer
                 endDateTime={new Date(banner.endDateTime)}
                 onExpired={handleExpired}
-                className="font-mono font-bold"
+                className="font-mono font-bold text-xs"
               />
             </div>
 
@@ -82,10 +78,10 @@ export function SalesBanner({ banner }: SalesBannerProps) {
             {banner.ctaText && banner.ctaLink && (
               <Link
                 href={banner.ctaLink}
-                className="hidden md:flex items-center gap-1 px-4 py-2 bg-white/90 hover:bg-white text-gray-900 rounded-md font-medium transition-colors"
+                className="hidden md:flex items-center gap-1 px-3 py-1.5 bg-white/90 hover:bg-white text-gray-900 rounded text-xs font-medium transition-colors"
               >
                 {banner.ctaText}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-3 w-3" />
               </Link>
             )}
 
@@ -93,29 +89,29 @@ export function SalesBanner({ banner }: SalesBannerProps) {
             {banner.isDismissible === 1 && (
               <button
                 onClick={handleDismiss}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
+                className="p-0.5 hover:bg-white/20 rounded transition-colors"
                 aria-label="Dismiss banner"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             )}
           </div>
         </div>
 
         {/* Mobile-only countdown and CTA */}
-        <div className="sm:hidden mt-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 px-2 py-1 bg-black/20 rounded text-sm">
+        <div className="sm:hidden mt-1.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/20 rounded text-xs">
             <span className="font-medium">Ends:</span>
             <CountdownTimer
               endDateTime={new Date(banner.endDateTime)}
               onExpired={handleExpired}
-              className="font-mono font-bold"
+              className="font-mono font-bold text-xs"
             />
           </div>
           {banner.ctaText && banner.ctaLink && (
             <Link
               href={banner.ctaLink}
-              className="flex items-center gap-1 px-3 py-1 bg-white/90 text-gray-900 rounded text-sm font-medium"
+              className="flex items-center gap-1 px-2.5 py-0.5 bg-white/90 text-gray-900 rounded text-xs font-medium"
             >
               {banner.ctaText}
               <ArrowRight className="h-3 w-3" />
@@ -145,6 +141,5 @@ export function SalesBanner({ banner }: SalesBannerProps) {
         }
       `}</style>
     </div>
-    </>
   );
 }

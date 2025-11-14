@@ -13,8 +13,10 @@ export default async function StorefrontLayout({
   return (
     <CartProvider>
       <div className="min-h-screen flex flex-col">
-        {activeBanner && <SalesBanner banner={activeBanner} />}
-        <StorefrontNav />
+        <div className="sticky top-0 z-50">
+          {activeBanner && <SalesBanner banner={activeBanner} />}
+          <StorefrontNav />
+        </div>
         <main className="flex-1">{children}</main>
         <footer className="border-t py-12 mt-16 bg-muted/30">
           <div className="container mx-auto px-4">
