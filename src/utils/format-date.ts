@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
-import { toMountainTime } from './timezone-v2';
-import { BUSINESS_TIMEZONE } from './timezone-v2';
+import { toMountainTime } from './timezone';
 
 /**
  * Format a date into a human-readable string in Mountain Time

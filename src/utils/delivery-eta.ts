@@ -1,6 +1,6 @@
 import { format, parseISO, differenceInMinutes, addMinutes } from 'date-fns';
 import { utcToZonedTime } from 'date-fns-tz';
-import { BUSINESS_TIMEZONE, toMountainTime, getMountainISODate } from './timezone-v2';
+import { BUSINESS_TIMEZONE, toMountainTime, getMountainISODate } from './timezone';
 
 /**
  * Generalizes an estimated arrival time into a customer-friendly message

@@ -4,7 +4,7 @@ import { createServerAction } from "zsa";
 import { getDB } from "@/db";
 import { homeNotificationTable, salesBannerTable } from "@/db/schema";
 import { and, eq, or, lte, gte, isNull, desc } from "drizzle-orm";
-import { getCurrentMountainTime } from "@/utils/timezone-v2";
+import { getCurrentMountainTime } from "@/utils/timezone";
 
 /**
  * Get active home notification for display on homepage

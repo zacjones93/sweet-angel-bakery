@@ -31,7 +31,7 @@ import {
   getMountainISODate,
   addDaysMountainTime,
   isClosureDate,
-} from "./timezone-v2";
+} from "./timezone";
 
 // ============================================================================
 // TYPES
