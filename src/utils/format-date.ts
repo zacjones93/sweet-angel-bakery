@@ -1,33 +1,39 @@
+import { format } from 'date-fns';
+import { toMountainTime } from './timezone-v2';
+import { BUSINESS_TIMEZONE } from './timezone-v2';
+
 /**
- * Format a date into a human-readable string
- * @param date Date to format
- * @returns Formatted date string
+ * Format a date into a human-readable string in Mountain Time
  */
 export function formatDate(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const mtDate = toMountainTime(dateObj);
 
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(dateObj);
+  return format(mtDate, 'MMM d, yyyy');
 }
 
 /**
- * Format a date with time into a human-readable string
- * @param date Date to format
- * @returns Formatted date and time string
+ * Format a date with time into a human-readable string in Mountain Time
  */
 export function formatDateTime(date: Date | number | string): string {
   const dateObj = date instanceof Date ? date : new Date(date);
+  const mtDate = toMountainTime(dateObj);
 
-  // Return formatted date and time in the format: "Jan 1, 2023, 3:30 PM"
-  return dateObj.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
+  return format(mtDate, "MMM d, yyyy, h:mm a");
+}
+
+/**
+ * Format date for user's local timezone (for client components)
+ */
+export function formatDateLocal(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return format(dateObj, 'MMM d, yyyy');
+}
+
+/**
+ * Format datetime for user's local timezone (for client components)
+ */
+export function formatDateTimeLocal(date: Date | number | string): string {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  return format(dateObj, "MMM d, yyyy, h:mm a");
 }

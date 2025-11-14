@@ -15,14 +15,64 @@ export const BUSINESS_TIMEZONE = 'America/Boise' as const;
  * Get current date/time in Mountain Time
  */
 export function getCurrentMountainTime(): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
+  // Get the current time in MT as a string
+  const now = new Date();
+  const mtString = now.toLocaleString('en-US', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  // Parse the MT string back to a Date object
+  // Format will be: "MM/DD/YYYY, HH:mm:ss"
+  const [datePart, timePart] = mtString.split(', ');
+  const [month, day, year] = datePart.split('/');
+  const [hour, minute, second] = timePart.split(':');
+
+  return new Date(
+    parseInt(year),
+    parseInt(month) - 1, // JS months are 0-indexed
+    parseInt(day),
+    parseInt(hour),
+    parseInt(minute),
+    parseInt(second)
+  );
 }
 
 /**
  * Convert a Date to Mountain Time
  */
 export function toMountainTime(date: Date): Date {
-  return new Date(date.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
+  const mtString = date.toLocaleString('en-US', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  // Parse the MT string back to a Date object
+  // Format will be: "MM/DD/YYYY, HH:mm:ss"
+  const [datePart, timePart] = mtString.split(', ');
+  const [month, day, year] = datePart.split('/');
+  const [hour, minute, second] = timePart.split(':');
+
+  return new Date(
+    parseInt(year),
+    parseInt(month) - 1, // JS months are 0-indexed
+    parseInt(day),
+    parseInt(hour),
+    parseInt(minute),
+    parseInt(second)
+  );
 }
 
 /**
