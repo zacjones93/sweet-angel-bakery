@@ -40,6 +40,7 @@ export function NotificationFormDialog({
   const [message, setMessage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imagePreview, setImagePreview] = useState("");
+  const [icon, setIcon] = useState("ℹ️");
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
   const [startDate, setStartDate] = useState("");
@@ -53,6 +54,7 @@ export function NotificationFormDialog({
       setMessage(notification.message);
       setImageUrl(notification.imageUrl || "");
       setImagePreview(notification.imageUrl || "");
+      setIcon(notification.icon || "ℹ️");
       setIsActive(notification.isActive === 1);
       setDisplayOrder(notification.displayOrder);
       setStartDate(
@@ -107,6 +109,7 @@ export function NotificationFormDialog({
     setMessage("");
     setImageUrl("");
     setImagePreview("");
+    setIcon("ℹ️");
     setIsActive(true);
     setDisplayOrder(0);
     setStartDate("");
@@ -175,6 +178,7 @@ export function NotificationFormDialog({
       title,
       message,
       imageUrl: imageUrl || undefined,
+      icon,
       isActive,
       displayOrder,
       startDate: startDate ? new Date(startDate) : undefined,
@@ -232,6 +236,39 @@ export function NotificationFormDialog({
             />
             <p className="text-xs text-muted-foreground">
               {message.length} / 2000 characters
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="icon">Icon/Emoji</Label>
+            <div className="flex gap-2">
+              <Input
+                id="icon"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                disabled={isPending}
+                maxLength={10}
+                className="w-24 text-center text-2xl"
+                placeholder="ℹ️"
+              />
+              <div className="flex gap-1 flex-wrap flex-1">
+                {['ℹ️', '📢', '🎉', '⚠️', '💡', '🎁', '✨', '🔔', '📣', '🌟'].map((emoji) => (
+                  <Button
+                    key={emoji}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIcon(emoji)}
+                    disabled={isPending}
+                    className="text-xl"
+                  >
+                    {emoji}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Click a preset or type your own emoji/icon
             </p>
           </div>
 
@@ -338,6 +375,40 @@ export function NotificationFormDialog({
               onCheckedChange={setIsActive}
               disabled={isPending}
             />
+          </div>
+
+          {/* Live Preview */}
+          <div className="space-y-2 border-t pt-4">
+            <Label>Preview</Label>
+            <div className="bg-gradient-to-b from-bakery-pink/20 to-transparent p-4 rounded-lg">
+              <div className="bg-card border border-bakery-pink/20 rounded-lg p-4 shadow-sm">
+                <div className="flex gap-4 items-start">
+                  {imagePreview && (
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-start gap-2">
+                      <span className="text-2xl flex-shrink-0">{icon || 'ℹ️'}</span>
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-foreground mb-1">
+                          {title || 'Notification Title'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {message || 'Notification message will appear here...'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

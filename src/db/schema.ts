@@ -617,6 +617,7 @@ export const homeNotificationTable = sqliteTable("home_notification", {
   title: text({ length: 255 }).notNull(),
   message: text({ length: 2000 }).notNull(),
   imageUrl: text({ length: 600 }),
+  icon: text({ length: 10 }).default('ℹ️'), // Emoji or single character icon
   isActive: integer().default(1).notNull(),
   displayOrder: integer().default(0).notNull(),
   startDate: integer({ mode: "timestamp" }),

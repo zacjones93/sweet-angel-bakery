@@ -1,6 +1,5 @@
 import { getActiveHomeNotificationAction } from "../_actions/site-content.action";
 import Image from "next/image";
-import { InfoIcon } from "lucide-react";
 
 export async function HomeNotificationSection() {
   const [notification] = await getActiveHomeNotificationAction();
@@ -27,7 +26,9 @@ export async function HomeNotificationSection() {
               )}
               <div className="flex-1">
                 <div className="flex items-start gap-3">
-                  <InfoIcon className="h-6 w-6 text-bakery-pink flex-shrink-0 mt-1" />
+                  <span className="text-3xl flex-shrink-0" aria-hidden="true">
+                    {notification.icon || 'ℹ️'}
+                  </span>
                   <div>
                     <h2 className="text-2xl font-bold text-foreground mb-2">
                       {notification.title}
