@@ -174,6 +174,6 @@ export function timestampToMountainTime(timestamp: number): Date {
  * Convert MT Date to UTC timestamp (seconds)
  */
 export function mountainTimeToTimestamp(date: Date): number {
-  const utcDate = zonedTimeToUtc(date, BUSINESS_TIMEZONE);
+  const utcDate = fromZonedTime(date, BUSINESS_TIMEZONE);
   return Math.floor(utcDate.getTime() / 1000);
 }

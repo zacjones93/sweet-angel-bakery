@@ -66,8 +66,8 @@ function DeleteUserDialog({
     <>
       <DropdownMenuItem
         className="text-destructive focus:text-destructive"
-        onClick={(e) => {
-          e.stopPropagation()
+        onSelect={(e) => {
+          e.preventDefault()
           setOpen(true)
         }}
       >
@@ -75,7 +75,7 @@ function DeleteUserDialog({
         Delete user
       </DropdownMenuItem>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
@@ -87,8 +87,7 @@ function DeleteUserDialog({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => {
-                e.stopPropagation()
+              onClick={() => {
                 deleteUser({ userId: user.id })
               }}
               disabled={isPending}
@@ -103,7 +102,7 @@ function DeleteUserDialog({
   )
 }
 
-export const columns: ColumnDef<User>[] = [
+export const columns = ({ onRefresh }: { onRefresh: () => void }): ColumnDef<User>[] => [
   {
     accessorKey: "email",
     header: "Email",
@@ -156,7 +155,7 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     id: "actions",
-    cell: ({ row, table }) => {
+    cell: ({ row }) => {
       const user = row.original
 
       return (
@@ -182,10 +181,7 @@ export const columns: ColumnDef<User>[] = [
             <DropdownMenuSeparator />
             <DeleteUserDialog
               user={user}
-              onSuccess={() => {
-                // Trigger a refresh of the table data
-                window.location.reload()
-              }}
+              onSuccess={onRefresh}
             />
           </DropdownMenuContent>
         </DropdownMenu>

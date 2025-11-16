@@ -20,6 +20,23 @@ import { Loader2, MapPin, Package, Truck } from "lucide-react";
 import { formatCents } from "@/utils/tax";
 import { format } from "date-fns";
 
+/**
+ * Parse a date string in YYYY-MM-DD format as a local date in the browser's timezone.
+ *
+ * IMPORTANT: This creates a Date in the user's browser timezone, NOT Mountain Time.
+ * This is acceptable for display-only purposes (showing dates to users in their local context).
+ *
+ * For server-side date calculations or data that must be in Mountain Time, use the
+ * timezone utilities in @/utils/timezone (e.g., parseMountainISODate).
+ *
+ * @param isoDateString - Date in "YYYY-MM-DD" format (should come from server via getMountainISODate)
+ * @returns Date object at midnight in browser's local timezone
+ */
+function parseLocalDate(isoDateString: string): Date {
+  const [year, month, day] = isoDateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export interface FulfillmentSelection {
   method: "delivery" | "pickup";
   deliveryZipCode?: string;
@@ -329,7 +346,7 @@ export function FulfillmentMethodSelector({
                                               className="text-sm font-semibold cursor-pointer"
                                             >
                                               {format(
-                                                new Date(
+                                                parseLocalDate(
                                                   dateOption.deliveryDate
                                                 ),
                                                 "EEEE, MMMM d"
@@ -544,7 +561,7 @@ export function FulfillmentMethodSelector({
                                           className="text-sm font-semibold cursor-pointer"
                                         >
                                           {format(
-                                            new Date(dateOption.pickupDate),
+                                            parseLocalDate(dateOption.pickupDate),
                                             "EEEE, MMMM d"
                                           )}
                                         </Label>

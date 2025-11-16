@@ -2,6 +2,7 @@
 CREATE TABLE `delivery_one_off_date` (
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch()) NOT NULL,
+	`update_counter` integer DEFAULT 0,
 	`id` text PRIMARY KEY NOT NULL,
 	`date` text(20) NOT NULL,
 	`type` text(20) NOT NULL,

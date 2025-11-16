@@ -32,6 +32,7 @@ import {
   getMountainISODate,
   addDaysMountainTime,
   isClosureDate,
+  parseMountainISODate,
 } from "./timezone";
 
 // ============================================================================
@@ -248,7 +249,7 @@ export async function getAvailableDeliveryDates({
 
   // Add one-off delivery dates
   for (const oneOff of oneOffDates) {
-    const oneOffDate = new Date(oneOff.date + 'T00:00:00');
+    const oneOffDate = parseMountainISODate(oneOff.date);
 
     // Skip if this date is in the past
     if (oneOffDate < now) {
@@ -279,7 +280,7 @@ export async function getAvailableDeliveryDates({
 
       // Calculate days backwards from delivery day to cutoff day
       let daysBack = deliveryDayOfWeek - cutoffDay;
-      if (daysBack <= 0) {
+      if (daysBack < 0) {
         daysBack += 7; // Go back to previous week if cutoff day is after delivery day
       }
 
@@ -434,7 +435,7 @@ export async function getAvailablePickupDates({
 
   // Add one-off pickup dates
   for (const oneOff of oneOffDates) {
-    const oneOffDate = new Date(oneOff.date + 'T00:00:00');
+    const oneOffDate = parseMountainISODate(oneOff.date);
 
     // Skip if this date is in the past
     if (oneOffDate < now) {
@@ -462,7 +463,7 @@ export async function getAvailablePickupDates({
 
       // Calculate days backwards from pickup day to cutoff day
       let daysBack = pickupDayOfWeek - cutoffDay;
-      if (daysBack <= 0) {
+      if (daysBack < 0) {
         daysBack += 7; // Go back to previous week if cutoff day is after pickup day
       }
 

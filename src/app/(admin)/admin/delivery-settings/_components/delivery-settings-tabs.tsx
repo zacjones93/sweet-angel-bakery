@@ -34,12 +34,12 @@ export function DeliverySettingsTabs({
 }: DeliverySettingsTabsProps) {
   return (
     <Tabs defaultValue="schedules" className="w-full">
-      <TabsList className="grid w-full grid-cols-5">
-        <TabsTrigger value="schedules">Delivery Schedules</TabsTrigger>
-        <TabsTrigger value="locations">Pickup Locations</TabsTrigger>
-        <TabsTrigger value="zones">Delivery Zones</TabsTrigger>
-        <TabsTrigger value="closures">Calendar Closures</TabsTrigger>
-        <TabsTrigger value="one-off">One-Off Dates</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+        <TabsTrigger value="schedules">Schedules</TabsTrigger>
+        <TabsTrigger value="locations">Locations</TabsTrigger>
+        <TabsTrigger value="zones">Zones</TabsTrigger>
+        <TabsTrigger value="closures">Closures</TabsTrigger>
+        <TabsTrigger value="one-off">One-Off</TabsTrigger>
       </TabsList>
 
       <TabsContent value="schedules" className="mt-6">

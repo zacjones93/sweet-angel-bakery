@@ -11,19 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-function getIsoDate(date: Date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString()
-    .split("T")[0];
-}
+import { getMountainISODate } from "@/utils/timezone";
 
 export function FulfillmentFilters() {
-  const defaultStart = useMemo(() => getIsoDate(new Date()), []);
+  const defaultStart = useMemo(() => getMountainISODate(new Date()), []);
   const defaultEnd = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    return getIsoDate(d);
+    return getMountainISODate(d);
   }, []);
 
   const [startDate, setStartDate] = useQueryState("startDate", {
@@ -87,6 +82,7 @@ export function FulfillmentFilters() {
     </div>
   );
 }
+
 
 
 

@@ -1,29 +1,30 @@
 "use client"
 
-import { useEffect } from "react"
 import { DataTable } from "@/components/data-table"
 import { columns, type User } from "./columns"
-import { getUsersAction } from "../../_actions/get-users.action"
-import { useServerAction } from "zsa-react"
-import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { PAGE_SIZE_OPTIONS } from "../../admin-constants"
 import { useQueryState } from "nuqs"
+import { useRouter } from "next/navigation"
 
-export function UsersTable() {
+type UsersData = {
+  users: User[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+type UsersTableProps = {
+  initialData: UsersData | undefined
+  error: string | undefined
+}
+
+export function UsersTable({ initialData, error }: UsersTableProps) {
+  const router = useRouter()
   const [page, setPage] = useQueryState("page", { defaultValue: "1" })
   const [pageSize, setPageSize] = useQueryState("pageSize", { defaultValue: PAGE_SIZE_OPTIONS[0].toString() })
   const [emailFilter, setEmailFilter] = useQueryState("email", { defaultValue: "" })
-
-  const { execute: fetchUsers, data, error, status } = useServerAction(getUsersAction, {
-    onError: () => {
-      toast.error("Failed to fetch users")
-    },
-  })
-
-  useEffect(() => {
-    fetchUsers({ page: parseInt(page), pageSize: parseInt(pageSize), emailFilter })
-  }, [fetchUsers, page, pageSize, emailFilter])
 
   const handlePageChange = (newPage: number) => {
     setPage((newPage + 1).toString()) // Convert from 0-based to 1-based and store as string
@@ -43,6 +44,10 @@ export function UsersTable() {
     return `/admin/users/${user.id}`
   }
 
+  const handleRefresh = () => {
+    router.refresh()
+  }
+
   return (
     <div className="p-6 w-full min-w-0 flex flex-col overflow-hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
@@ -57,23 +62,21 @@ export function UsersTable() {
       </div>
       <div className="mt-8 flex-1 min-h-0">
         <div className="space-y-4 h-full">
-          {status === 'pending' || status === 'idle' ? (
-            <div>Loading...</div>
-          ) : error ? (
-            <div>Error: Failed to fetch users</div>
-          ) : !data ? (
+          {error ? (
+            <div>Error: {error}</div>
+          ) : !initialData ? (
             <div>No users found</div>
           ) : (
             <div className="w-full min-w-0">
               <DataTable
-                columns={columns}
-                data={data.users}
-                pageCount={data.totalPages}
+                columns={columns({ onRefresh: handleRefresh })}
+                data={initialData.users}
+                pageCount={initialData.totalPages}
                 pageIndex={parseInt(page) - 1}
                 pageSize={parseInt(pageSize)}
                 onPageChange={handlePageChange}
                 onPageSizeChange={handlePageSizeChange}
-                totalCount={data.totalCount}
+                totalCount={initialData.totalCount}
                 itemNameSingular="user"
                 itemNamePlural="users"
                 pageSizeOptions={PAGE_SIZE_OPTIONS}

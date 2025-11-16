@@ -21,12 +21,18 @@ import { format } from "date-fns";
 import { OneOffDateDialog } from "./one-off-date-dialog";
 
 /**
- * Parse a date string in YYYY-MM-DD format as a local date in Mountain Time
- * We append T00:00:00 to ensure it's parsed as a local date, not UTC
+ * Parse a date string in YYYY-MM-DD format as a local date in the browser's timezone.
+ *
+ * IMPORTANT: Despite the function name, this creates a Date in the user's browser timezone,
+ * NOT Mountain Time. This is acceptable for display-only purposes (showing dates to admin users).
+ *
+ * For server-side date calculations or data that must be in Mountain Time, use the
+ * timezone utilities in @/utils/timezone (e.g., parseMountainISODate).
+ *
+ * @param isoDateString - Date in "YYYY-MM-DD" format (should come from database)
+ * @returns Date object at midnight in browser's local timezone
  */
 function parseMountainDate(isoDateString: string): Date {
-  // Parse "2025-01-15" as a local date by adding time component
-  // This prevents timezone shifts
   const [year, month, day] = isoDateString.split("-").map(Number);
   return new Date(year, month - 1, day);
 }
@@ -51,42 +57,40 @@ export function OneOffDatesTable({ oneOffDates }: { oneOffDates: DeliveryOneOffD
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">One-Off Delivery/Pickup Dates</h2>
-          <p className="text-sm text-muted-foreground">
-            Add custom dates outside the regular delivery/pickup schedule. All dates are in Mountain Time (America/Boise).
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add One-Off Date
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-sm text-muted-foreground">
+          Add custom delivery/pickup dates outside the regular schedule
+        </p>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Date
         </Button>
       </div>
 
       {oneOffDates.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg">
-          <p className="text-muted-foreground">No one-off dates configured</p>
+        <div className="text-center py-12 border rounded-md">
+          <p className="text-sm text-muted-foreground">No one-off dates configured</p>
           <Button
             onClick={() => setDialogOpen(true)}
+            size="sm"
             variant="outline"
             className="mt-4"
           >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add First One-Off Date
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add First Date
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-md">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead className="w-[200px]">Date</TableHead>
+                <TableHead className="w-[100px]">Type</TableHead>
                 <TableHead>Reason</TableHead>
-                <TableHead>Time Window</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[140px]">Time Window</TableHead>
+                <TableHead className="w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -101,8 +105,9 @@ export function OneOffDatesTable({ oneOffDates }: { oneOffDates: DeliveryOneOffD
 
                 return (
                   <TableRow key={oneOff.id}>
-                    <TableCell className="font-medium">
-                      {format(oneOffDate, "EEEE, MMMM d, yyyy")}
+                    <TableCell>
+                      <div className="font-medium">{format(oneOffDate, "EEE, MMM d, yyyy")}</div>
+                      <div className="text-xs text-muted-foreground">{format(oneOffDate, "EEEE")}</div>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -115,14 +120,14 @@ export function OneOffDatesTable({ oneOffDates }: { oneOffDates: DeliveryOneOffD
                         {oneOff.type === 'delivery' ? 'Delivery' : 'Pickup'}
                       </Badge>
                     </TableCell>
-                    <TableCell>{oneOff.reason || '—'}</TableCell>
+                    <TableCell className="text-sm">{oneOff.reason || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {timeWindow}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleDelete(oneOff.id)}
                         disabled={deletingId === oneOff.id}
                       >

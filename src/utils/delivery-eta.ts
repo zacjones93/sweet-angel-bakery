@@ -55,7 +55,7 @@ export function getDetailedETA({
   estimatedArrivalTime?: string | null;
   deliveryDate: string;
 }): string {
-  const deliveryMT = utcToZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
+  const deliveryMT = toZonedTime(parseISO(deliveryDate), BUSINESS_TIMEZONE);
 
   if (!estimatedArrivalTime) {
     return format(deliveryMT, 'EEEE, MMMM d');

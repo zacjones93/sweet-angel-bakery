@@ -8,6 +8,7 @@ import {
   getAvailableDeliveryDates,
   getAvailablePickupDates,
 } from "@/utils/delivery";
+import { getMountainISODate } from "@/utils/timezone";
 
 /**
  * Get delivery options for a cart
@@ -83,9 +84,8 @@ export const getCartDeliveryOptionsAction = createServerAction()
     return {
       available: true,
       deliveryDates: deliveryDateOptions.map(option => ({
-        // Return ISO date strings in format that preserves the date (YYYY-MM-DD)
-        // so date-fns parses them correctly without timezone shift
-        deliveryDate: option.deliveryDate.toISOString().split('T')[0],
+        // Return ISO date strings in Mountain Time (YYYY-MM-DD)
+        deliveryDate: getMountainISODate(option.deliveryDate),
         cutoffDate: option.cutoffDate.toISOString(),
         timeWindow: option.timeWindow,
         dayOfWeek: option.schedule.dayOfWeek,
@@ -137,9 +137,8 @@ export const getCartPickupOptionsAction = createServerAction()
           address: JSON.parse(loc.address),
           instructions: loc.instructions,
           pickupDates: pickupDates.map((date) => ({
-            // Return ISO date strings in format that preserves the date (YYYY-MM-DD)
-            // so date-fns parses them correctly without timezone shift
-            pickupDate: date.pickupDate.toISOString().split('T')[0],
+            // Return ISO date strings in Mountain Time (YYYY-MM-DD)
+            pickupDate: getMountainISODate(date.pickupDate),
             cutoffDate: date.cutoffDate.toISOString(),
             pickupTimeWindow: date.timeWindow,
           })),

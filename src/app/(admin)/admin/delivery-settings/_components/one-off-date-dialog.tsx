@@ -12,18 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
 import { useServerAction } from "zsa-react";
 import { addOneOffDateAction } from "../_actions/one-off-dates.action";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { ChevronDown } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { getMountainISODate } from "@/utils/timezone";
 
 interface OneOffDateDialogProps {
   open: boolean;
@@ -35,7 +34,7 @@ export function OneOffDateDialog({
   onOpenChange,
 }: OneOffDateDialogProps) {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedDate, setSelectedDate] = useState("");
   const [type, setType] = useState<"delivery" | "pickup">("delivery");
   const [reason, setReason] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -63,7 +62,7 @@ export function OneOffDateDialog({
   );
 
   const resetForm = () => {
-    setSelectedDate(undefined);
+    setSelectedDate("");
     setType("delivery");
     setReason("");
     setAdvancedOpen(false);
@@ -82,9 +81,6 @@ export function OneOffDateDialog({
       return;
     }
 
-    // Format date as YYYY-MM-DD in local time
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
-
     // Build input object with only provided optional fields
     const input: {
       date: string;
@@ -96,7 +92,7 @@ export function OneOffDateDialog({
       cutoffTime?: string;
       leadTimeDays?: number;
     } = {
-      date: dateStr,
+      date: selectedDate,
       type,
     };
 
@@ -116,81 +112,74 @@ export function OneOffDateDialog({
         <DialogHeader>
           <DialogTitle>Add One-Off Date</DialogTitle>
           <DialogDescription>
-            Add a custom delivery or pickup date outside the regular schedule. All dates are in Mountain Time (America/Boise).
+            Add a custom delivery or pickup date outside the regular schedule
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Calendar Date Picker */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Date Picker */}
           <div className="space-y-2">
-            <Label>Select Date *</Label>
-            <div className="flex justify-center border rounded-lg p-4">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                disabled={(date) => date < new Date()}
-                className="rounded-md border-0"
-              />
-            </div>
-            {selectedDate && (
-              <p className="text-sm text-muted-foreground text-center">
-                Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}
-              </p>
-            )}
+            <Label htmlFor="date" className="text-base">Select Date *</Label>
+            <Input
+              id="date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              min={getMountainISODate(new Date())}
+              disabled={isPending}
+              required
+              className="text-base"
+            />
           </div>
 
           {/* Type Selection */}
-          <div className="space-y-2">
-            <Label>Type *</Label>
-            <RadioGroup value={type} onValueChange={(v) => setType(v as "delivery" | "pickup")}>
-              <div className="flex items-center space-x-2">
+          <div className="space-y-3">
+            <Label className="text-base">Type *</Label>
+            <RadioGroup value={type} onValueChange={(v) => setType(v as "delivery" | "pickup")} className="grid grid-cols-2 gap-4">
+              <label htmlFor="delivery" className="flex items-center space-x-3 border rounded-md p-4 cursor-pointer hover:bg-accent transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                 <RadioGroupItem value="delivery" id="delivery" />
-                <Label htmlFor="delivery" className="cursor-pointer font-normal">
-                  Delivery - Add extra delivery date
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <div className="flex-1">
+                  <div className="font-medium">Delivery</div>
+                  <div className="text-xs text-muted-foreground">Extra delivery date</div>
+                </div>
+              </label>
+              <label htmlFor="pickup" className="flex items-center space-x-3 border rounded-md p-4 cursor-pointer hover:bg-accent transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                 <RadioGroupItem value="pickup" id="pickup" />
-                <Label htmlFor="pickup" className="cursor-pointer font-normal">
-                  Pickup - Add extra pickup date
-                </Label>
-              </div>
+                <div className="flex-1">
+                  <div className="font-medium">Pickup</div>
+                  <div className="text-xs text-muted-foreground">Extra pickup date</div>
+                </div>
+              </label>
             </RadioGroup>
           </div>
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason (Optional)</Label>
+            <Label htmlFor="reason" className="text-base">Reason (Optional)</Label>
             <Input
               id="reason"
-              placeholder="e.g., Holiday special, Extra weekend availability"
+              placeholder="e.g., Holiday special, Extra weekend"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={isPending}
               maxLength={500}
             />
-            <p className="text-xs text-muted-foreground">
-              Briefly describe why this date is being added
-            </p>
           </div>
 
           {/* Advanced Settings */}
-          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="border rounded-md p-4 bg-muted/10">
             <CollapsibleTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                className="w-full"
+                variant="ghost"
+                className="w-full justify-start text-base font-medium hover:bg-transparent"
               >
-                <ChevronDown className={`h-4 w-4 mr-2 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
-                Advanced Settings (Optional)
+                <ChevronDown className={`h-5 w-5 mr-2 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+                Advanced Settings
+                <span className="ml-2 text-xs text-muted-foreground font-normal">(uses defaults if not set)</span>
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4">
-              <p className="text-sm text-muted-foreground">
-                If not provided, default schedule settings will be used for cutoff times and time windows.
-              </p>
+            <CollapsibleContent className="space-y-4 pt-2 mt-2 border-t">
 
               {/* Time Window */}
               <div className="grid grid-cols-2 gap-4">
@@ -268,7 +257,7 @@ export function OneOffDateDialog({
             </CollapsibleContent>
           </Collapsible>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-6 border-t">
             <Button
               type="button"
               variant="outline"
@@ -283,7 +272,7 @@ export function OneOffDateDialog({
               disabled={isPending || !selectedDate}
               className="flex-1"
             >
-              {isPending ? "Adding..." : "Add One-Off Date"}
+              {isPending ? "Adding..." : "Add Date"}
             </Button>
           </div>
         </form>

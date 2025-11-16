@@ -6,6 +6,7 @@ import { getDB } from "@/db";
 import { deliveryOneOffDateTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getSessionFromCookie } from "@/utils/auth";
+import { futureMountainDateSchema } from "@/schemas/date.schema";
 
 // List all one-off dates
 export const listOneOffDatesAction = createServerAction()
@@ -30,7 +31,7 @@ export const listOneOffDatesAction = createServerAction()
 export const addOneOffDateAction = createServerAction()
   .input(
     z.object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+      date: futureMountainDateSchema,
       type: z.enum(["delivery", "pickup"]),
       reason: z.string().max(500).optional(),
       // Optional overrides - if not provided, use default schedule settings
@@ -76,6 +77,7 @@ export const addOneOffDateAction = createServerAction()
         cutoffDay: input.cutoffDay ?? null,
         cutoffTime: input.cutoffTime || null,
         leadTimeDays: input.leadTimeDays ?? null,
+        isActive: 1,
       })
       .returning();
 

@@ -669,6 +669,7 @@ export type ProductDropItem = InferSelectModel<typeof productDropItemTable>;
 export type MerchantFee = InferSelectModel<typeof merchantFeeTable>;
 export type DeliverySchedule = InferSelectModel<typeof deliveryScheduleTable>;
 export type DeliveryCalendarClosure = InferSelectModel<typeof deliveryCalendarClosureTable>;
+export type DeliveryOneOffDate = InferSelectModel<typeof deliveryOneOffDateTable>;
 export type DeliveryZone = InferSelectModel<typeof deliveryZoneTable>;
 export type PickupLocation = InferSelectModel<typeof pickupLocationTable>;
 export type DeliveryFeeRule = InferSelectModel<typeof deliveryFeeRuleTable>;
