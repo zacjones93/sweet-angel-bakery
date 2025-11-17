@@ -31,7 +31,29 @@ export const getDynamicCategoriesAction = createServerAction()
       .orderBy(categoryTable.displayOrder);
 
     // Filter out hardcoded categories
-    return categories.filter(cat => !HARDCODED_CATEGORY_SLUGS.includes(cat.slug));
+    const dynamicCategories = categories.filter(cat => !HARDCODED_CATEGORY_SLUGS.includes(cat.slug));
+
+    // Fetch products for each category
+    const categoriesWithProducts = await Promise.all(
+      dynamicCategories.map(async (category) => {
+        const products = await db
+          .select({
+            id: productTable.id,
+            name: productTable.name,
+          })
+          .from(productTable)
+          .where(eq(productTable.categoryId, category.id))
+          .orderBy(productTable.name)
+          .limit(5); // Show up to 5 products
+
+        return {
+          ...category,
+          products,
+        };
+      })
+    );
+
+    return categoriesWithProducts;
   });
 
 // Get all categories including hardcoded ones (for product forms)

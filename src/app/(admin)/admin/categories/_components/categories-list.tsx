@@ -57,6 +57,10 @@ type Category = {
   imageUrl: string | null;
   displayOrder: number;
   active: number;
+  products: {
+    id: string;
+    name: string;
+  }[];
 };
 
 type CategoriesListProps = {
@@ -114,6 +118,18 @@ function SortableRow({ category }: { category: Category }) {
         <div className="line-clamp-2 text-sm text-muted-foreground">
           {category.description || "—"}
         </div>
+      </TableCell>
+      <TableCell className="max-w-xs">
+        {category.products.length > 0 ? (
+          <div className="space-y-1">
+            <div className="text-sm font-medium">{category.products.length} product{category.products.length !== 1 ? 's' : ''}</div>
+            <div className="text-xs text-muted-foreground line-clamp-2">
+              {category.products.map(p => p.name).join(', ')}
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">No products</div>
+        )}
       </TableCell>
       <TableCell>
         <Badge variant={category.active === 1 ? "default" : "secondary"}>
@@ -280,6 +296,7 @@ export function CategoriesList({ initialCategories }: CategoriesListProps) {
                 <TableHead className="w-[80px]">Image</TableHead>
                 <TableHead>Name / Slug</TableHead>
                 <TableHead className="max-w-md">Description</TableHead>
+                <TableHead className="max-w-xs">Products</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
