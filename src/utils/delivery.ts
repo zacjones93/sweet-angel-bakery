@@ -158,10 +158,6 @@ export async function getAvailableDeliveryDates({
   // Get active delivery schedules
   const schedules = await getActiveDeliverySchedules();
   console.log('[getAvailableDeliveryDates] Active schedules:', schedules.length);
-  if (schedules.length === 0) {
-    console.log('[getAvailableDeliveryDates] No active schedules found');
-    return []; // No delivery schedules configured
-  }
 
   // Get closure dates that affect delivery
   const closureDates = await getActiveClosureDates();
@@ -184,10 +180,6 @@ export async function getAvailableDeliveryDates({
   if (productRules?.allowedDeliveryDays) {
     const allowedDays = JSON.parse(productRules.allowedDeliveryDays) as number[];
     validSchedules = schedules.filter((s) => allowedDays.includes(s.dayOfWeek));
-  }
-
-  if (validSchedules.length === 0) {
-    return []; // No valid delivery days for this product
   }
 
   // Get all available delivery dates from all schedules
@@ -247,7 +239,7 @@ export async function getAvailableDeliveryDates({
     });
   }
 
-  // Add one-off delivery dates
+  // Add one-off delivery dates (independent of schedule)
   for (const oneOff of oneOffDates) {
     const oneOffDate = parseMountainISODate(oneOff.date);
 
@@ -261,10 +253,8 @@ export async function getAvailableDeliveryDates({
       continue;
     }
 
-    // Use first schedule as fallback for defaults (if available)
+    // Determine time window: use override or fallback to default schedule (if available)
     const defaultSchedule = schedules[0];
-
-    // Determine time window: use override or fallback to default schedule
     const timeWindow = oneOff.timeWindowStart && oneOff.timeWindowEnd
       ? `${oneOff.timeWindowStart} - ${oneOff.timeWindowEnd}`
       : (defaultSchedule?.deliveryTimeWindow || '');
@@ -274,7 +264,7 @@ export async function getAvailableDeliveryDates({
     const cutoffDay = oneOff.cutoffDay ?? defaultSchedule?.cutoffDay;
     const cutoffTime = oneOff.cutoffTime ?? defaultSchedule?.cutoffTime;
 
-    if (cutoffDay !== null && cutoffTime) {
+    if (cutoffDay !== null && cutoffDay !== undefined && cutoffTime) {
       cutoffDate = new Date(oneOffDate);
       const deliveryDayOfWeek = oneOffDate.getDay();
 
@@ -293,7 +283,7 @@ export async function getAvailableDeliveryDates({
       deliveryDate: oneOffDate,
       cutoffDate,
       timeWindow,
-      schedule: defaultSchedule, // Use default schedule as reference
+      schedule: defaultSchedule, // Use default schedule as reference (may be undefined)
     });
   }
 

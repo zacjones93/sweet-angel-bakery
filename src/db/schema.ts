@@ -131,6 +131,7 @@ export const categoryTable = sqliteTable("category", {
   name: text({ length: 255 }).notNull(),
   slug: text({ length: 255 }).notNull().unique(),
   description: text({ length: 1000 }),
+  imageUrl: text({ length: 500 }),
   displayOrder: integer().default(0).notNull(),
   active: integer().default(1).notNull(),
 }, (table) => ([

@@ -40,7 +40,9 @@
       "Bash(pnpm drizzle-kit push:*)",
       "Bash(date:*)",
       "Bash(node:*)",
-      "Bash(printf:*)"
+      "Bash(printf:*)",
+      "Bash(git diff:*)",
+      "Skill(timezone)"
     ],
     "deny": [],
     "ask": []

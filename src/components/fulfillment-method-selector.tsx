@@ -416,186 +416,179 @@ export function FulfillmentMethodSelector({
             </div>
           </div>
 
-          {/* Pickup Option */}
-          <div
-            className={`relative flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors ${
-              method === "pickup"
-                ? "border-primary bg-primary/5"
-                : "border-muted hover:border-primary/50"
-            }`}
-            onClick={() => setMethod("pickup")}
-          >
-            <RadioGroupItem value="pickup" id="pickup" className="mt-1" />
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <Label
-                  htmlFor="pickup"
-                  className="text-base font-semibold cursor-pointer"
-                >
-                  Pickup
-                </Label>
-                <span className="ml-auto text-sm font-semibold text-green-600">
-                  FREE
-                </span>
-              </div>
+          {/* Pickup Option - Only show if locations are available */}
+          {!isLoadingPickup && pickupOptions?.locations && pickupOptions.locations.length > 0 && (
+            <div
+              className={`relative flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors ${
+                method === "pickup"
+                  ? "border-primary bg-primary/5"
+                  : "border-muted hover:border-primary/50"
+              }`}
+              onClick={() => setMethod("pickup")}
+            >
+              <RadioGroupItem value="pickup" id="pickup" className="mt-1" />
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  <Label
+                    htmlFor="pickup"
+                    className="text-base font-semibold cursor-pointer"
+                  >
+                    Pickup
+                  </Label>
+                  <span className="ml-auto text-sm font-semibold text-green-600">
+                    FREE
+                  </span>
+                </div>
 
-              {method === "pickup" && (
-                <div className="space-y-3 pl-0">
-                  {isLoadingPickup ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : pickupOptions?.available ? (
-                    <div className="space-y-4">
-                      {/* Location Selection */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">
-                          Choose Pickup Location:
-                        </Label>
-                        <RadioGroup
-                          value={selectedPickupLocationId}
-                          onValueChange={(locationId) => {
-                            setSelectedPickupLocationId(locationId);
-                            // Auto-select first date for new location
-                            const location = pickupOptions.locations.find(
-                              (loc) => loc.id === locationId
-                            );
-                            if (location && location.pickupDates && location.pickupDates.length > 0) {
-                              setSelectedPickupDate(
-                                location.pickupDates[0].pickupDate
-                              );
-                            }
-                          }}
-                          className="space-y-2"
-                        >
-                          {pickupOptions.locations.map((location) => (
-                            <div
-                              key={location.id}
-                              className={`rounded-md border p-3 cursor-pointer transition-colors ${
-                                selectedPickupLocationId === location.id
-                                  ? "border-primary bg-primary/5"
-                                  : "border-muted hover:border-primary/50"
-                              }`}
-                              onClick={() => {
-                                setSelectedPickupLocationId(location.id);
-                                // Auto-select first date for new location
-                                if (location.pickupDates?.length > 0) {
-                                  setSelectedPickupDate(
-                                    location.pickupDates[0].pickupDate
-                                  );
-                                }
-                              }}
-                            >
-                              <div className="flex items-start gap-2">
-                                <RadioGroupItem
-                                  value={location.id}
-                                  id={location.id}
-                                  className="mt-1"
-                                />
-                                <div className="flex-1 space-y-1">
-                                  <Label
-                                    htmlFor={location.id}
-                                    className="text-sm font-semibold cursor-pointer"
-                                  >
-                                    {location.name}
-                                  </Label>
-                                  <div className="flex items-start gap-1 text-xs text-muted-foreground">
-                                    <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                    <span>
-                                      {location.address.street},{" "}
-                                      {location.address.city},{" "}
-                                      {location.address.state}{" "}
-                                      {location.address.zip}
-                                    </span>
-                                  </div>
-                                  {location.instructions && (
-                                    <div className="text-xs text-muted-foreground pt-1 border-t mt-2">
-                                      {location.instructions}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </div>
-
-                      {/* Pickup Date Selection */}
-                      {selectedPickupLocationId && (
+                {method === "pickup" && (
+                  <div className="space-y-3 pl-0">
+                    {pickupOptions?.available && (
+                      <div className="space-y-4">
+                        {/* Location Selection */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">
-                            Choose Pickup Date:
+                            Choose Pickup Location:
                           </Label>
                           <RadioGroup
-                            value={selectedPickupDate}
-                            onValueChange={setSelectedPickupDate}
+                            value={selectedPickupLocationId}
+                            onValueChange={(locationId) => {
+                              setSelectedPickupLocationId(locationId);
+                              // Auto-select first date for new location
+                              const location = pickupOptions.locations.find(
+                                (loc) => loc.id === locationId
+                              );
+                              if (location && location.pickupDates && location.pickupDates.length > 0) {
+                                setSelectedPickupDate(
+                                  location.pickupDates[0].pickupDate
+                                );
+                              }
+                            }}
                             className="space-y-2"
                           >
-                            {pickupOptions.locations
-                              .find(
-                                (loc) => loc.id === selectedPickupLocationId
-                              )
-                              ?.pickupDates.map((dateOption) => (
-                                <div
-                                  key={dateOption.pickupDate}
-                                  className={`rounded-md border p-3 cursor-pointer transition-colors ${
-                                    selectedPickupDate === dateOption.pickupDate
-                                      ? "border-primary bg-primary/5"
-                                      : "border-muted hover:border-primary/50"
-                                  }`}
-                                  onClick={() =>
-                                    setSelectedPickupDate(dateOption.pickupDate)
+                            {pickupOptions.locations.map((location) => (
+                              <div
+                                key={location.id}
+                                className={`rounded-md border p-3 cursor-pointer transition-colors ${
+                                  selectedPickupLocationId === location.id
+                                    ? "border-primary bg-primary/5"
+                                    : "border-muted hover:border-primary/50"
+                                }`}
+                                onClick={() => {
+                                  setSelectedPickupLocationId(location.id);
+                                  // Auto-select first date for new location
+                                  if (location.pickupDates?.length > 0) {
+                                    setSelectedPickupDate(
+                                      location.pickupDates[0].pickupDate
+                                    );
                                   }
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <RadioGroupItem
-                                      value={dateOption.pickupDate}
-                                      id={dateOption.pickupDate}
-                                      className="mt-0.5"
-                                    />
-                                    <div className="flex-1 space-y-1">
-                                      <div className="flex justify-between items-start">
-                                        <Label
-                                          htmlFor={dateOption.pickupDate}
-                                          className="text-sm font-semibold cursor-pointer"
-                                        >
-                                          {format(
-                                            parseLocalDate(dateOption.pickupDate),
-                                            "EEEE, MMMM d"
-                                          )}
-                                        </Label>
+                                }}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <RadioGroupItem
+                                    value={location.id}
+                                    id={location.id}
+                                    className="mt-1"
+                                  />
+                                  <div className="flex-1 space-y-1">
+                                    <Label
+                                      htmlFor={location.id}
+                                      className="text-sm font-semibold cursor-pointer"
+                                    >
+                                      {location.name}
+                                    </Label>
+                                    <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                                      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                      <span>
+                                        {location.address.street},{" "}
+                                        {location.address.city},{" "}
+                                        {location.address.state}{" "}
+                                        {location.address.zip}
+                                      </span>
+                                    </div>
+                                    {location.instructions && (
+                                      <div className="text-xs text-muted-foreground pt-1 border-t mt-2">
+                                        {location.instructions}
                                       </div>
-                                      {dateOption.pickupTimeWindow && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {dateOption.pickupTimeWindow}
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </div>
+
+                        {/* Pickup Date Selection */}
+                        {selectedPickupLocationId && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">
+                              Choose Pickup Date:
+                            </Label>
+                            <RadioGroup
+                              value={selectedPickupDate}
+                              onValueChange={setSelectedPickupDate}
+                              className="space-y-2"
+                            >
+                              {pickupOptions.locations
+                                .find(
+                                  (loc) => loc.id === selectedPickupLocationId
+                                )
+                                ?.pickupDates.map((dateOption) => (
+                                  <div
+                                    key={dateOption.pickupDate}
+                                    className={`rounded-md border p-3 cursor-pointer transition-colors ${
+                                      selectedPickupDate === dateOption.pickupDate
+                                        ? "border-primary bg-primary/5"
+                                        : "border-muted hover:border-primary/50"
+                                    }`}
+                                    onClick={() =>
+                                      setSelectedPickupDate(dateOption.pickupDate)
+                                    }
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <RadioGroupItem
+                                        value={dateOption.pickupDate}
+                                        id={dateOption.pickupDate}
+                                        className="mt-0.5"
+                                      />
+                                      <div className="flex-1 space-y-1">
+                                        <div className="flex justify-between items-start">
+                                          <Label
+                                            htmlFor={dateOption.pickupDate}
+                                            className="text-sm font-semibold cursor-pointer"
+                                          >
+                                            {format(
+                                              parseLocalDate(dateOption.pickupDate),
+                                              "EEEE, MMMM d"
+                                            )}
+                                          </Label>
                                         </div>
-                                      )}
-                                      <div className="text-xs text-muted-foreground">
-                                        Order by{" "}
-                                        {format(
-                                          new Date(dateOption.cutoffDate),
-                                          "EEE, MMM d 'at' h:mm a"
+                                        {dateOption.pickupTimeWindow && (
+                                          <div className="text-xs text-muted-foreground">
+                                            {dateOption.pickupTimeWindow}
+                                          </div>
                                         )}
+                                        <div className="text-xs text-muted-foreground">
+                                          Order by{" "}
+                                          {format(
+                                            new Date(dateOption.cutoffDate),
+                                            "EEE, MMM d 'at' h:mm a"
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
-                          </RadioGroup>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                      No pickup locations available. Please contact us for
-                      assistance.
-                    </div>
-                  )}
-                </div>
-              )}
+                                ))}
+                            </RadioGroup>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </RadioGroup>
       </CardContent>
     </Card>

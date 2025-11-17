@@ -1,5 +1,9 @@
+import { getDB } from "@/db";
+import { categoryTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getStorefrontProductsAction } from "../../_actions/storefront.action";
 import { ProductCard } from "../../_components/product-card";
+import { CategoryHeader } from "../../_components/category-header";
 
 export default async function ProductsPage({
   params,
@@ -10,20 +14,42 @@ export default async function ProductsPage({
   const categorySlug = slug?.[0];
   const [products] = await getStorefrontProductsAction({ categorySlug });
 
-  const title = categorySlug
+  // Fetch category metadata if categorySlug exists
+  let category: { name: string; description: string | null } | null = null;
+  if (categorySlug) {
+    const db = getDB();
+    const [categoryData] = await db
+      .select({
+        name: categoryTable.name,
+        description: categoryTable.description,
+      })
+      .from(categoryTable)
+      .where(eq(categoryTable.slug, categorySlug))
+      .limit(1);
+
+    category = categoryData || null;
+  }
+
+  const title = category?.name || (categorySlug
     ? `${categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)}`
-    : "All Products";
+    : "All Products");
+
+  const description = category?.description || "Browse our selection of freshly baked goods made with love";
 
   return (
     <div className="min-h-screen">
-      <div className="bg-gradient-to-b from-primary/5 to-background py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">{title}</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Browse our selection of freshly baked goods made with love
-          </p>
+      {category ? (
+        <CategoryHeader name={category.name} description={category.description} />
+      ) : (
+        <div className="bg-gradient-to-b from-primary/5 to-background py-16">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">{title}</h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              {description}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="container mx-auto px-4 py-12">
         {products && products.length > 0 ? (

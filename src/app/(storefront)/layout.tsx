@@ -2,6 +2,7 @@ import { StorefrontNav } from "./_components/storefront-nav";
 import { SalesBanner } from "./_components/sales-banner";
 import { CartProvider } from "@/state/cart-context";
 import { getActiveSalesBannerAction } from "./_actions/site-content.action";
+import { getDynamicCategoriesForNavAction } from "./_actions/storefront.action";
 
 export default async function StorefrontLayout({
   children,
@@ -9,13 +10,14 @@ export default async function StorefrontLayout({
   children: React.ReactNode;
 }) {
   const [activeBanner] = await getActiveSalesBannerAction();
+  const [dynamicCategories] = await getDynamicCategoriesForNavAction();
 
   return (
     <CartProvider>
       <div className="min-h-screen flex flex-col">
         <div className="sticky top-0 z-50">
           {activeBanner && <SalesBanner banner={activeBanner} />}
-          <StorefrontNav />
+          <StorefrontNav dynamicCategories={dynamicCategories || []} />
         </div>
         <main className="flex-1">{children}</main>
         <footer className="border-t py-12 mt-16 bg-muted/30">

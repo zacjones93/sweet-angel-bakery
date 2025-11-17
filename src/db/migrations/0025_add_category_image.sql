@@ -1,0 +1,1 @@
+ALTER TABLE `category` ADD `imageUrl` text(500);

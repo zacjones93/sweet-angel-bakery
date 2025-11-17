@@ -14,7 +14,17 @@ import { useServerAction } from "zsa-react";
 import { getCurrentLoyaltyCustomerAction } from "../_actions/get-current-loyalty-customer.action";
 import ThemeSwitch from "@/components/theme-switch";
 
-export function StorefrontNav() {
+type DynamicCategory = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type StorefrontNavProps = {
+  dynamicCategories: DynamicCategory[];
+};
+
+export function StorefrontNav({ dynamicCategories }: StorefrontNavProps) {
   const { items } = useCart();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -78,6 +88,15 @@ export function StorefrontNav() {
               >
                 Cookies
               </Link>
+              {dynamicCategories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/products/${category.slug}` as Route}
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  {category.name}
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -159,6 +178,16 @@ export function StorefrontNav() {
                   >
                     Cookies
                   </Link>
+                  {dynamicCategories.map((category) => (
+                    <Link
+                      key={category.id}
+                      href={`/products/${category.slug}` as Route}
+                      className="text-lg font-medium hover:text-primary hover:bg-muted/50 transition-colors px-4 py-3 rounded-md"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {category.name}
+                    </Link>
+                  ))}
                   {currentUser && (
                     <>
                       <div className="border-t my-3" />

@@ -15,6 +15,7 @@ import {
   Calendar,
   DollarSign,
   FileText,
+  FolderTree,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -47,6 +48,12 @@ const adminNavItems: NavMainItem[] = [
     title: "Products",
     url: "/admin/products",
     icon: ShoppingBag,
+    isActive: true,
+  },
+  {
+    title: "Categories",
+    url: "/admin/categories",
+    icon: FolderTree,
     isActive: true,
   },
   {

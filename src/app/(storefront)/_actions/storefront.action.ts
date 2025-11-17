@@ -4,7 +4,10 @@ import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
 import { productTable, categoryTable, PRODUCT_STATUS } from "@/db/schema";
-import { eq, and, desc, ne, sql } from "drizzle-orm";
+import { eq, and, desc, ne, sql, notInArray } from "drizzle-orm";
+
+// Hardcoded category slugs excluded from dynamic navigation
+const HARDCODED_CATEGORY_SLUGS = ['cakes', 'cookies', 'gift-boxes', 'custom-orders'];
 
 // Get products for storefront (only active/featured)
 export const getStorefrontProductsAction = createServerAction()
@@ -140,4 +143,26 @@ export const getStorefrontProductAction = createServerAction()
       ...product,
       customizations: product.customizations ? JSON.parse(product.customizations) : null,
     };
+  });
+
+// Get dynamic categories for navigation (excludes hardcoded categories)
+export const getDynamicCategoriesForNavAction = createServerAction()
+  .handler(async () => {
+    const db = getDB();
+    const categories = await db
+      .select({
+        id: categoryTable.id,
+        name: categoryTable.name,
+        slug: categoryTable.slug,
+      })
+      .from(categoryTable)
+      .where(
+        and(
+          eq(categoryTable.active, 1),
+          sql`${categoryTable.slug} NOT IN (${sql.join(HARDCODED_CATEGORY_SLUGS.map(s => sql.raw(`'${s}'`)), sql.raw(', '))})`
+        )
+      )
+      .orderBy(categoryTable.displayOrder);
+
+    return categories;
   });
