@@ -1,6 +1,7 @@
 "use server"
 import "server-only";
 import { createServerAction } from "zsa";
+import { z } from "zod";
 import { getDB } from "@/db";
 import { categoryTable, productTable } from "@/db/schema";
 import { eq, and, ne, count } from "drizzle-orm";
@@ -12,6 +13,7 @@ import {
   reorderCategoriesSchema,
   checkSlugSchema,
 } from "@/schemas/category.schema";
+import { PRODUCT_STATUS } from "@/db/schema";
 
 // Hardcoded category slugs that should be excluded from dynamic management
 const HARDCODED_CATEGORY_SLUGS = ['cakes', 'cookies', 'gift-boxes', 'custom-orders'];
@@ -241,4 +243,91 @@ export const reorderCategoriesAction = createServerAction()
     }
 
     return { success: true };
+  });
+
+// Get active/featured products for category form dropdown
+export const getProductsForCategoryAction = createServerAction()
+  .handler(async () => {
+    await requireAdmin();
+
+    const db = getDB();
+    const products = await db
+      .select({
+        id: productTable.id,
+        name: productTable.name,
+        categoryId: productTable.categoryId,
+        status: productTable.status,
+      })
+      .from(productTable)
+      .where(ne(productTable.status, PRODUCT_STATUS.INACTIVE))
+      .orderBy(productTable.name);
+
+    return products;
+  });
+
+// Get products currently in a category
+export const getProductsByCategoryAction = createServerAction()
+  .input(z.object({ id: z.string().min(1) }))
+  .handler(async ({ input }) => {
+    await requireAdmin();
+
+    const db = getDB();
+
+    // Get products in this category
+    const products = await db
+      .select({
+        id: productTable.id,
+        name: productTable.name,
+      })
+      .from(productTable)
+      .where(eq(productTable.categoryId, input.id))
+      .orderBy(productTable.name);
+
+    return products.map(p => p.id);
+  });
+
+// Update product associations for a category
+export const updateCategoryProductsAction = createServerAction()
+  .input(z.object({
+    categoryId: z.string().min(1),
+    productIds: z.array(z.string()),
+  }))
+  .handler(async ({ input }) => {
+    await requireAdmin();
+
+    const db = getDB();
+
+    // Get all products currently in this category
+    const currentProducts = await db
+      .select({ id: productTable.id })
+      .from(productTable)
+      .where(eq(productTable.categoryId, input.categoryId));
+
+    const currentProductIds = currentProducts.map(p => p.id);
+
+    // Products to add to category (in new list but not in current)
+    const toAdd = input.productIds.filter(id => !currentProductIds.includes(id));
+
+    // Products to remove from category (in current but not in new list)
+    const toRemove = currentProductIds.filter(id => !input.productIds.includes(id));
+
+    // Update products to add to this category
+    for (const productId of toAdd) {
+      await db
+        .update(productTable)
+        .set({
+          categoryId: input.categoryId,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(productTable.id, productId));
+    }
+
+    // Note: Products removed from this category remain in their old category
+    // They are not reassigned elsewhere - admin must explicitly assign them to another category
+
+    return {
+      success: true,
+      added: toAdd.length,
+      removed: toRemove.length,
+    };
   });

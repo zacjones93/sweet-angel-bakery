@@ -22,9 +22,10 @@ import { useServerAction } from "zsa-react";
 import {
   createCategoryAction,
   updateCategoryAction,
+  updateCategoryProductsAction,
 } from "../../_actions/categories.action";
 import { toast } from "sonner";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Package } from "lucide-react";
 import Image from "next/image";
 import { generateSlug } from "@/schemas/category.schema";
 
@@ -48,11 +49,20 @@ type Category = {
   active: number;
 };
 
-type CategoryFormProps = {
-  category?: Category;
+type Product = {
+  id: string;
+  name: string;
+  categoryId: string;
+  status: string;
 };
 
-export function CategoryForm({ category }: CategoryFormProps) {
+type CategoryFormProps = {
+  category?: Category;
+  products: Product[];
+  selectedProductIds: string[];
+};
+
+export function CategoryForm({ category, products, selectedProductIds }: CategoryFormProps) {
   const router = useRouter();
   const { execute: createCategory, isPending: isCreating } =
     useServerAction(createCategoryAction);
@@ -62,8 +72,12 @@ export function CategoryForm({ category }: CategoryFormProps) {
     category?.imageUrl || null
   );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [autoSlug, setAutoSlug] = useState(!category); // Auto-generate slug only for new categories
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(selectedProductIds);
+  const { execute: updateProducts, isPending: isUpdatingProducts } =
+    useServerAction(updateCategoryProductsAction);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
@@ -146,14 +160,27 @@ export function CategoryForm({ category }: CategoryFormProps) {
     validateAndUploadFile(file);
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    setIsDragging(false);
 
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
@@ -189,7 +216,18 @@ export function CategoryForm({ category }: CategoryFormProps) {
         return;
       }
 
-      toast.success("Category updated successfully");
+      // Update product associations
+      const [prodResult, prodErr] = await updateProducts({
+        categoryId: category.id,
+        productIds: selectedProducts,
+      });
+
+      if (prodErr) {
+        toast.error("Category updated but failed to update products");
+        return;
+      }
+
+      toast.success("Category and products updated successfully");
       router.push("/admin/categories");
       router.refresh();
     } else {
@@ -206,6 +244,14 @@ export function CategoryForm({ category }: CategoryFormProps) {
       router.refresh();
     }
   }
+
+  const toggleProduct = (productId: string) => {
+    setSelectedProducts(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
 
   return (
     <Form {...form}>
@@ -323,32 +369,42 @@ export function CategoryForm({ category }: CategoryFormProps) {
                       </Button>
                     </div>
                   ) : (
-                    <label
-                      htmlFor="category-image"
-                      className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                    <div
+                      className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg transition-colors ${
+                        isDragging
+                          ? "border-primary bg-primary/10"
+                          : "border-input hover:bg-muted/50"
+                      }`}
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                     >
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="h-10 w-10 mb-3 text-muted-foreground" />
-                        <p className="mb-2 text-sm text-muted-foreground">
-                          <span className="font-semibold">Click to upload</span> or drag
-                          and drop
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          PNG, JPG, WebP (max 5MB)
-                        </p>
-                      </div>
-                      <input
-                        id="category-image"
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/jpeg,image/jpg,image/png,image/webp"
-                        onChange={handleFileChange}
-                        disabled={isUploadingImage}
-                      />
-                    </label>
+                      <label
+                        htmlFor="category-image"
+                        className="flex flex-col items-center justify-center w-full h-full cursor-pointer"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="h-10 w-10 mb-3 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground">
+                            <span className="font-semibold">Click to upload</span> or drag
+                            and drop
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            PNG, JPG, WebP (max 5MB)
+                          </p>
+                        </div>
+                        <input
+                          id="category-image"
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handleFileChange}
+                          disabled={isUploadingImage}
+                        />
+                      </label>
+                    </div>
                   )}
                 </div>
               </FormControl>
@@ -381,6 +437,59 @@ export function CategoryForm({ category }: CategoryFormProps) {
             </FormItem>
           )}
         />
+
+        {/* Product Association (Edit Only) */}
+        {category && (
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="font-medium">Products in this Category</h3>
+                <p className="text-sm text-muted-foreground">
+                  Select which products belong to this category ({selectedProducts.length} selected)
+                </p>
+              </div>
+            </div>
+
+            <div className="h-[300px] w-full rounded border p-4 overflow-y-auto">
+              <div className="space-y-2">
+                {products.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No active or featured products available
+                  </p>
+                ) : (
+                  products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-start space-x-3 rounded-md p-2 hover:bg-muted/50 transition-colors"
+                    >
+                      <Checkbox
+                        id={`product-${product.id}`}
+                        checked={selectedProducts.includes(product.id)}
+                        onCheckedChange={() => toggleProduct(product.id)}
+                      />
+                      <label
+                        htmlFor={`product-${product.id}`}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {product.categoryId === category.id
+                            ? "Currently in this category"
+                            : `Currently in another category`}
+                        </div>
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Note: Selecting a product will move it from its current category to this one.
+              Deselecting will leave it in its current category.
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-4">
