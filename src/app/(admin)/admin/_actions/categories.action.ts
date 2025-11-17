@@ -173,7 +173,7 @@ export const updateCategoryAction = createServerAction()
         description: input.description || null,
         imageUrl: input.imageUrl || null,
         active: input.active ? 1 : 0,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(categoryTable.id, input.id));
 
@@ -237,7 +237,7 @@ export const reorderCategoriesAction = createServerAction()
         .update(categoryTable)
         .set({
           displayOrder: category.displayOrder,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(categoryTable.id, category.id));
     }
@@ -317,7 +317,7 @@ export const updateCategoryProductsAction = createServerAction()
         .update(productTable)
         .set({
           categoryId: input.categoryId,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(productTable.id, productId));
     }
