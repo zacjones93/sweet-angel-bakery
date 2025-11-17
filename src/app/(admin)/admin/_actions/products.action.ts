@@ -2,8 +2,8 @@
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
-import { productTable, categoryTable, PRODUCT_STATUS } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { productTable, categoryTable, productCategoryTable, PRODUCT_STATUS } from "@/db/schema";
+import { eq, desc, inArray } from "drizzle-orm";
 import { requireAdmin } from "@/utils/auth";
 import { getMerchantProvider } from "@/lib/merchant-provider/factory";
 import { productCustomizationsSchema } from "@/schemas/customizations.schema";
@@ -103,7 +103,7 @@ export const createProductAction = createServerAction()
     z.object({
       name: z.string().min(1, "Name is required"),
       description: z.string().optional(),
-      categoryId: z.string().min(1, "Category is required"),
+      categoryIds: z.array(z.string()).min(1, "At least one category is required"),
       price: z.number().min(0, "Price must be positive"),
       imageUrl: z.string().optional(),
       status: z.enum([PRODUCT_STATUS.ACTIVE, PRODUCT_STATUS.FEATURED, PRODUCT_STATUS.INACTIVE]),
@@ -138,7 +138,7 @@ export const createProductAction = createServerAction()
       imageUrl,
       variants,
       metadata: {
-        categoryId: input.categoryId,
+        categoryIds: input.categoryIds.join(','),
         hasCustomizations: input.customizations ? 'true' : 'false',
       },
     });
@@ -159,7 +159,7 @@ export const createProductAction = createServerAction()
       .values({
         name: input.name,
         description: input.description || null,
-        categoryId: input.categoryId,
+        categoryId: input.categoryIds[0], // Keep for backward compatibility, use first category
         price: priceInCents,
         imageUrl: imageUrl || null,
         status: input.status,
@@ -170,6 +170,14 @@ export const createProductAction = createServerAction()
         customizations: input.customizations ? JSON.stringify(input.customizations) : null,
       })
       .returning();
+
+    // Create product-category associations in junction table
+    for (const categoryId of input.categoryIds) {
+      await db.insert(productCategoryTable).values({
+        productId: product.id,
+        categoryId,
+      });
+    }
 
     return {
       ...product,
@@ -184,7 +192,7 @@ export const updateProductAction = createServerAction()
       id: z.string(),
       name: z.string().min(1, "Name is required"),
       description: z.string().optional(),
-      categoryId: z.string().min(1, "Category is required"),
+      categoryIds: z.array(z.string()).min(1, "At least one category is required"),
       price: z.number().min(0, "Price must be positive"),
       imageUrl: z.string().optional(),
       status: z.enum([PRODUCT_STATUS.ACTIVE, PRODUCT_STATUS.FEATURED, PRODUCT_STATUS.INACTIVE]),
@@ -207,7 +215,7 @@ export const updateProductAction = createServerAction()
       .set({
         name: input.name,
         description: input.description || null,
-        categoryId: input.categoryId,
+        categoryId: input.categoryIds[0], // Keep for backward compatibility
         price: priceInCents,
         imageUrl: imageUrl || null,
         status: input.status,
@@ -217,6 +225,18 @@ export const updateProductAction = createServerAction()
       })
       .where(eq(productTable.id, input.id))
       .returning();
+
+    // Update product-category associations
+    // Delete existing associations
+    await db.delete(productCategoryTable).where(eq(productCategoryTable.productId, input.id));
+
+    // Create new associations
+    for (const categoryId of input.categoryIds) {
+      await db.insert(productCategoryTable).values({
+        productId: input.id,
+        categoryId,
+      });
+    }
 
     return {
       ...product,
@@ -234,4 +254,19 @@ export const deleteProductAction = createServerAction()
     await db.delete(productTable).where(eq(productTable.id, input.id));
 
     return { success: true };
+  });
+
+// Get product category IDs (for edit form)
+export const getProductCategoryIdsAction = createServerAction()
+  .input(z.object({ productId: z.string() }))
+  .handler(async ({ input }) => {
+    await requireAdmin();
+
+    const db = getDB();
+    const associations = await db
+      .select({ categoryId: productCategoryTable.categoryId })
+      .from(productCategoryTable)
+      .where(eq(productCategoryTable.productId, input.productId));
+
+    return associations.map(a => a.categoryId);
   });

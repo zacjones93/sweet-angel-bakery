@@ -3,8 +3,8 @@ import "server-only";
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
-import { categoryTable, productTable } from "@/db/schema";
-import { eq, and, ne, count } from "drizzle-orm";
+import { categoryTable, productTable, productCategoryTable } from "@/db/schema";
+import { eq, and, ne, count, inArray } from "drizzle-orm";
 import { requireAdmin } from "@/utils/auth";
 import {
   createCategorySchema,
@@ -33,18 +33,32 @@ export const getDynamicCategoriesAction = createServerAction()
     // Filter out hardcoded categories
     const dynamicCategories = categories.filter(cat => !HARDCODED_CATEGORY_SLUGS.includes(cat.slug));
 
-    // Fetch products for each category
+    // Fetch products for each category via junction table
     const categoriesWithProducts = await Promise.all(
       dynamicCategories.map(async (category) => {
+        const productAssociations = await db
+          .select({
+            productId: productCategoryTable.productId,
+          })
+          .from(productCategoryTable)
+          .where(eq(productCategoryTable.categoryId, category.id))
+          .limit(5);
+
+        if (productAssociations.length === 0) {
+          return {
+            ...category,
+            products: [],
+          };
+        }
+
         const products = await db
           .select({
             id: productTable.id,
             name: productTable.name,
           })
           .from(productTable)
-          .where(eq(productTable.categoryId, category.id))
-          .orderBy(productTable.name)
-          .limit(5); // Show up to 5 products
+          .where(inArray(productTable.id, productAssociations.map(pa => pa.productId)))
+          .orderBy(productTable.name);
 
         return {
           ...category,
@@ -295,17 +309,15 @@ export const getProductsByCategoryAction = createServerAction()
 
     const db = getDB();
 
-    // Get products in this category
-    const products = await db
+    // Get products in this category via junction table
+    const associations = await db
       .select({
-        id: productTable.id,
-        name: productTable.name,
+        productId: productCategoryTable.productId,
       })
-      .from(productTable)
-      .where(eq(productTable.categoryId, input.id))
-      .orderBy(productTable.name);
+      .from(productCategoryTable)
+      .where(eq(productCategoryTable.categoryId, input.id));
 
-    return products.map(p => p.id);
+    return associations.map(a => a.productId);
   });
 
 // Update product associations for a category
@@ -319,13 +331,13 @@ export const updateCategoryProductsAction = createServerAction()
 
     const db = getDB();
 
-    // Get all products currently in this category
-    const currentProducts = await db
-      .select({ id: productTable.id })
-      .from(productTable)
-      .where(eq(productTable.categoryId, input.categoryId));
+    // Get all products currently in this category via junction table
+    const currentAssociations = await db
+      .select({ productId: productCategoryTable.productId })
+      .from(productCategoryTable)
+      .where(eq(productCategoryTable.categoryId, input.categoryId));
 
-    const currentProductIds = currentProducts.map(p => p.id);
+    const currentProductIds = currentAssociations.map(a => a.productId);
 
     // Products to add to category (in new list but not in current)
     const toAdd = input.productIds.filter(id => !currentProductIds.includes(id));
@@ -333,19 +345,23 @@ export const updateCategoryProductsAction = createServerAction()
     // Products to remove from category (in current but not in new list)
     const toRemove = currentProductIds.filter(id => !input.productIds.includes(id));
 
-    // Update products to add to this category
+    // Add new product associations
     for (const productId of toAdd) {
-      await db
-        .update(productTable)
-        .set({
-          categoryId: input.categoryId,
-          updatedAt: new Date(),
-        })
-        .where(eq(productTable.id, productId));
+      await db.insert(productCategoryTable).values({
+        productId,
+        categoryId: input.categoryId,
+      });
     }
 
-    // Note: Products removed from this category remain in their old category
-    // They are not reassigned elsewhere - admin must explicitly assign them to another category
+    // Remove product associations
+    for (const productId of toRemove) {
+      await db.delete(productCategoryTable).where(
+        and(
+          eq(productCategoryTable.productId, productId),
+          eq(productCategoryTable.categoryId, input.categoryId)
+        )
+      );
+    }
 
     return {
       success: true,

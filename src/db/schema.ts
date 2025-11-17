@@ -145,7 +145,7 @@ export const productTable = sqliteTable("product", {
   id: text().primaryKey().$defaultFn(() => `prod_${createId()}`).notNull(),
   name: text({ length: 255 }).notNull(),
   description: text({ length: 2000 }),
-  categoryId: text().notNull().references(() => categoryTable.id),
+  categoryId: text().references(() => categoryTable.id), // Deprecated - use product_category junction table
   price: integer().notNull(), // in cents - base price if no customizations, or default price
   imageUrl: text({ length: 600 }),
   status: text({
@@ -165,10 +165,23 @@ export const productTable = sqliteTable("product", {
   // Can be size variants, custom builder, or null for standard products
   customizations: text({ length: 10000 }), // Stored as JSON string
 }, (table) => ([
-  index('product_category_idx').on(table.categoryId),
+  index('product_category_idx').on(table.categoryId), // Deprecated index
   index('product_status_idx').on(table.status),
   index('product_stripe_product_id_idx').on(table.stripeProductId),
   index('product_is_new_flavor_idx').on(table.isNewFlavor),
+]));
+
+// Product-Category junction table (many-to-many relationship)
+export const productCategoryTable = sqliteTable("product_category", {
+  ...commonColumns,
+  id: text().primaryKey().$defaultFn(() => `pcat_${createId()}`).notNull(),
+  productId: text().notNull().references(() => productTable.id, { onDelete: 'cascade' }),
+  categoryId: text().notNull().references(() => categoryTable.id, { onDelete: 'cascade' }),
+}, (table) => ([
+  index('product_category_product_idx').on(table.productId),
+  index('product_category_category_idx').on(table.categoryId),
+  // Unique constraint to prevent duplicate associations
+  index('product_category_unique_idx').on(table.productId, table.categoryId),
 ]));
 
 // Order status types - Comprehensive bakery workflow
