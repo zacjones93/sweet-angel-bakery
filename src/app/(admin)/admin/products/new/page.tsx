@@ -23,7 +23,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="bg-card rounded-lg border p-6">
-        <ProductForm categories={categories || []} />
+        <ProductForm categories={categories || []} initialCategoryIds={[]} />
       </div>
     </div>
   );

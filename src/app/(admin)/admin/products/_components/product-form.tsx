@@ -39,7 +39,6 @@ import { CustomizationsForm } from "./customizations-form";
 const productFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  categoryId: z.string().min(1, "Category is required"),
   price: z.string().optional(),
   imageUrl: z.string().optional(),
   status: z.enum([
@@ -73,9 +72,10 @@ type Product = {
 type ProductFormProps = {
   product?: Product;
   categories: Category[];
+  initialCategoryIds: string[];
 };
 
-export function ProductForm({ product, categories }: ProductFormProps) {
+export function ProductForm({ product, categories, initialCategoryIds }: ProductFormProps) {
   const router = useRouter();
   const { execute: createProduct, isPending: isCreating } =
     useServerAction(createProductAction);
@@ -89,13 +89,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [customizations, setCustomizations] = useState<ProductCustomizations>(
     product?.customizations || null
   );
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(initialCategoryIds);
+  const [categoryToAdd, setCategoryToAdd] = useState<string>("");
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: product?.name || "",
       description: product?.description || "",
-      categoryId: product?.categoryId || "",
       price: product ? (product.price / 100).toString() : "",
       imageUrl: product?.imageUrl || "",
       status: (product?.status as typeof PRODUCT_STATUS[keyof typeof PRODUCT_STATUS]) || PRODUCT_STATUS.ACTIVE,
@@ -183,7 +184,23 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     }
   };
 
+  const addCategory = () => {
+    if (categoryToAdd && !selectedCategoryIds.includes(categoryToAdd)) {
+      setSelectedCategoryIds([...selectedCategoryIds, categoryToAdd]);
+      setCategoryToAdd("");
+    }
+  };
+
+  const removeCategory = (categoryId: string) => {
+    setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== categoryId));
+  };
+
   async function onSubmit(values: ProductFormValues) {
+    // Validate categories
+    if (selectedCategoryIds.length === 0) {
+      toast.error("Please select at least one category");
+      return;
+    }
     // Validate customizations if present
     if (customizations) {
       if (customizations.type === "size_variants") {
@@ -239,7 +256,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         id: product.id,
         name: values.name,
         description: values.description,
-        categoryId: values.categoryId,
+        categoryIds: selectedCategoryIds,
         price,
         imageUrl: values.imageUrl,
         status: values.status,
@@ -258,7 +275,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       const [, error] = await createProduct({
         name: values.name,
         description: values.description,
-        categoryId: values.categoryId,
+        categoryIds: selectedCategoryIds,
         price,
         imageUrl: values.imageUrl,
         status: values.status,
@@ -310,30 +327,65 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="categoryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {categories.map((category) => (
+        {/* Categories Selection */}
+        <div className="space-y-4 rounded-md border p-4">
+          <div>
+            <h3 className="font-medium mb-2">Categories</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Select categories for this product. Products can belong to multiple categories.
+            </p>
+          </div>
+
+          {/* Selected Categories */}
+          {selectedCategoryIds.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {selectedCategoryIds.map((catId) => {
+                const category = categories.find((c) => c.id === catId);
+                return category ? (
+                  <Badge key={catId} variant="secondary" className="flex items-center gap-2">
+                    {category.name}
+                    <button
+                      type="button"
+                      onClick={() => removeCategory(catId)}
+                      className="hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })}
+            </div>
+          )}
+
+          {/* Add Category Dropdown */}
+          <div className="flex gap-2">
+            <Select value={categoryToAdd} onValueChange={setCategoryToAdd}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select a category to add" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories
+                  .filter((cat) => !selectedCategoryIds.includes(cat.id))
+                  .map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addCategory}
+              disabled={!categoryToAdd}
+            >
+              Add
+            </Button>
+          </div>
+          {selectedCategoryIds.length === 0 && (
+            <p className="text-sm text-destructive">At least one category is required</p>
           )}
-        />
+        </div>
 
         <FormField
           control={form.control}

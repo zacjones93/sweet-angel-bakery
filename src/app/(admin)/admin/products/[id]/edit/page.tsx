@@ -1,6 +1,7 @@
 import {
   getProductAction,
   getCategoriesAction,
+  getProductCategoryIdsAction,
 } from "../../../_actions/products.action";
 import { ProductForm } from "../../_components/product-form";
 import { ArrowLeft } from "lucide-react";
@@ -16,6 +17,7 @@ export default async function EditProductPage({
   const { id } = await params;
   const [product] = await getProductAction({ id });
   const [categories] = await getCategoriesAction();
+  const [categoryIds] = await getProductCategoryIdsAction({ productId: id });
 
   if (!product) {
     notFound();
@@ -35,7 +37,11 @@ export default async function EditProductPage({
       </div>
 
       <div className="bg-card rounded-lg border p-6">
-        <ProductForm product={product} categories={categories || []} />
+        <ProductForm
+          product={product}
+          categories={categories || []}
+          initialCategoryIds={categoryIds || []}
+        />
       </div>
     </div>
   );
