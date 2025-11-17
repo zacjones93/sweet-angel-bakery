@@ -52,7 +52,7 @@ type Category = {
 type Product = {
   id: string;
   name: string;
-  categoryId: string;
+  categoryId: string | null;
   status: string;
 };
 
@@ -223,7 +223,7 @@ export function CategoryForm({ category, products, selectedProductIds }: Categor
       });
 
       if (prodErr) {
-        toast.error("Category updated but failed to update products");
+        toast.error(prodErr.message || "Category updated but failed to update products");
         return;
       }
 

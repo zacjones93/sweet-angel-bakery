@@ -13,6 +13,7 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import { SITE_URL } from "@/constants";
+import { BUSINESS_TIMEZONE } from "@/utils/timezone";
 
 interface OrderConfirmationEmailProps {
   customerName?: string;
@@ -66,12 +67,18 @@ export const OrderConfirmationEmail = ({
   function formatDate(dateString: string | null | undefined) {
     if (!dateString) return "";
     try {
-      const date = new Date(dateString);
+      // Parse ISO date string (YYYY-MM-DD) as Mountain Time
+      // Append 'T00:00:00' to ensure it's treated as date + time, not just date
+      const dateWithTime = dateString.includes('T') ? dateString : `${dateString}T00:00:00`;
+      const date = new Date(dateWithTime);
+
+      // Format explicitly in Mountain Time to match business timezone
       return date.toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
+        timeZone: BUSINESS_TIMEZONE,
       });
     } catch {
       return dateString;

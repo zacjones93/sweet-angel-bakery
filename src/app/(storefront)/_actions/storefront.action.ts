@@ -3,8 +3,8 @@
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import { getDB } from "@/db";
-import { productTable, categoryTable, PRODUCT_STATUS } from "@/db/schema";
-import { eq, and, desc, ne, sql, notInArray } from "drizzle-orm";
+import { productTable, categoryTable, productCategoryTable, PRODUCT_STATUS } from "@/db/schema";
+import { eq, and, desc, ne, sql, notInArray, inArray } from "drizzle-orm";
 
 // Hardcoded category slugs excluded from dynamic navigation
 const HARDCODED_CATEGORY_SLUGS = ['cakes', 'cookies', 'gift-boxes', 'custom-orders'];
@@ -20,6 +20,7 @@ export const getStorefrontProductsAction = createServerAction()
       .optional()
   )
   .handler(async ({ input }) => {
+    const db = getDB();
     const conditions = [];
 
     // Only show active or featured products
@@ -31,8 +32,8 @@ export const getStorefrontProductsAction = createServerAction()
       conditions.push(eq(productTable.status, PRODUCT_STATUS.FEATURED));
     }
 
+    let categoryProductIds: string[] | null = null;
     if (input?.categorySlug) {
-      const db = getDB();
       const [category] = await db
         .select()
         .from(categoryTable)
@@ -40,11 +41,23 @@ export const getStorefrontProductsAction = createServerAction()
         .limit(1);
 
       if (category) {
-        conditions.push(eq(productTable.categoryId, category.id));
+        // Get all product IDs in this category via junction table
+        const associations = await db
+          .select({ productId: productCategoryTable.productId })
+          .from(productCategoryTable)
+          .where(eq(productCategoryTable.categoryId, category.id));
+
+        categoryProductIds = associations.map(a => a.productId);
+
+        // If category has no products, return empty array early
+        if (categoryProductIds.length === 0) {
+          return [];
+        }
+
+        conditions.push(inArray(productTable.id, categoryProductIds));
       }
     }
 
-    const db = getDB();
     const products = await db
       .select({
         id: productTable.id,
@@ -56,14 +69,8 @@ export const getStorefrontProductsAction = createServerAction()
         quantityAvailable: productTable.quantityAvailable,
         customizations: productTable.customizations,
         createdAt: productTable.createdAt,
-        category: {
-          id: categoryTable.id,
-          name: categoryTable.name,
-          slug: categoryTable.slug,
-        },
       })
       .from(productTable)
-      .leftJoin(categoryTable, eq(productTable.categoryId, categoryTable.id))
       .where(and(...conditions))
       .orderBy(
         // Sort in-stock items first (quantityAvailable > 0), out-of-stock last

@@ -27,35 +27,56 @@ export const getProductsAction = createServerAction()
         customizations: productTable.customizations,
         createdAt: productTable.createdAt,
         updatedAt: productTable.updatedAt,
-        category: {
-          id: categoryTable.id,
-          name: categoryTable.name,
-          slug: categoryTable.slug,
-        },
       })
       .from(productTable)
-      .leftJoin(categoryTable, eq(productTable.categoryId, categoryTable.id))
       .orderBy(desc(productTable.createdAt));
 
-    // Parse customizations JSON and calculate total quantity from variations
-    return products.map(p => {
-      const customizations = p.customizations ? JSON.parse(p.customizations) : null;
+    // Fetch categories for each product via junction table
+    const productsWithCategories = await Promise.all(
+      products.map(async (product) => {
+        const categoryAssociations = await db
+          .select({
+            categoryId: productCategoryTable.categoryId,
+          })
+          .from(productCategoryTable)
+          .where(eq(productCategoryTable.productId, product.id));
 
-      // If product has size variants, calculate total quantity from variants
-      let totalQuantity = p.quantityAvailable;
-      if (customizations?.type === 'size_variants' && customizations.variants) {
-        totalQuantity = customizations.variants.reduce(
-          (sum: number, variant: SizeVariant) => sum + (variant.quantityAvailable || 0),
-          0
-        );
-      }
+        const categoryIds = categoryAssociations.map(a => a.categoryId);
 
-      return {
-        ...p,
-        customizations,
-        quantityAvailable: totalQuantity,
-      };
-    });
+        let categories: { id: string; name: string; slug: string }[] = [];
+        if (categoryIds.length > 0) {
+          categories = await db
+            .select({
+              id: categoryTable.id,
+              name: categoryTable.name,
+              slug: categoryTable.slug,
+            })
+            .from(categoryTable)
+            .where(inArray(categoryTable.id, categoryIds))
+            .orderBy(categoryTable.name);
+        }
+
+        const customizations = product.customizations ? JSON.parse(product.customizations) : null;
+
+        // If product has size variants, calculate total quantity from variants
+        let totalQuantity = product.quantityAvailable;
+        if (customizations?.type === 'size_variants' && customizations.variants) {
+          totalQuantity = customizations.variants.reduce(
+            (sum: number, variant: SizeVariant) => sum + (variant.quantityAvailable || 0),
+            0
+          );
+        }
+
+        return {
+          ...product,
+          customizations,
+          quantityAvailable: totalQuantity,
+          categories,
+        };
+      })
+    );
+
+    return productsWithCategories;
   });
 
 // Get single product
@@ -176,6 +197,8 @@ export const createProductAction = createServerAction()
       await db.insert(productCategoryTable).values({
         productId: product.id,
         categoryId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 
@@ -235,6 +258,8 @@ export const updateProductAction = createServerAction()
       await db.insert(productCategoryTable).values({
         productId: input.id,
         categoryId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 

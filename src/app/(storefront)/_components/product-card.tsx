@@ -27,7 +27,7 @@ type Product = {
   imageUrl: string | null;
   quantityAvailable: number;
   customizations?: ProductCustomizations;
-  category: {
+  category?: {
     id: string;
     name: string;
     slug: string;

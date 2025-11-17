@@ -33,11 +33,11 @@ type Product = {
   imageUrl: string | null;
   status: string;
   quantityAvailable: number;
-  category: {
+  categories: {
     id: string;
     name: string;
     slug: string;
-  } | null;
+  }[];
 };
 
 export function ProductsTable({ products }: { products: Product[] }) {
@@ -94,7 +94,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead>Categories</TableHead>
             <TableHead>Price</TableHead>
             <TableHead>Quantity</TableHead>
             <TableHead>Status</TableHead>
@@ -112,7 +112,19 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   {product.name}
                 </Link>
               </TableCell>
-              <TableCell>{product.category?.name || "N/A"}</TableCell>
+              <TableCell>
+                {product.categories.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {product.categories.map((category) => (
+                      <Badge key={category.id} variant="outline" className="text-xs">
+                        {category.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">No categories</span>
+                )}
+              </TableCell>
               <TableCell>{formatPrice(product.price)}</TableCell>
               <TableCell>
                 <span

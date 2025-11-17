@@ -350,6 +350,8 @@ export const updateCategoryProductsAction = createServerAction()
       await db.insert(productCategoryTable).values({
         productId,
         categoryId: input.categoryId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 

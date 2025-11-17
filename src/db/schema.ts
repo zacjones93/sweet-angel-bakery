@@ -173,7 +173,7 @@ export const productTable = sqliteTable("product", {
 
 // Product-Category junction table (many-to-many relationship)
 export const productCategoryTable = sqliteTable("product_category", {
-  ...commonColumns,
+  ...snakeCommonColumns,
   id: text().primaryKey().$defaultFn(() => `pcat_${createId()}`).notNull(),
   productId: text().notNull().references(() => productTable.id, { onDelete: 'cascade' }),
   categoryId: text().notNull().references(() => categoryTable.id, { onDelete: 'cascade' }),

@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { PRODUCT_STATUS } from "@/db/schema";
 import { Upload, X } from "lucide-react";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 import { type ProductCustomizations } from "@/types/customizations";
 import { CustomizationsForm } from "./customizations-form";
 
@@ -61,7 +62,7 @@ type Product = {
   id: string;
   name: string;
   description: string | null;
-  categoryId: string;
+  categoryId: string | null;
   price: number;
   imageUrl: string | null;
   status: string;
