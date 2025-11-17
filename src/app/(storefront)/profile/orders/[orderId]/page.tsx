@@ -24,6 +24,39 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, format } from "date-fns";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
+
+/**
+ * Parse ISO date string for display only.
+ * Creates Date in browser timezone - acceptable for display purposes.
+ *
+ * IMPORTANT: Server sends dates via getMountainISODate(), so the calendar
+ * date is already correct. This just creates a Date object for formatting.
+ *
+ * For server-side calculations, use parseMountainISODate() instead.
+ */
+function parseLocalDate(isoDateString: string): Date {
+  const [year, month, day] = isoDateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Convert 24h time window format (16:00 - 20:00) to 12h format (4:00 PM - 8:00 PM)
+ */
+function formatTimeWindow(timeWindow: string): string {
+  // Match patterns like "16:00 - 20:00" or "16:00-20:00"
+  const match = timeWindow.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!match) return timeWindow; // Return original if format doesn't match
+
+  const [, startHour, startMin, endHour, endMin] = match.map(Number);
+
+  const formatTime = (hour: number, min: number) => {
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${min.toString().padStart(2, "0")} ${period}`;
+  };
+
+  return `${formatTime(startHour, startMin)} - ${formatTime(endHour, endMin)}`;
+}
 import {
   CalendarIcon,
   MapPinIcon,
@@ -364,7 +397,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium mb-1">Delivery Date</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(order.deliveryDate), "EEEE, MMMM d, yyyy")}
+                      {format(parseLocalDate(order.deliveryDate), "EEEE, MMMM d, yyyy")}
                     </p>
                   </div>
                 )}
@@ -373,7 +406,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium mb-1">Delivery Window</p>
                     <p className="text-sm text-muted-foreground">
-                      {order.deliveryTimeWindow}
+                      {formatTimeWindow(order.deliveryTimeWindow)}
                     </p>
                   </div>
                 )}
@@ -411,7 +444,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium mb-1">Pickup Date</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(order.pickupDate), "EEEE, MMMM d, yyyy")}
+                      {format(parseLocalDate(order.pickupDate), "EEEE, MMMM d, yyyy")}
                     </p>
                   </div>
                 )}
@@ -420,7 +453,7 @@ export default async function OrderDetailsPage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium mb-1">Pickup Window</p>
                     <p className="text-sm text-muted-foreground">
-                      {order.pickupTimeWindow}
+                      {formatTimeWindow(order.pickupTimeWindow)}
                     </p>
                   </div>
                 )}
