@@ -23,9 +23,6 @@ import {
   PAYMENT_STATUS,
 } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { calculateTax } from "@/utils/tax";
-import { findOrCreateUser } from "@/utils/auth";
-import type { SizeVariantsConfig } from "@/types/customizations";
 import { calculateMerchantFee } from "../fee-calculator";
 
 /**
@@ -96,35 +93,16 @@ export class SquareFetchProvider implements IMerchantProvider {
   }
 
   async createCheckout(options: CheckoutOptions): Promise<CheckoutResult> {
-    // Calculate totals
-    const subtotal = options.lineItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    const tax = calculateTax(subtotal);
-
-    // Build line items for Square
-    const lineItems = [
-      ...options.lineItems.map((item) => ({
-        name: item.name,
-        note: item.description,
-        quantity: String(item.quantity),
-        base_price_money: {
-          amount: item.price,
-          currency: "USD",
-        },
-      })),
-      // Add tax line item
-      {
-        name: "Idaho Sales Tax (6%)",
-        note: "State sales tax for Boise/Caldwell area",
-        quantity: "1",
-        base_price_money: {
-          amount: tax,
-          currency: "USD",
-        },
+    // Build line items for Square (no tax line item - use taxes field instead)
+    const lineItems = options.lineItems.map((item) => ({
+      name: item.name,
+      note: item.description,
+      quantity: String(item.quantity),
+      base_price_money: {
+        amount: item.price,
+        currency: "USD",
       },
-    ];
+    }));
 
     // Filter out empty/null metadata values (Square rejects empty strings)
     const cleanMetadata: Record<string, string> = {};
@@ -157,6 +135,15 @@ export class SquareFetchProvider implements IMerchantProvider {
         order: {
           location_id: this.locationId,
           line_items: lineItems,
+          // Apply Idaho sales tax (6%) at order level
+          taxes: [
+            {
+              uid: "idaho-sales-tax",
+              name: "Idaho Sales Tax",
+              percentage: "6.0",
+              scope: "ORDER",
+            },
+          ],
           // Only include metadata if there are non-empty values
           ...(Object.keys(cleanMetadata).length > 0 && { metadata: cleanMetadata }),
         },
@@ -324,11 +311,30 @@ export class SquareFetchProvider implements IMerchantProvider {
       return { processed: false, error: "No order ID in payment" };
     }
 
+    // Check if order already exists in DB (from Web Payments SDK flow)
+    const db = getDB();
+    const existingOrder = await db
+      .select()
+      .from(orderTable)
+      .where(eq(orderTable.paymentIntentId, payment.id))
+      .get();
+
+    if (existingOrder) {
+      console.log(`[Square] Order already exists for payment ${payment.id}, skipping webhook creation`);
+      return {
+        processed: true,
+        orderId: existingOrder.id,
+        paymentStatus: "paid",
+      };
+    }
+
     // Get order details from Square
     const orderResult = await this.request<{
       order: {
         id: string;
         metadata?: Record<string, string>;
+        total_money?: { amount: number; currency: string };
+        total_tax_money?: { amount: number; currency: string };
         line_items?: Array<{
           name?: string;
           quantity?: string;
@@ -341,9 +347,6 @@ export class SquareFetchProvider implements IMerchantProvider {
     const metadata = squareOrder.metadata || {};
 
     console.log("[Square] Order metadata:", metadata);
-
-    // Get database instance
-    const db = getDB();
 
     // Extract customer info from metadata or payment
     const customerEmail = payment.buyer_email_address || "";
@@ -398,14 +401,16 @@ export class SquareFetchProvider implements IMerchantProvider {
       return { processed: false, error: "No valid products" };
     }
 
-    // Calculate totals
+    // Calculate totals using Square's calculated values
     const deliveryFee = metadata.deliveryFee ? parseInt(metadata.deliveryFee) : 0;
     const subtotal = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
     );
-    const tax = calculateTax(subtotal + deliveryFee);
-    const totalAmount = subtotal + deliveryFee + tax;
+
+    // Use Square's calculated tax instead of our own
+    const tax = squareOrder.total_tax_money?.amount || 0;
+    const totalAmount = squareOrder.total_money?.amount || (subtotal + deliveryFee + tax);
 
     // Create order
     const [order] = await db
