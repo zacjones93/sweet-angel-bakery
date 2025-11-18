@@ -80,6 +80,16 @@ export function SquarePaymentForm({
     );
   }
 
+  // Validate fulfillment method is selected
+  if (!fulfillmentMethod) {
+    return (
+      <div className="p-4 bg-amber-50 text-amber-900 rounded-md border border-amber-200">
+        <p className="font-semibold">Please select delivery or pickup</p>
+        <p className="text-sm">Choose how you'd like to receive your order above</p>
+      </div>
+    );
+  }
+
   if (!applicationId) {
     return (
       <div className="p-4 bg-destructive/10 text-destructive rounded-md">
