@@ -105,12 +105,63 @@ export const createSquarePaymentAction = createServerAction()
     );
     const deliveryFee = input.deliveryFee || 0;
     const subtotalWithDelivery = subtotal + deliveryFee;
-    const tax = calculateTax(subtotalWithDelivery);
-    const totalAmount = subtotalWithDelivery + tax;
 
     // Create payment with Square using tokenized card
     const squareProvider = provider as SquareFetchProvider;
 
+    // Step 1: Create an order with line items and taxes
+    const lineItems = input.items.map((item) => ({
+      name: item.name,
+      quantity: String(item.quantity),
+      base_price_money: {
+        amount: item.price,
+        currency: "USD",
+      },
+    }));
+
+    // Add delivery fee as a line item if present
+    if (deliveryFee > 0) {
+      lineItems.push({
+        name: "Delivery Fee",
+        quantity: "1",
+        base_price_money: {
+          amount: deliveryFee,
+          currency: "USD",
+        },
+      });
+    }
+
+    const orderResponse = await squareProvider.request<{
+      order: {
+        id: string;
+        total_money: { amount: number; currency: string };
+        total_tax_money: { amount: number; currency: string };
+      };
+    }>("/v2/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        idempotency_key: crypto.randomUUID(),
+        order: {
+          location_id: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
+          line_items: lineItems,
+          // Apply Idaho sales tax (6%) at order level
+          taxes: [
+            {
+              uid: "idaho-sales-tax",
+              name: "Idaho Sales Tax",
+              percentage: "6.0",
+              scope: "ORDER",
+            },
+          ],
+        },
+      }),
+    });
+
+    const squareOrder = orderResponse.order;
+    const tax = squareOrder.total_tax_money?.amount || 0;
+    const totalAmount = squareOrder.total_money?.amount || (subtotalWithDelivery + tax);
+
+    // Step 2: Create payment and link it to the order
     const paymentResponse = await squareProvider.request<{ payment: { id: string; status: string } }>("/v2/payments", {
       method: "POST",
       body: JSON.stringify({
@@ -123,6 +174,7 @@ export const createSquarePaymentAction = createServerAction()
         location_id: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
         buyer_email_address: input.customerEmail,
         note: `Order for ${input.customerName}`,
+        order_id: squareOrder.id, // Link payment to order
       }),
     });
 
