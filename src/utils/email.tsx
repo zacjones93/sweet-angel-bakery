@@ -6,7 +6,11 @@ import { ResetPasswordEmail } from "@/react-email/reset-password";
 import { VerifyEmail } from "@/react-email/verify-email";
 import { MagicLinkEmail } from "@/react-email/magic-link";
 import { OrderConfirmationEmail } from "@/react-email/order-confirmation";
+import { AdminNewOrderEmail } from "@/react-email/admin-new-order";
 import isProd from "./is-prod";
+import { getDB } from "@/db";
+import { eq } from "drizzle-orm";
+import { userTable } from "@/db/schema";
 
 interface BrevoEmailOptions {
   to: { email: string; name?: string }[];
@@ -353,5 +357,161 @@ export async function sendOrderConfirmationEmail({
       htmlContent: html,
       tags: ["order-confirmation"],
     });
+  }
+}
+
+export async function sendAdminNewOrderEmail({
+  customerName,
+  customerEmail,
+  customerPhone,
+  orderNumber,
+  orderId,
+  orderItems,
+  subtotal,
+  tax,
+  deliveryFee,
+  total,
+  fulfillmentMethod,
+  deliveryDate,
+  deliveryTimeWindow,
+  deliveryAddress,
+  pickupDate,
+  pickupTimeWindow,
+  pickupLocation,
+}: {
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  orderNumber: string;
+  orderId: string;
+  orderItems: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    customizations?: string | null;
+  }>;
+  subtotal: number;
+  tax: number;
+  deliveryFee?: number;
+  total: number;
+  fulfillmentMethod?: "delivery" | "pickup" | null;
+  deliveryDate?: string | null;
+  deliveryTimeWindow?: string | null;
+  deliveryAddress?: string | null;
+  pickupDate?: string | null;
+  pickupTimeWindow?: string | null;
+  pickupLocation?: {
+    name: string;
+    address: string;
+  } | null;
+}) {
+  try {
+    // Get all admin users with email notifications enabled
+    const db = getDB();
+    const admins = await db.query.userTable.findMany({
+      where: eq(userTable.role, "admin"),
+      columns: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        adminNotificationPreferences: true,
+      },
+    });
+
+    // Filter admins who want new order notifications
+    const notifyAdmins = admins.filter((admin) => {
+      try {
+        const prefs = JSON.parse(admin.adminNotificationPreferences) as {
+          emailNewOrders?: boolean;
+          newOrderEmailAddress?: string | null;
+        };
+        return prefs.emailNewOrders === true;
+      } catch {
+        return false;
+      }
+    });
+
+    if (notifyAdmins.length === 0) {
+      if (!isProd) {
+        console.warn('\n\n\nNo admins configured to receive order notifications');
+      }
+      return;
+    }
+
+    if (!isProd) {
+      console.warn('\n\n\nAdmin order notification would be sent to:', notifyAdmins.map(a => a.email).join(', '));
+      console.warn('Order #:', orderNumber);
+      console.warn('Customer:', customerName, customerEmail);
+      return;
+    }
+
+    const html = await render(AdminNewOrderEmail({
+      customerName,
+      customerEmail,
+      customerPhone,
+      orderNumber,
+      orderId,
+      orderItems,
+      subtotal,
+      tax,
+      deliveryFee,
+      total,
+      fulfillmentMethod,
+      deliveryDate,
+      deliveryTimeWindow,
+      deliveryAddress,
+      pickupDate,
+      pickupTimeWindow,
+      pickupLocation,
+    }));
+
+    const provider = await getEmailProvider();
+
+    if (!provider && isProd) {
+      throw new Error("No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.");
+    }
+
+    // Send to each admin (using custom email if configured, otherwise their account email)
+    for (const admin of notifyAdmins) {
+      try {
+        const prefs = JSON.parse(admin.adminNotificationPreferences) as {
+          emailNewOrders?: boolean;
+          newOrderEmailAddress?: string | null;
+        };
+        const targetEmail = prefs.newOrderEmailAddress || admin.email;
+
+        if (!targetEmail) {
+          console.warn(`Admin ${admin.id} has no email configured, skipping notification`);
+          continue;
+        }
+
+        const adminName = admin.firstName && admin.lastName
+          ? `${admin.firstName} ${admin.lastName}`
+          : admin.firstName || admin.lastName || "Admin";
+
+        if (provider === "resend") {
+          await sendResendEmail({
+            to: [targetEmail],
+            subject: `New Order #${orderNumber} - Sweet Angel Bakery`,
+            html,
+            tags: [{ name: "type", value: "admin-new-order" }],
+          });
+        } else if (provider === "brevo") {
+          await sendBrevoEmail({
+            to: [{ email: targetEmail, name: adminName }],
+            subject: `New Order #${orderNumber} - Sweet Angel Bakery`,
+            htmlContent: html,
+            tags: ["admin-new-order"],
+          });
+        }
+      } catch (error) {
+        // Log error but don't throw - we don't want to fail order creation if email fails
+        console.error(`Failed to send admin notification to ${admin.email}:`, error);
+      }
+    }
+  } catch (error) {
+    // Non-blocking: log error but don't throw
+    console.error('Failed to send admin order notification:', error);
   }
 }

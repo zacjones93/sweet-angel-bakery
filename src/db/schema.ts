@@ -70,6 +70,10 @@ export const userTable = sqliteTable("user", {
   notificationPreferences: text({ length: 1000 })
     .default('{"emailNewFlavors":true,"emailDrops":true,"smsDelivery":false,"smsDrops":false}')
     .notNull(),
+  // Admin notification preferences stored as JSON
+  adminNotificationPreferences: text({ length: 1000 })
+    .default('{"emailNewOrders":true,"newOrderEmailAddress":null}')
+    .notNull(),
   // Delivery address fields
   streetAddress1: text({ length: 255 }),
   streetAddress2: text({ length: 255 }),
