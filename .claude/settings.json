@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run .claude/hooks/STOP.ts"
+          }
+        ]
+      }
+    ]
+  }
+}
