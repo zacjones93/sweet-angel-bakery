@@ -24,6 +24,7 @@ import { useServerAction } from "zsa-react";
 import { deleteProductAction } from "../../_actions/products.action";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type { ProductCustomizations } from "@/types/customizations";
 
 type Product = {
   id: string;
@@ -33,6 +34,7 @@ type Product = {
   imageUrl: string | null;
   status: string;
   quantityAvailable: number;
+  customizations: ProductCustomizations | null;
   categories: {
     id: string;
     name: string;
@@ -63,6 +65,23 @@ export function ProductsTable({ products }: { products: Product[] }) {
 
   function formatPrice(cents: number) {
     return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  function getPriceDisplay(product: Product) {
+    // If product has size variants, show price range
+    if (product.customizations?.type === 'size_variants' && product.customizations.variants) {
+      const prices = product.customizations.variants.map(v => v.priceInCents);
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+
+      if (minPrice === maxPrice) {
+        return formatPrice(minPrice);
+      }
+      return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+    }
+
+    // Default to base price
+    return formatPrice(product.price);
   }
 
   function getStatusBadge(status: string) {
@@ -125,7 +144,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   <span className="text-muted-foreground text-sm">No categories</span>
                 )}
               </TableCell>
-              <TableCell>{formatPrice(product.price)}</TableCell>
+              <TableCell>{getPriceDisplay(product)}</TableCell>
               <TableCell>
                 <span
                   className={
