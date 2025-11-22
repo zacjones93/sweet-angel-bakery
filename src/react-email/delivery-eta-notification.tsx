@@ -1,5 +1,6 @@
 import {
   Body,
+  Button,
   Container,
   Head,
   Heading,
@@ -10,11 +11,13 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import { SITE_URL } from "@/constants";
+import { format, parseISO } from "date-fns";
 
 interface DeliveryETANotificationEmailProps {
   customerName?: string;
   orderNumber?: string;
-  estimatedArrival?: string; // Generalized ETA like "Within the hour" or "Today between 2-3 PM"
+  deliveryDate?: string; // ISO date "2025-11-26"
+  deliveryTimeWindow?: string; // "4:00 PM - 8:00 PM"
   deliveryAddress?: {
     street: string;
     city: string;
@@ -27,7 +30,8 @@ interface DeliveryETANotificationEmailProps {
 export const DeliveryETANotificationEmail = ({
   customerName = "Valued Customer",
   orderNumber = "ABC12345",
-  estimatedArrival = "Today between 2-3 PM",
+  deliveryDate = "2025-11-26",
+  deliveryTimeWindow = "4:00 PM - 8:00 PM",
   deliveryAddress = {
     street: "123 Main St",
     city: "Boise",
@@ -37,6 +41,17 @@ export const DeliveryETANotificationEmail = ({
   deliveryInstructions,
 }: DeliveryETANotificationEmailProps) => {
   const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zip}`;
+
+  // Format delivery date and time window for display
+  const formattedDate = deliveryDate
+    ? format(parseISO(deliveryDate), "EEEE, MMMM d, yyyy")
+    : "Your scheduled delivery date";
+
+  const estimatedArrival = deliveryTimeWindow
+    ? `${formattedDate} between ${deliveryTimeWindow}`
+    : formattedDate;
+
+  const orderTrackingUrl = `${SITE_URL}/profile/orders/${orderNumber}`;
 
   return (
     <Html>
@@ -55,6 +70,12 @@ export const DeliveryETANotificationEmail = ({
             <Text style={etaTime}>{estimatedArrival}</Text>
             <Hr style={divider} />
             <Text style={orderNumberText}>Order #{orderNumber}</Text>
+          </Section>
+
+          <Section style={{ textAlign: "center" as const, margin: "24px 0" }}>
+            <Button style={button} href={orderTrackingUrl}>
+              Track Your Order
+            </Button>
           </Section>
 
           <Section style={addressBox}>
@@ -91,7 +112,8 @@ export const DeliveryETANotificationEmail = ({
 DeliveryETANotificationEmail.PreviewProps = {
   customerName: "Sarah Johnson",
   orderNumber: "SAB12345",
-  estimatedArrival: "Within the hour",
+  deliveryDate: "2025-11-26",
+  deliveryTimeWindow: "4:00 PM - 8:00 PM",
   deliveryAddress: {
     street: "456 Elm Street",
     city: "Boise",
@@ -199,4 +221,16 @@ const footer = {
   lineHeight: "20px",
   textAlign: "center" as const,
   margin: "32px 0 0",
+};
+
+const button = {
+  backgroundColor: "#0ea5e9",
+  borderRadius: "6px",
+  color: "#ffffff",
+  fontSize: "16px",
+  fontWeight: "600",
+  textDecoration: "none",
+  textAlign: "center" as const,
+  display: "inline-block",
+  padding: "12px 32px",
 };
