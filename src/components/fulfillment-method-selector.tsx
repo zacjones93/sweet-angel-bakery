@@ -127,6 +127,13 @@ export function FulfillmentMethodSelector({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-populate preview ZIP from deliveryZipCode when it changes
+  useEffect(() => {
+    if (isPreviewMode && deliveryZipCode && deliveryZipCode.length >= 5) {
+      setPreviewZipCode(deliveryZipCode);
+    }
+  }, [deliveryZipCode, isPreviewMode]);
+
   // Load delivery options when ZIP code changes
   useEffect(() => {
     async function loadDeliveryOptions() {
