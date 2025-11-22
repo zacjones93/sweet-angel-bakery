@@ -30,7 +30,7 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
-import { Search, Eye, ChevronLeft, ChevronRight, Truck, Store } from "lucide-react";
+import { Search, Eye, ChevronLeft, ChevronRight, Truck, Store, Calendar } from "lucide-react";
 import { formatDate } from "@/utils/format-date";
 
 // Simplified order statuses for admin interface
@@ -55,6 +55,7 @@ interface Order {
   itemsCount: number;
   fulfillmentMethod: string | null;
   fulfillmentType: string | null;
+  deliveryDate: string | null;
 }
 
 interface OrdersTableProps {
@@ -124,7 +125,8 @@ export function OrdersTable({
           <Button type="submit">Search</Button>
         </form>
 
-        <div className="rounded-md border">
+        {/* Desktop Table */}
+        <div className="hidden md:block rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -132,6 +134,7 @@ export function OrdersTable({
                 <TableHead>Customer</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Delivery Date</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Payment</TableHead>
@@ -144,7 +147,7 @@ export function OrdersTable({
               {orders.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={11}
                     className="text-center text-muted-foreground"
                   >
                     No orders found
@@ -187,6 +190,16 @@ export function OrdersTable({
                             <span className="text-muted-foreground">—</span>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {order.deliveryDate ? (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>{formatDate(new Date(order.deliveryDate))}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>{order.itemsCount}</TableCell>
                       <TableCell>
@@ -232,6 +245,138 @@ export function OrdersTable({
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-4">
+          {orders.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No orders found
+              </CardContent>
+            </Card>
+          ) : (
+            orders.map((order) => {
+              const paymentStatusKey = Object.keys(
+                PAYMENT_STATUS
+              ).find(
+                (key) =>
+                  PAYMENT_STATUS[
+                    key as keyof typeof PAYMENT_STATUS
+                  ] === order.paymentStatus
+              ) as keyof typeof PAYMENT_STATUS_LABELS | undefined;
+
+              const fulfillmentMethod = (order.fulfillmentMethod || order.fulfillmentType) as "delivery" | "pickup" | null;
+
+              return (
+                <Card key={order.id}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      {/* Header with Order ID and Status */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Order ID</p>
+                          <p className="font-mono text-sm">{order.id.substring(0, 12)}...</p>
+                        </div>
+                        <OrderStatusBadge status={order.status} />
+                      </div>
+
+                      {/* Customer Info */}
+                      <div>
+                        <p className="text-xs text-muted-foreground">Customer</p>
+                        <p className="font-medium">{order.customerName}</p>
+                        <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+                      </div>
+
+                      {/* Order Details Grid */}
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Type</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {fulfillmentMethod === "delivery" ? (
+                              <>
+                                <Truck className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Delivery</span>
+                              </>
+                            ) : fulfillmentMethod === "pickup" ? (
+                              <>
+                                <Store className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Pickup</span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground">Delivery Date</p>
+                          {order.deliveryDate ? (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{formatDate(new Date(order.deliveryDate))}</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground">Items</p>
+                          <p className="text-sm mt-1">{order.itemsCount}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="text-sm font-medium mt-1">
+                            ${(order.totalAmount / 100).toFixed(2)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground">Payment</p>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
+                              paymentStatusKey
+                                ? PAYMENT_STATUS_COLORS[paymentStatusKey]
+                                : ""
+                            }`}
+                          >
+                            {PAYMENT_STATUS_LABELS[paymentStatusKey || "PENDING"]}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground">Created</p>
+                          <p className="text-sm mt-1">{formatDate(order.createdAt)}</p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2 border-t">
+                        <UpdateOrderStatusDialog
+                          orderId={order.id}
+                          currentStatus={order.status}
+                          fulfillmentMethod={fulfillmentMethod}
+                          trigger={
+                            <Button variant="outline" size="sm" className="flex-1">
+                              Update Status
+                            </Button>
+                          }
+                        />
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/orders/${order.id}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
 
         {totalPages > 1 && (

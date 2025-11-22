@@ -7,7 +7,6 @@ import { orderTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { render } from "@react-email/render";
 import { DeliveryETANotificationEmail } from "@/react-email/delivery-eta-notification";
-import { generalizeDeliveryETA } from "@/utils/delivery-eta";
 import isProd from "@/utils/is-prod";
 
 const NOTIFICATION_COOLDOWN_HOURS = 2; // Don't allow notifications more than once every 2 hours
@@ -194,18 +193,13 @@ export const notifyDeliveryETA = createServerAction()
           continue;
         }
 
-        // Generate generalized ETA
-        const generalizedETA = generalizeDeliveryETA({
-          estimatedArrivalTime: order.estimatedArrivalTime,
-          deliveryDate: input.deliveryDate,
-        });
-
         // Render email
         const html = await render(
           DeliveryETANotificationEmail({
             customerName: order.customerName,
             orderNumber: order.id,
-            estimatedArrival: generalizedETA,
+            deliveryDate: order.deliveryDate || undefined,
+            deliveryTimeWindow: order.deliveryTimeWindow || undefined,
             deliveryAddress,
             deliveryInstructions: order.deliveryInstructions || undefined,
           })
@@ -215,7 +209,8 @@ export const notifyDeliveryETA = createServerAction()
           console.log("\n=== DELIVERY ETA NOTIFICATION ===");
           console.log("To:", order.customerEmail);
           console.log("Order:", order.id);
-          console.log("ETA:", generalizedETA);
+          console.log("Delivery Date:", order.deliveryDate);
+          console.log("Time Window:", order.deliveryTimeWindow);
           console.log("=================================\n");
         } else {
           // Send email based on provider

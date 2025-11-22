@@ -97,10 +97,10 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 {order.stripePaymentIntentId && (
                   <div className="col-span-2">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Stripe Payment Intent ID
+                      Payment Intent ID
                     </p>
                     <p className="text-sm font-mono">
-                      {order.stripePaymentIntentId}
+                      {order.paymentIntentId}
                     </p>
                   </div>
                 )}

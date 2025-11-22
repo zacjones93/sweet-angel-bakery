@@ -69,6 +69,7 @@ export const getOrdersAction = createServerAction()
         updatedAt: orderTable.updatedAt,
         fulfillmentMethod: orderTable.fulfillmentMethod,
         fulfillmentType: orderTable.fulfillmentType,
+        deliveryDate: orderTable.deliveryDate,
         itemsCount: sql<number>`count(${orderItemTable.id})`,
       })
       .from(orderTable)
