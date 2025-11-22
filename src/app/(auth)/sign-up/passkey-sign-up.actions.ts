@@ -29,13 +29,20 @@ export const startPasskeyRegistrationAction = createServerAction()
   .handler(async ({ input }) => {
     return withRateLimit(
       async () => {
-        if (await isTurnstileEnabled() && input.captchaToken) {
+        if (await isTurnstileEnabled()) {
+          if (!input.captchaToken) {
+            throw new ZSAError(
+              "INPUT_PARSE_ERROR",
+              "Please complete the captcha"
+            )
+          }
+
           const success = await validateTurnstileToken(input.captchaToken)
 
           if (!success) {
             throw new ZSAError(
               "INPUT_PARSE_ERROR",
-              "Please complete the captcha"
+              "Captcha verification failed"
             )
           }
         }
