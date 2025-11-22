@@ -1,9 +1,63 @@
 import { getDB } from "@/db";
 import { categoryTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { getStorefrontProductsAction } from "../../_actions/storefront.action";
 import { ProductCard } from "../../_components/product-card";
 import { CategoryHeader } from "../../_components/category-header";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const categorySlug = slug?.[0];
+
+  let category: { name: string; description: string | null } | null = null;
+  if (categorySlug) {
+    const db = getDB();
+    const [categoryData] = await db
+      .select({
+        name: categoryTable.name,
+        description: categoryTable.description,
+      })
+      .from(categoryTable)
+      .where(eq(categoryTable.slug, categorySlug))
+      .limit(1);
+
+    category = categoryData || null;
+  }
+
+  const title = category?.name || (categorySlug
+    ? `${categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)}`
+    : "All Products");
+
+  const description = category?.description || "Browse our selection of freshly baked goods made with love";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: "Sweet Angel Bakery - Handcrafted Cakes and Cookies",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 export default async function ProductsPage({
   params,

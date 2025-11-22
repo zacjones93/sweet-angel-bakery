@@ -131,7 +131,7 @@ export default async function HomePage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">
-                      SMS Updates (Optional)
+                      SMS Updates (Coming Soon)
                     </h3>
                     <p className="text-muted-foreground">
                       Get text notifications about your orders and special drops
