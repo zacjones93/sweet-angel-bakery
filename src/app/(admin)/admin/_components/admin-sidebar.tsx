@@ -98,9 +98,13 @@ const adminNavItems: NavMainItem[] = [
   },
   {
     title: "Settings",
-    url: "/settings",
+    url: "/admin/settings",
     icon: Settings2,
     items: [
+      {
+        title: "Admin Settings",
+        url: "/admin/settings",
+      },
       {
         title: "Profile",
         url: "/settings",
