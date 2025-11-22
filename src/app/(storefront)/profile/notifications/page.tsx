@@ -134,7 +134,7 @@ export default function NotificationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>SMS Notifications</CardTitle>
+          <CardTitle>SMS Notifications (coming soon)</CardTitle>
           <CardDescription>
             Receive text messages for order updates and time-sensitive alerts
           </CardDescription>

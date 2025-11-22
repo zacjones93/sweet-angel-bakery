@@ -266,7 +266,7 @@ export default function SignupPage() {
                             htmlFor="smsDelivery"
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            SMS me delivery updates
+                            SMS me delivery updates (coming soon)
                           </label>
                         </div>
                       </div>
@@ -287,7 +287,7 @@ export default function SignupPage() {
                             htmlFor="smsDrops"
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            SMS me about product drops
+                            SMS me about product drops (coming soon)
                           </label>
                         </div>
                       </div>

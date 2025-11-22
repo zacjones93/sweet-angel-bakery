@@ -8,8 +8,8 @@ export interface FeeConfig {
 
 export const PROVIDER_FEE_CONFIG: Record<MerchantProviderType, FeeConfig> = {
 	square: {
-		percentageFee: 260, // 2.6%
-		fixedFee: 15, // $0.15
+		percentageFee: 290, // 2.9%
+		fixedFee: 30, // $0.30
 	},
 };
 
