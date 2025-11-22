@@ -270,6 +270,10 @@ export class SquareFetchProvider implements IMerchantProvider {
   private async handlePaymentEvent(
     event: WebhookEvent
   ): Promise<WebhookResult> {
+    // NOTE: This webhook handler is currently NOT the primary payment flow.
+    // The main checkout flow uses Web Payments SDK via create-square-payment.action.ts
+    // (see src/app/(storefront)/_actions/create-square-payment.action.ts)
+    // This webhook serves as a fallback for any payments not created through the checkout page.
     console.log(`[Square] Processing payment event: ${event.type}`);
 
     const payment = (event.data as { object?: { payment?: unknown } })?.object
@@ -548,6 +552,79 @@ export class SquareFetchProvider implements IMerchantProvider {
       }
     } catch (error) {
       console.error("[Square] Error sending confirmation email:", error);
+    }
+
+    // Send admin notification email
+    try {
+      const { sendAdminNewOrderEmail } = await import("@/utils/email");
+
+      // Prepare delivery address
+      let deliveryAddressFormatted: string | null = null;
+      if (order.deliveryAddressJson && order.deliveryAddressJson !== "null") {
+        try {
+          const addr = JSON.parse(order.deliveryAddressJson);
+          deliveryAddressFormatted = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+        } catch {
+          deliveryAddressFormatted = null;
+        }
+      }
+
+      // Fetch pickup location if needed
+      let pickupLocationFormatted: { name: string; address: string } | null = null;
+      if (order.pickupLocationId) {
+        const { pickupLocationTable } = await import("@/db/schema");
+        const pickupLoc = await db
+          .select()
+          .from(pickupLocationTable)
+          .where(eq(pickupLocationTable.id, order.pickupLocationId))
+          .get();
+
+        if (pickupLoc) {
+          let pickupAddress = "";
+          if (pickupLoc.address && pickupLoc.address !== "null") {
+            try {
+              const addr = JSON.parse(pickupLoc.address);
+              pickupAddress = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+            } catch {
+              pickupAddress = pickupLoc.address;
+            }
+          }
+          pickupLocationFormatted = {
+            name: pickupLoc.name,
+            address: pickupAddress,
+          };
+        }
+      }
+
+      // Collect order items with customizations for admin view
+      const itemsWithCustomizations = items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        customizations: item.customizations ? JSON.stringify(item.customizations) : null,
+      }));
+
+      await sendAdminNewOrderEmail({
+        customerName,
+        customerEmail: customerEmail || "No email provided",
+        customerPhone: customerPhone || null,
+        orderNumber: order.id.substring(4, 12).toUpperCase(),
+        orderId: order.id,
+        orderItems: itemsWithCustomizations,
+        subtotal,
+        tax,
+        deliveryFee: deliveryFee > 0 ? deliveryFee : undefined,
+        total: totalAmount,
+        fulfillmentMethod: (order.fulfillmentMethod as "delivery" | "pickup" | null) || null,
+        deliveryDate: order.deliveryDate || null,
+        deliveryTimeWindow: order.deliveryTimeWindow || null,
+        deliveryAddress: deliveryAddressFormatted,
+        pickupDate: order.pickupDate || null,
+        pickupTimeWindow: order.pickupTimeWindow || null,
+        pickupLocation: pickupLocationFormatted,
+      });
+    } catch (error) {
+      console.error("[Square] Error sending admin notification email:", error);
     }
 
     console.log(`[Square] Order ${order.id} created successfully`);

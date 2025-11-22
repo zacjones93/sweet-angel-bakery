@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getMerchantProvider } from "@/lib/merchant-provider/factory";
 
+// NOTE: This webhook is currently NOT the primary payment flow.
+// The main checkout uses Web Payments SDK via src/app/(storefront)/_actions/create-square-payment.action.ts
+// This webhook serves as a fallback for any payments not created through the checkout page.
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();

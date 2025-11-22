@@ -344,6 +344,80 @@ export const createSquarePaymentAction = createServerAction()
       console.error("[Square Payment] Error sending confirmation email:", error);
     }
 
+    // Send admin notification email
+    try {
+      const { sendAdminNewOrderEmail } = await import("@/utils/email");
+
+      // Prepare delivery address
+      let deliveryAddressFormatted: string | null = null;
+      if (deliveryAddressJson && deliveryAddressJson !== "null") {
+        try {
+          const addr = JSON.parse(deliveryAddressJson);
+          deliveryAddressFormatted = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+        } catch {
+          deliveryAddressFormatted = deliveryAddress;
+        }
+      } else {
+        deliveryAddressFormatted = deliveryAddress;
+      }
+
+      // Fetch pickup location if needed
+      let pickupLocationFormatted: { name: string; address: string } | null = null;
+      if (input.pickupLocationId) {
+        const pickupLoc = await db
+          .select()
+          .from(pickupLocationTable)
+          .where(eq(pickupLocationTable.id, input.pickupLocationId))
+          .get();
+
+        if (pickupLoc) {
+          let pickupAddress = "";
+          if (pickupLoc.address && pickupLoc.address !== "null") {
+            try {
+              const addr = JSON.parse(pickupLoc.address);
+              pickupAddress = `${addr.street}\n${addr.city}, ${addr.state} ${addr.zip}`;
+            } catch {
+              pickupAddress = pickupLoc.address;
+            }
+          }
+          pickupLocationFormatted = {
+            name: pickupLoc.name,
+            address: pickupAddress,
+          };
+        }
+      }
+
+      // Collect order items with customizations for admin view
+      const itemsWithCustomizations = input.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        customizations: item.customizations ? JSON.stringify(item.customizations) : null,
+      }));
+
+      await sendAdminNewOrderEmail({
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        customerPhone: input.customerPhone || null,
+        orderNumber: order.id.substring(4, 12).toUpperCase(),
+        orderId: order.id,
+        orderItems: itemsWithCustomizations,
+        subtotal,
+        tax,
+        deliveryFee: deliveryFee > 0 ? deliveryFee : undefined,
+        total: totalAmount,
+        fulfillmentMethod: input.fulfillmentMethod || null,
+        deliveryDate: input.deliveryDate || null,
+        deliveryTimeWindow: input.deliveryTimeWindow || null,
+        deliveryAddress: deliveryAddressFormatted,
+        pickupDate: input.pickupDate || null,
+        pickupTimeWindow: input.pickupTimeWindow || null,
+        pickupLocation: pickupLocationFormatted,
+      });
+    } catch (error) {
+      console.error("[Square Payment] Error sending admin notification email:", error);
+    }
+
     console.log(`[Square Payment] Order ${order.id} created successfully`);
 
     return {
