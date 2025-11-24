@@ -30,7 +30,7 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
 } from "@/db/schema";
-import { Search, Eye, ChevronLeft, ChevronRight, Truck, Store, Calendar } from "lucide-react";
+import { Search, Eye, ChevronLeft, ChevronRight, Truck, Store, Calendar, Plus } from "lucide-react";
 import { formatDate } from "@/utils/format-date";
 
 // Simplified order statuses for admin interface
@@ -92,8 +92,14 @@ export function OrdersTable({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Orders ({totalCount})</CardTitle>
+        <Button asChild>
+          <Link href="/admin/orders/new">
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Link>
+        </Button>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSearch} className="flex gap-4 mb-6">
