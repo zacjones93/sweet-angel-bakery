@@ -197,6 +197,23 @@ export const PAYMENT_STATUS = {
   REFUNDED: 'refunded',    // Payment refunded
 } as const;
 
+// Payment Method - how the order was paid
+export const PAYMENT_METHOD = {
+  CARD: 'card',             // Credit/debit card via payment processor
+  CASH: 'cash',             // Cash payment (manual orders)
+  CHECK: 'check',           // Check payment (manual orders)
+  EXTERNAL: 'external',     // External payment (Venmo, Zelle, etc.)
+} as const;
+
+export const paymentMethodTuple = Object.values(PAYMENT_METHOD) as [string, ...string[]];
+
+export const PAYMENT_METHOD_LABELS: Record<keyof typeof PAYMENT_METHOD, string> = {
+  CARD: 'Card',
+  CASH: 'Cash',
+  CHECK: 'Check',
+  EXTERNAL: 'External',
+} as const;
+
 export const paymentStatusTuple = Object.values(PAYMENT_STATUS) as [string, ...string[]];
 
 export const PAYMENT_STATUS_LABELS: Record<keyof typeof PAYMENT_STATUS, string> = {
@@ -407,6 +424,11 @@ export const orderTable = sqliteTable("order", {
   merchantProvider: text({ length: 50 }).default('stripe').notNull(), // 'stripe' or 'square'
   stripePaymentIntentId: text({ length: 255 }), // Legacy field, keeping for backward compatibility
   paymentIntentId: text({ length: 255 }), // Provider payment intent ID (Stripe/Square)
+
+  // Manual order fields
+  paymentMethod: text('payment_method', { length: 50, enum: paymentMethodTuple }).default('card'), // card, cash, check, external
+  createdByAdminId: text('created_by_admin_id').references(() => userTable.id), // Admin who created manual order
+  adminNotes: text('admin_notes', { length: 2000 }), // Internal notes for manual orders
   fulfillmentType: text({ length: 50 }), // DEPRECATED: use fulfillmentMethod instead
   pickupTime: integer({
     mode: "timestamp",
@@ -454,6 +476,8 @@ export const orderTable = sqliteTable("order", {
   index('order_delivery_date_idx').on(table.deliveryDate),
   index('order_pickup_date_idx').on(table.pickupDate),
   index('order_pickup_location_id_idx').on(table.pickupLocationId),
+  index('order_created_by_admin_id_idx').on(table.createdByAdminId),
+  index('order_payment_method_idx').on(table.paymentMethod),
 ]));
 
 // Order items table
@@ -568,6 +592,11 @@ export const orderRelations = relations(orderTable, ({ one, many }) => ({
     fields: [orderTable.userId],
     references: [userTable.id],
   }),
+  createdByAdmin: one(userTable, {
+    fields: [orderTable.createdByAdminId],
+    references: [userTable.id],
+    relationName: 'createdByAdmin',
+  }),
   items: many(orderItemTable),
   merchantFees: many(merchantFeeTable),
   deliveryZone: one(deliveryZoneTable, {
@@ -594,6 +623,7 @@ export const orderItemRelations = relations(orderItemTable, ({ one }) => ({
 export const userRelations = relations(userTable, ({ many }) => ({
   passkeys: many(passKeyCredentialTable),
   orders: many(orderTable),
+  createdOrders: many(orderTable, { relationName: 'createdByAdmin' }),
 }));
 
 export const passKeyCredentialRelations = relations(passKeyCredentialTable, ({ one }) => ({

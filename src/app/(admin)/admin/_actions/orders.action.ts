@@ -1,7 +1,7 @@
 "use server";
 
 import { getDB } from "@/db";
-import { orderTable, orderItemTable, productTable, orderStatusTuple, PAYMENT_STATUS } from "@/db/schema";
+import { orderTable, orderItemTable, productTable, orderStatusTuple, PAYMENT_STATUS, userTable } from "@/db/schema";
 import { desc, eq, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createServerAction } from "zsa";
@@ -133,9 +133,26 @@ export const getOrderByIdAction = createServerAction()
       .leftJoin(productTable, eq(orderItemTable.productId, productTable.id))
       .where(eq(orderItemTable.orderId, orderId));
 
+    // Get admin who created the order (if manual order)
+    let createdByAdmin = null;
+    if (order.createdByAdminId) {
+      const [admin] = await db
+        .select({
+          id: userTable.id,
+          firstName: userTable.firstName,
+          lastName: userTable.lastName,
+          email: userTable.email,
+        })
+        .from(userTable)
+        .where(eq(userTable.id, order.createdByAdminId))
+        .limit(1);
+      createdByAdmin = admin;
+    }
+
     return {
       ...order,
       items,
+      createdByAdmin,
     };
   });
 

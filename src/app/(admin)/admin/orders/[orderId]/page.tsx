@@ -1,13 +1,15 @@
 import { PageHeader } from "@/components/page-header";
 import { getOrderByIdAction } from "../../_actions/orders.action";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { OrderStatusBadge } from "../_components/order-status-badge";
 import { UpdateOrderStatusDialog } from "../_components/update-order-status-dialog";
 import { formatDate } from "@/utils/format-date";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import type { orderStatusTuple } from "@/db/schema";
+import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS } from "@/db/schema";
+import { User, CreditCard, FileText } from "lucide-react";
 
 interface PageProps {
   params: Promise<{
@@ -65,6 +67,20 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Manual Order Badge */}
+              {order.createdByAdmin && (
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">
+                    Manual order created by{" "}
+                    <span className="font-medium">
+                      {order.createdByAdmin.firstName} {order.createdByAdmin.lastName}
+                    </span>
+                  </span>
+                  <Badge variant="secondary" className="ml-auto">Manual</Badge>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
@@ -78,6 +94,14 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   </p>
                   <p className="text-lg">{order.customerEmail}</p>
                 </div>
+                {order.customerPhone && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Phone
+                    </p>
+                    <p className="text-lg">{order.customerPhone}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
                     Status
@@ -94,7 +118,39 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     ${(order.totalAmount / 100).toFixed(2)}
                   </p>
                 </div>
-                {order.stripePaymentIntentId && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Payment Method
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {order.paymentMethod
+                        ? PAYMENT_METHOD_LABELS[order.paymentMethod.toUpperCase() as keyof typeof PAYMENT_METHOD_LABELS]
+                        : "Card"}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Payment Status
+                  </p>
+                  {(() => {
+                    const statusKey = Object.keys(PAYMENT_STATUS).find(
+                      (key) => PAYMENT_STATUS[key as keyof typeof PAYMENT_STATUS] === order.paymentStatus
+                    ) as keyof typeof PAYMENT_STATUS_LABELS | undefined;
+                    return (
+                      <span
+                        className={`inline-flex items-center px-2 py-1 mt-1 rounded-full text-xs font-medium ${
+                          statusKey ? PAYMENT_STATUS_COLORS[statusKey] : ""
+                        }`}
+                      >
+                        {PAYMENT_STATUS_LABELS[statusKey || "PENDING"]}
+                      </span>
+                    );
+                  })()}
+                </div>
+                {order.stripePaymentIntentId && order.merchantProvider !== "manual" && (
                   <div className="col-span-2">
                     <p className="text-sm font-medium text-muted-foreground">
                       Payment Intent ID
@@ -111,6 +167,21 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   <p className="text-sm">{formatDate(order.updatedAt)}</p>
                 </div>
               </div>
+
+              {/* Admin Notes */}
+              {order.adminNotes && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Admin Notes
+                    </p>
+                  </div>
+                  <p className="text-sm bg-muted p-3 rounded-lg whitespace-pre-wrap">
+                    {order.adminNotes}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
