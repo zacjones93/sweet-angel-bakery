@@ -8,6 +8,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { orderStatusTuple } from "@/db/schema";
+import { Button } from "@/components/ui/button";
+import { MapPin } from "lucide-react";
 
 interface PageProps {
   params: Promise<{
@@ -30,6 +32,35 @@ export default async function OrderDetailPage({ params }: PageProps) {
   }
 
   const order = result;
+
+  // Parse delivery address for display
+  let deliveryAddress: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+  } | null = null;
+  let mapsUrl = "";
+
+  if (order.deliveryAddressJson) {
+    try {
+      const parsed = JSON.parse(order.deliveryAddressJson);
+      deliveryAddress = parsed;
+      const addressString = [
+        parsed.street,
+        parsed.city,
+        parsed.state,
+        parsed.zip,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+        addressString
+      )}`;
+    } catch {
+      // Ignore parse errors
+    }
+  }
 
   return (
     <>
@@ -113,6 +144,51 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Delivery Address */}
+          {deliveryAddress && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Delivery Address
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-base">{deliveryAddress.street}</p>
+                    <p className="text-base">
+                      {deliveryAddress.city}, {deliveryAddress.state}{" "}
+                      {deliveryAddress.zip}
+                    </p>
+                  </div>
+                  {order.deliveryInstructions && (
+                    <div className="pt-2 border-t">
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Delivery Instructions
+                      </p>
+                      <p className="text-sm">{order.deliveryInstructions}</p>
+                    </div>
+                  )}
+                  {mapsUrl && (
+                    <div className="pt-2">
+                      <Button variant="default" size="sm" asChild>
+                        <a
+                          href={mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Open in Google Maps
+                        </a>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Order Items */}
           <Card>

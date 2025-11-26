@@ -175,13 +175,27 @@ export function DeliveryViewTabs({ deliveryDate, orders, deliveryStops, depotAdd
                     </div>
                   </Link>
                   <div className="flex sm:flex-col items-center sm:items-end gap-2 justify-between sm:justify-start">
-                    <div className="text-left sm:text-right">
+                    <div className="text-left sm:text-right space-y-1">
                       <div className="font-semibold text-sm sm:text-base">
                         {formatCents(orderData.order.totalAmount)}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {orderData.order.deliveryTimeWindow}
                       </div>
+                      {orderData.order.deliveryAddressJson && (() => {
+                        try {
+                          const address = JSON.parse(orderData.order.deliveryAddressJson);
+                          return (
+                            <div className="text-xs text-muted-foreground max-w-[200px]">
+                              <div className="font-medium">Address:</div>
+                              <div>{address.street}</div>
+                              <div>{address.city}, {address.state} {address.zip}</div>
+                            </div>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                     {mapsUrl && (
                       <Button
