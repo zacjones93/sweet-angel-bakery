@@ -42,7 +42,8 @@
       "Bash(node:*)",
       "Bash(printf:*)",
       "Bash(git diff:*)",
-      "Skill(timezone)"
+      "Skill(timezone)",
+      "Skill(diagram)"
     ],
     "deny": [],
     "ask": []
